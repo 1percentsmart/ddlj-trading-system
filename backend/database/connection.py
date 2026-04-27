@@ -41,6 +41,7 @@ import os
 import logging
 from pathlib import Path
 from typing import AsyncGenerator, Optional
+from urllib.parse import urlparse, quote_plus
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -122,12 +123,27 @@ def get_engine() -> AsyncEngine:
             # Convert the standard postgres:// URL to postgresql+asyncpg://
             # WHY: Supabase gives us `postgresql://...` but SQLAlchemy's
             #      async driver needs `postgresql+asyncpg://...`
+            #
+            # IMPORTANT: We also sanitize the URL to handle special characters
+            # in the password (e.g., @, [, ], etc.) which would break URL parsing.
+            # Example: password "[IndianShit@123]" → "%5BIndianShit%40123%5D"
             url = DATABASE_URL
-            if url.startswith("postgresql://"):
-                url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-            elif url.startswith("postgres://"):
-                # Some Supabase URLs use postgres:// shorthand
-                url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+            if url.startswith("postgresql://") or url.startswith("postgres://"):
+                try:
+                    parsed = urlparse(url)
+                    # Rebuild the URL with properly encoded credentials
+                    safe_user = quote_plus(parsed.username or "")
+                    safe_password = quote_plus(parsed.password or "")
+                    host = parsed.hostname or ""
+                    port = parsed.port or 5432
+                    database = parsed.path.lstrip("/") or "postgres"
+                    url = f"postgresql+asyncpg://{safe_user}:{safe_password}@{host}:{port}/{database}"
+                except Exception:
+                    # Fallback: simple prefix replacement if URL parsing fails
+                    if url.startswith("postgresql://"):
+                        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+                    else:
+                        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
 
             _engine = create_async_engine(
                 url,
