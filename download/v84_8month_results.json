@@ -1,0 +1,4873 @@
+{
+  "version": "v8.4_8MONTH_COMPREHENSIVE",
+  "parameters": {
+    "starting_capital": 50000,
+    "daily_risk_pct": 6.0,
+    "max_open_positions": 2,
+    "risk_per_position": "OFF",
+    "test_period": "2025-09-01 to 2026-04-27",
+    "test_months": 8,
+    "method_b_batches": 4,
+    "batch_duration_months": 2,
+    "vix_data_points": 160,
+    "pricing_model": "Black-Scholes with real India VIX IV"
+  },
+  "method_a_full_compounding": {
+    "BN_15x60_sl2.0_RR1.5_ITM": {
+      "label": "BN_15x60_sl2.0_RR1.5_ITM_A",
+      "total_trades": 64,
+      "wins": 32,
+      "losses": 32,
+      "win_rate": 50.0,
+      "long_trades": 36,
+      "short_trades": 28,
+      "long_wr": 41.67,
+      "short_wr": 60.71,
+      "gross_profit": 380491.52,
+      "gross_loss": 96512.97,
+      "total_costs": 6024.7,
+      "net_pnl": 283978.55,
+      "net_pnl_pct": 567.96,
+      "profit_factor": 3.94,
+      "avg_win": 11890.36,
+      "avg_loss": 3016.03,
+      "avg_rr": 1.52,
+      "avg_held": 6.1,
+      "max_dd": 23358.53,
+      "max_dd_pct": 21.83,
+      "long_pnl": 184868.14,
+      "short_pnl": 99110.41,
+      "exit_reasons": {
+        "SL": 30,
+        "TARGET": 26,
+        "NEAR_TGT": 2,
+        "EOD": 6
+      },
+      "monthly_pnl": {
+        "2025-09": 9957.04,
+        "2025-10": -5679.56,
+        "2025-11": 21958.02,
+        "2025-12": 30701.26,
+        "2026-01": -6497.88,
+        "2026-02": 40793.38,
+        "2026-03": 47034.76,
+        "2026-04": 145711.53
+      },
+      "cost_per_trade": 94.14,
+      "avg_spread_cost": 11.11,
+      "avg_delta": 0.6566,
+      "opt_trades": 64,
+      "fut_trades": 0,
+      "largest_win": 68842.02,
+      "largest_loss": -8691.63,
+      "max_win_streak": 6,
+      "max_loss_streak": 4,
+      "trading_days": 50,
+      "avg_daily_pnl": 5679.57,
+      "sharpe_approx": 6.31,
+      "final_capital": 333978.55,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": 4277.48,
+        "2025_Batch6": 52659.28,
+        "2026_Batch1": 34295.5,
+        "2026_Batch2": 192746.29
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 16,
+          "wins": 6,
+          "losses": 10,
+          "win_rate": 37.5,
+          "net_pnl": 4277.48,
+          "avg_pnl": 267.34,
+          "long_pnl": 3860.47,
+          "short_pnl": 417.01,
+          "largest_win": 9542.92,
+          "largest_loss": -5445.22
+        },
+        "2025_Batch6": {
+          "trades": 17,
+          "wins": 10,
+          "losses": 7,
+          "win_rate": 58.8,
+          "net_pnl": 52659.28,
+          "avg_pnl": 3097.6,
+          "long_pnl": 22254.01,
+          "short_pnl": 30405.27,
+          "largest_win": 11794.95,
+          "largest_loss": -7398.91
+        },
+        "2026_Batch1": {
+          "trades": 20,
+          "wins": 9,
+          "losses": 11,
+          "win_rate": 45.0,
+          "net_pnl": 34295.5,
+          "avg_pnl": 1714.78,
+          "long_pnl": -4790.83,
+          "short_pnl": 39086.33,
+          "largest_win": 18110.43,
+          "largest_loss": -8691.63
+        },
+        "2026_Batch2": {
+          "trades": 11,
+          "wins": 7,
+          "losses": 4,
+          "win_rate": 63.6,
+          "net_pnl": 192746.29,
+          "avg_pnl": 17522.39,
+          "long_pnl": 163544.49,
+          "short_pnl": 29201.8,
+          "largest_win": 68842.02,
+          "largest_loss": -1654.33
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 9,
+          "long_wins": 3,
+          "long_wr": 33.3,
+          "long_pnl": 3860.47,
+          "short_trades": 7,
+          "short_wins": 3,
+          "short_wr": 42.9,
+          "short_pnl": 417.01
+        },
+        "2025_Batch6": {
+          "long_trades": 9,
+          "long_wins": 4,
+          "long_wr": 44.4,
+          "long_pnl": 22254.01,
+          "short_trades": 8,
+          "short_wins": 6,
+          "short_wr": 75.0,
+          "short_pnl": 30405.27
+        },
+        "2026_Batch1": {
+          "long_trades": 12,
+          "long_wins": 3,
+          "long_wr": 25.0,
+          "long_pnl": -4790.83,
+          "short_trades": 8,
+          "short_wins": 6,
+          "short_wr": 75.0,
+          "short_pnl": 39086.33
+        },
+        "2026_Batch2": {
+          "long_trades": 6,
+          "long_wins": 5,
+          "long_wr": 83.3,
+          "long_pnl": 163544.49,
+          "short_trades": 5,
+          "short_wins": 2,
+          "short_wr": 40.0,
+          "short_pnl": 29201.8
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 1965.34
+          },
+          "SL": {
+            "count": 10,
+            "pnl": -21458.77
+          },
+          "TARGET": {
+            "count": 5,
+            "pnl": 23770.91
+          }
+        },
+        "2025_Batch6": {
+          "EOD": {
+            "count": 5,
+            "pnl": 16783.72
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 9699.45
+          },
+          "SL": {
+            "count": 5,
+            "pnl": -16908.05
+          },
+          "TARGET": {
+            "count": 6,
+            "pnl": 43084.16
+          }
+        },
+        "2026_Batch1": {
+          "EOD": {
+            "count": 1,
+            "pnl": -2198.45
+          },
+          "SL": {
+            "count": 11,
+            "pnl": -51359.77
+          },
+          "TARGET": {
+            "count": 8,
+            "pnl": 87853.72
+          }
+        },
+        "2026_Batch2": {
+          "SL": {
+            "count": 4,
+            "pnl": -2563.26
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 195309.55
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 50,
+        "profitable_days": 28,
+        "loss_days": 22,
+        "max_loss_day": -11934.27,
+        "max_profit_day": 68842.02,
+        "avg_daily_pnl": 5679.57,
+        "risk_limit_hit_days": 11,
+        "pct_profitable_days": 56.0
+      },
+      "options_analysis": {
+        "total_opt_trades": 64,
+        "avg_spread_cost": 11.11,
+        "total_spread_cost": 711.07,
+        "avg_delta": 0.6566,
+        "ce_trades": 36,
+        "ce_pnl": 184868.14,
+        "ce_wr": 41.7,
+        "pe_trades": 28,
+        "pe_pnl": 99110.41,
+        "pe_wr": 60.7
+      }
+    },
+    "BN_15x60_sl2.0_RR1.5_ATM": {
+      "label": "BN_15x60_sl2.0_RR1.5_ATM_A",
+      "total_trades": 64,
+      "wins": 32,
+      "losses": 32,
+      "win_rate": 50.0,
+      "long_trades": 36,
+      "short_trades": 28,
+      "long_wr": 41.67,
+      "short_wr": 60.71,
+      "gross_profit": 340835.82,
+      "gross_loss": 75242.28,
+      "total_costs": 5593.71,
+      "net_pnl": 265593.54,
+      "net_pnl_pct": 531.19,
+      "profit_factor": 4.53,
+      "avg_win": 10651.12,
+      "avg_loss": 2351.32,
+      "avg_rr": 1.52,
+      "avg_held": 6.1,
+      "max_dd": 12472.28,
+      "max_dd_pct": 16.47,
+      "long_pnl": 176591.8,
+      "short_pnl": 89001.74,
+      "exit_reasons": {
+        "SL": 30,
+        "TARGET": 26,
+        "NEAR_TGT": 2,
+        "EOD": 6
+      },
+      "monthly_pnl": {
+        "2025-09": 9567.69,
+        "2025-10": -4716.83,
+        "2025-11": 20184.61,
+        "2025-12": 22216.59,
+        "2026-01": 2324.58,
+        "2026-02": 36562.83,
+        "2026-03": 40091.83,
+        "2026-04": 139362.24
+      },
+      "cost_per_trade": 87.4,
+      "avg_spread_cost": 11.9,
+      "avg_delta": 0.4806,
+      "opt_trades": 64,
+      "fut_trades": 0,
+      "largest_win": 67628.34,
+      "largest_loss": -8074.09,
+      "max_win_streak": 6,
+      "max_loss_streak": 4,
+      "trading_days": 50,
+      "avg_daily_pnl": 5311.87,
+      "sharpe_approx": 6.4,
+      "final_capital": 315593.54,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": 4850.86,
+        "2025_Batch6": 42401.2,
+        "2026_Batch1": 38887.41,
+        "2026_Batch2": 179454.07
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 16,
+          "wins": 6,
+          "losses": 10,
+          "win_rate": 37.5,
+          "net_pnl": 4850.86,
+          "avg_pnl": 303.18,
+          "long_pnl": 2390.84,
+          "short_pnl": 2460.02,
+          "largest_win": 8620.55,
+          "largest_loss": -5329.03
+        },
+        "2025_Batch6": {
+          "trades": 17,
+          "wins": 10,
+          "losses": 7,
+          "win_rate": 58.8,
+          "net_pnl": 42401.2,
+          "avg_pnl": 2494.19,
+          "long_pnl": 22339.96,
+          "short_pnl": 20061.24,
+          "largest_win": 9371.01,
+          "largest_loss": -6498.86
+        },
+        "2026_Batch1": {
+          "trades": 20,
+          "wins": 9,
+          "losses": 11,
+          "win_rate": 45.0,
+          "net_pnl": 38887.41,
+          "avg_pnl": 1944.37,
+          "long_pnl": -3896.82,
+          "short_pnl": 42784.23,
+          "largest_win": 15189.28,
+          "largest_loss": -8074.09
+        },
+        "2026_Batch2": {
+          "trades": 11,
+          "wins": 7,
+          "losses": 4,
+          "win_rate": 63.6,
+          "net_pnl": 179454.07,
+          "avg_pnl": 16314.01,
+          "long_pnl": 155757.82,
+          "short_pnl": 23696.25,
+          "largest_win": 67628.34,
+          "largest_loss": -1959.88
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 9,
+          "long_wins": 3,
+          "long_wr": 33.3,
+          "long_pnl": 2390.84,
+          "short_trades": 7,
+          "short_wins": 3,
+          "short_wr": 42.9,
+          "short_pnl": 2460.02
+        },
+        "2025_Batch6": {
+          "long_trades": 9,
+          "long_wins": 4,
+          "long_wr": 44.4,
+          "long_pnl": 22339.96,
+          "short_trades": 8,
+          "short_wins": 6,
+          "short_wr": 75.0,
+          "short_pnl": 20061.24
+        },
+        "2026_Batch1": {
+          "long_trades": 12,
+          "long_wins": 3,
+          "long_wr": 25.0,
+          "long_pnl": -3896.82,
+          "short_trades": 8,
+          "short_wins": 6,
+          "short_wr": 75.0,
+          "short_pnl": 42784.23
+        },
+        "2026_Batch2": {
+          "long_trades": 6,
+          "long_wins": 5,
+          "long_wr": 83.3,
+          "long_pnl": 155757.82,
+          "short_trades": 5,
+          "short_wins": 2,
+          "short_wr": 40.0,
+          "short_pnl": 23696.25
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 3612.05
+          },
+          "SL": {
+            "count": 10,
+            "pnl": -20085.49
+          },
+          "TARGET": {
+            "count": 5,
+            "pnl": 21324.3
+          }
+        },
+        "2025_Batch6": {
+          "EOD": {
+            "count": 5,
+            "pnl": 9065.65
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 9371.01
+          },
+          "SL": {
+            "count": 5,
+            "pnl": -11056.67
+          },
+          "TARGET": {
+            "count": 6,
+            "pnl": 35021.21
+          }
+        },
+        "2026_Batch1": {
+          "EOD": {
+            "count": 1,
+            "pnl": -2076.32
+          },
+          "SL": {
+            "count": 11,
+            "pnl": -36942.41
+          },
+          "TARGET": {
+            "count": 8,
+            "pnl": 77906.14
+          }
+        },
+        "2026_Batch2": {
+          "SL": {
+            "count": 4,
+            "pnl": -2921.29
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 182375.36
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 50,
+        "profitable_days": 28,
+        "loss_days": 22,
+        "max_loss_day": -9982.99,
+        "max_profit_day": 67628.34,
+        "avg_daily_pnl": 5311.87,
+        "risk_limit_hit_days": 8,
+        "pct_profitable_days": 56.0
+      },
+      "options_analysis": {
+        "total_opt_trades": 64,
+        "avg_spread_cost": 11.9,
+        "total_spread_cost": 761.87,
+        "avg_delta": 0.4806,
+        "ce_trades": 36,
+        "ce_pnl": 176591.8,
+        "ce_wr": 41.7,
+        "pe_trades": 28,
+        "pe_pnl": 89001.74,
+        "pe_wr": 60.7
+      }
+    },
+    "BN_15x60_sl2.5_RR2.0_ITM": {
+      "label": "BN_15x60_sl2.5_RR2.0_ITM_A",
+      "total_trades": 65,
+      "wins": 29,
+      "losses": 36,
+      "win_rate": 44.62,
+      "long_trades": 37,
+      "short_trades": 28,
+      "long_wr": 37.84,
+      "short_wr": 53.57,
+      "gross_profit": 359936.31,
+      "gross_loss": 78742.38,
+      "total_costs": 6136.47,
+      "net_pnl": 281193.93,
+      "net_pnl_pct": 562.39,
+      "profit_factor": 4.57,
+      "avg_win": 12411.6,
+      "avg_loss": 2187.29,
+      "avg_rr": 2.0,
+      "avg_held": 4.6,
+      "max_dd": 25487.62,
+      "max_dd_pct": 21.41,
+      "long_pnl": 198628.84,
+      "short_pnl": 82565.09,
+      "exit_reasons": {
+        "SL": 36,
+        "TARGET": 22,
+        "EOD": 5,
+        "NEAR_TGT": 2
+      },
+      "monthly_pnl": {
+        "2025-09": 8904.65,
+        "2025-10": 3555.94,
+        "2025-11": 21958.02,
+        "2025-12": 15984.22,
+        "2026-01": -6821.06,
+        "2026-02": 44865.87,
+        "2026-03": 47034.76,
+        "2026-04": 145711.53
+      },
+      "cost_per_trade": 94.41,
+      "avg_spread_cost": 11.09,
+      "avg_delta": 0.6526,
+      "opt_trades": 65,
+      "fut_trades": 0,
+      "largest_win": 68842.02,
+      "largest_loss": -7832.19,
+      "max_win_streak": 6,
+      "max_loss_streak": 7,
+      "trading_days": 50,
+      "avg_daily_pnl": 5623.88,
+      "sharpe_approx": 6.39,
+      "final_capital": 331193.93,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": 12460.59,
+        "2025_Batch6": 37942.24,
+        "2026_Batch1": 38044.81,
+        "2026_Batch2": 192746.29
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 17,
+          "wins": 7,
+          "losses": 10,
+          "win_rate": 41.2,
+          "net_pnl": 12460.59,
+          "avg_pnl": 732.98,
+          "long_pnl": 1495.42,
+          "short_pnl": 10965.17,
+          "largest_win": 9542.92,
+          "largest_loss": -4997.2
+        },
+        "2025_Batch6": {
+          "trades": 17,
+          "wins": 8,
+          "losses": 9,
+          "win_rate": 47.1,
+          "net_pnl": 37942.24,
+          "avg_pnl": 2231.9,
+          "long_pnl": 16992.12,
+          "short_pnl": 20950.12,
+          "largest_win": 11794.95,
+          "largest_loss": -5775.49
+        },
+        "2026_Batch1": {
+          "trades": 20,
+          "wins": 7,
+          "losses": 13,
+          "win_rate": 35.0,
+          "net_pnl": 38044.81,
+          "avg_pnl": 1902.24,
+          "long_pnl": 16596.81,
+          "short_pnl": 21448.0,
+          "largest_win": 18110.43,
+          "largest_loss": -7832.19
+        },
+        "2026_Batch2": {
+          "trades": 11,
+          "wins": 7,
+          "losses": 4,
+          "win_rate": 63.6,
+          "net_pnl": 192746.29,
+          "avg_pnl": 17522.39,
+          "long_pnl": 163544.49,
+          "short_pnl": 29201.8,
+          "largest_win": 68842.02,
+          "largest_loss": -1654.33
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 10,
+          "long_wins": 3,
+          "long_wr": 30.0,
+          "long_pnl": 1495.42,
+          "short_trades": 7,
+          "short_wins": 4,
+          "short_wr": 57.1,
+          "short_pnl": 10965.17
+        },
+        "2025_Batch6": {
+          "long_trades": 9,
+          "long_wins": 3,
+          "long_wr": 33.3,
+          "long_pnl": 16992.12,
+          "short_trades": 8,
+          "short_wins": 5,
+          "short_wr": 62.5,
+          "short_pnl": 20950.12
+        },
+        "2026_Batch1": {
+          "long_trades": 12,
+          "long_wins": 3,
+          "long_wr": 25.0,
+          "long_pnl": 16596.81,
+          "short_trades": 8,
+          "short_wins": 4,
+          "short_wr": 50.0,
+          "short_pnl": 21448.0
+        },
+        "2026_Batch2": {
+          "long_trades": 6,
+          "long_wins": 5,
+          "long_wr": 83.3,
+          "long_pnl": 163544.49,
+          "short_trades": 5,
+          "short_wins": 2,
+          "short_wr": 40.0,
+          "short_pnl": 29201.8
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "EOD": {
+            "count": 1,
+            "pnl": 6974.93
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 3974.88
+          },
+          "SL": {
+            "count": 10,
+            "pnl": -22260.13
+          },
+          "TARGET": {
+            "count": 5,
+            "pnl": 23770.91
+          }
+        },
+        "2025_Batch6": {
+          "EOD": {
+            "count": 3,
+            "pnl": 18465.74
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 9699.45
+          },
+          "SL": {
+            "count": 9,
+            "pnl": -17359.02
+          },
+          "TARGET": {
+            "count": 4,
+            "pnl": 27136.07
+          }
+        },
+        "2026_Batch1": {
+          "EOD": {
+            "count": 1,
+            "pnl": -2198.45
+          },
+          "SL": {
+            "count": 13,
+            "pnl": -34018.87
+          },
+          "TARGET": {
+            "count": 6,
+            "pnl": 74262.13
+          }
+        },
+        "2026_Batch2": {
+          "SL": {
+            "count": 4,
+            "pnl": -2563.26
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 195309.55
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 50,
+        "profitable_days": 25,
+        "loss_days": 25,
+        "max_loss_day": -11871.35,
+        "max_profit_day": 68842.02,
+        "avg_daily_pnl": 5623.88,
+        "risk_limit_hit_days": 9,
+        "pct_profitable_days": 50.0
+      },
+      "options_analysis": {
+        "total_opt_trades": 65,
+        "avg_spread_cost": 11.09,
+        "total_spread_cost": 720.65,
+        "avg_delta": 0.6526,
+        "ce_trades": 37,
+        "ce_pnl": 198628.84,
+        "ce_wr": 37.8,
+        "pe_trades": 28,
+        "pe_pnl": 82565.09,
+        "pe_wr": 53.6
+      }
+    },
+    "BN_15x15_sl2.0_RR1.5_ITM": {
+      "label": "BN_15x15_sl2.0_RR1.5_ITM_A",
+      "total_trades": 82,
+      "wins": 42,
+      "losses": 40,
+      "win_rate": 51.22,
+      "long_trades": 29,
+      "short_trades": 53,
+      "long_wr": 34.48,
+      "short_wr": 60.38,
+      "gross_profit": 461156.84,
+      "gross_loss": 163932.36,
+      "total_costs": 8299.72,
+      "net_pnl": 297224.48,
+      "net_pnl_pct": 594.45,
+      "profit_factor": 2.81,
+      "avg_win": 10979.92,
+      "avg_loss": 4098.31,
+      "avg_rr": 1.64,
+      "avg_held": 5.8,
+      "max_dd": 28041.64,
+      "max_dd_pct": 24.47,
+      "long_pnl": 118680.47,
+      "short_pnl": 178544.01,
+      "exit_reasons": {
+        "TARGET": 29,
+        "SL": 34,
+        "EOD": 15,
+        "BIAS_FLIP": 3,
+        "NEAR_TGT": 1
+      },
+      "monthly_pnl": {
+        "2025-09": 5914.1,
+        "2025-10": 42537.17,
+        "2025-11": 10312.32,
+        "2025-12": -1180.52,
+        "2026-01": 3713.26,
+        "2026-02": 73987.72,
+        "2026-03": 29763.73,
+        "2026-04": 132176.7
+      },
+      "cost_per_trade": 101.22,
+      "avg_spread_cost": 11.06,
+      "avg_delta": 0.6226,
+      "opt_trades": 82,
+      "fut_trades": 0,
+      "largest_win": 68842.02,
+      "largest_loss": -11355.79,
+      "max_win_streak": 7,
+      "max_loss_streak": 6,
+      "trading_days": 67,
+      "avg_daily_pnl": 4436.19,
+      "sharpe_approx": 5.16,
+      "final_capital": 347224.48,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": 48451.27,
+        "2025_Batch6": 9131.8,
+        "2026_Batch1": 77700.98,
+        "2026_Batch2": 161940.43
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 19,
+          "wins": 9,
+          "losses": 10,
+          "win_rate": 47.4,
+          "net_pnl": 48451.27,
+          "avg_pnl": 2550.07,
+          "long_pnl": 2304.65,
+          "short_pnl": 46146.62,
+          "largest_win": 28510.73,
+          "largest_loss": -8145.73
+        },
+        "2025_Batch6": {
+          "trades": 22,
+          "wins": 10,
+          "losses": 12,
+          "win_rate": 45.5,
+          "net_pnl": 9131.8,
+          "avg_pnl": 415.08,
+          "long_pnl": -287.92,
+          "short_pnl": 9419.72,
+          "largest_win": 13310.65,
+          "largest_loss": -6361.32
+        },
+        "2026_Batch1": {
+          "trades": 27,
+          "wins": 14,
+          "losses": 13,
+          "win_rate": 51.9,
+          "net_pnl": 77700.98,
+          "avg_pnl": 2877.81,
+          "long_pnl": 44391.47,
+          "short_pnl": 33309.51,
+          "largest_win": 21456.87,
+          "largest_loss": -9838.92
+        },
+        "2026_Batch2": {
+          "trades": 14,
+          "wins": 9,
+          "losses": 5,
+          "win_rate": 64.3,
+          "net_pnl": 161940.43,
+          "avg_pnl": 11567.17,
+          "long_pnl": 72272.27,
+          "short_pnl": 89668.16,
+          "largest_win": 68842.02,
+          "largest_loss": -11355.79
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 5,
+          "long_wins": 1,
+          "long_wr": 20.0,
+          "long_pnl": 2304.65,
+          "short_trades": 14,
+          "short_wins": 8,
+          "short_wr": 57.1,
+          "short_pnl": 46146.62
+        },
+        "2025_Batch6": {
+          "long_trades": 8,
+          "long_wins": 2,
+          "long_wr": 25.0,
+          "long_pnl": -287.92,
+          "short_trades": 14,
+          "short_wins": 8,
+          "short_wr": 57.1,
+          "short_pnl": 9419.72
+        },
+        "2026_Batch1": {
+          "long_trades": 12,
+          "long_wins": 5,
+          "long_wr": 41.7,
+          "long_pnl": 44391.47,
+          "short_trades": 15,
+          "short_wins": 9,
+          "short_wr": 60.0,
+          "short_pnl": 33309.51
+        },
+        "2026_Batch2": {
+          "long_trades": 4,
+          "long_wins": 2,
+          "long_wr": 50.0,
+          "long_pnl": 72272.27,
+          "short_trades": 10,
+          "short_wins": 7,
+          "short_wr": 70.0,
+          "short_pnl": 89668.16
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "EOD": {
+            "count": 2,
+            "pnl": 29329.66
+          },
+          "SL": {
+            "count": 10,
+            "pnl": -29444.47
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 48566.08
+          }
+        },
+        "2025_Batch6": {
+          "BIAS_FLIP": {
+            "count": 2,
+            "pnl": -5276.37
+          },
+          "EOD": {
+            "count": 7,
+            "pnl": 10049.83
+          },
+          "SL": {
+            "count": 8,
+            "pnl": -30673.44
+          },
+          "TARGET": {
+            "count": 5,
+            "pnl": 35031.78
+          }
+        },
+        "2026_Batch1": {
+          "EOD": {
+            "count": 3,
+            "pnl": 19591.13
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 6545.84
+          },
+          "SL": {
+            "count": 13,
+            "pnl": -58287.95
+          },
+          "TARGET": {
+            "count": 10,
+            "pnl": 109851.96
+          }
+        },
+        "2026_Batch2": {
+          "BIAS_FLIP": {
+            "count": 1,
+            "pnl": -3154.6
+          },
+          "EOD": {
+            "count": 3,
+            "pnl": 34131.88
+          },
+          "SL": {
+            "count": 3,
+            "pnl": -19105.85
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 150069.0
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 67,
+        "profitable_days": 37,
+        "loss_days": 30,
+        "max_loss_day": -14510.39,
+        "max_profit_day": 68842.02,
+        "avg_daily_pnl": 4436.19,
+        "risk_limit_hit_days": 19,
+        "pct_profitable_days": 55.2
+      },
+      "options_analysis": {
+        "total_opt_trades": 82,
+        "avg_spread_cost": 11.06,
+        "total_spread_cost": 907.3,
+        "avg_delta": 0.6226,
+        "ce_trades": 29,
+        "ce_pnl": 118680.47,
+        "ce_wr": 34.5,
+        "pe_trades": 53,
+        "pe_pnl": 178544.01,
+        "pe_wr": 60.4
+      }
+    },
+    "BN_5x60_sl2.0_RR1.5_ITM": {
+      "label": "BN_5x60_sl2.0_RR1.5_ITM_A",
+      "total_trades": 209,
+      "wins": 71,
+      "losses": 138,
+      "win_rate": 33.97,
+      "long_trades": 118,
+      "short_trades": 91,
+      "long_wr": 33.9,
+      "short_wr": 34.07,
+      "gross_profit": 254429.15,
+      "gross_loss": 284807.68,
+      "total_costs": 15765.38,
+      "net_pnl": -30378.53,
+      "net_pnl_pct": -60.76,
+      "profit_factor": 0.89,
+      "avg_win": 3583.51,
+      "avg_loss": 2063.82,
+      "avg_rr": 1.53,
+      "avg_held": 7.2,
+      "max_dd": 81579.9,
+      "max_dd_pct": 88.53,
+      "long_pnl": -30946.39,
+      "short_pnl": 567.86,
+      "exit_reasons": {
+        "SL": 139,
+        "TARGET": 53,
+        "NEAR_TGT": 7,
+        "BIAS_FLIP": 7,
+        "EOD": 3
+      },
+      "monthly_pnl": {
+        "2025-09": -13136.03,
+        "2025-10": 8764.15,
+        "2025-11": 12763.02,
+        "2025-12": 17481.06,
+        "2026-01": -6850.07,
+        "2026-02": -30820.62,
+        "2026-03": -2668.22,
+        "2026-04": -15911.82
+      },
+      "cost_per_trade": 75.43,
+      "avg_spread_cost": 9.79,
+      "avg_delta": 0.6223,
+      "opt_trades": 209,
+      "fut_trades": 0,
+      "largest_win": 21692.64,
+      "largest_loss": -8252.23,
+      "max_win_streak": 4,
+      "max_loss_streak": 10,
+      "trading_days": 131,
+      "avg_daily_pnl": -231.9,
+      "sharpe_approx": -0.73,
+      "final_capital": 19621.47,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": -4371.88,
+        "2025_Batch6": 30244.08,
+        "2026_Batch1": -37670.69,
+        "2026_Batch2": -18580.04
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 54,
+          "wins": 24,
+          "losses": 30,
+          "win_rate": 44.4,
+          "net_pnl": -4371.88,
+          "avg_pnl": -80.96,
+          "long_pnl": -12628.57,
+          "short_pnl": 8256.69,
+          "largest_win": 5517.13,
+          "largest_loss": -5992.21
+        },
+        "2025_Batch6": {
+          "trades": 62,
+          "wins": 20,
+          "losses": 42,
+          "win_rate": 32.3,
+          "net_pnl": 30244.08,
+          "avg_pnl": 487.81,
+          "long_pnl": 10667.94,
+          "short_pnl": 19576.14,
+          "largest_win": 10978.41,
+          "largest_loss": -4451.63
+        },
+        "2026_Batch1": {
+          "trades": 58,
+          "wins": 16,
+          "losses": 42,
+          "win_rate": 27.6,
+          "net_pnl": -37670.69,
+          "avg_pnl": -649.49,
+          "long_pnl": -23074.34,
+          "short_pnl": -14596.35,
+          "largest_win": 14865.0,
+          "largest_loss": -8252.23
+        },
+        "2026_Batch2": {
+          "trades": 35,
+          "wins": 11,
+          "losses": 24,
+          "win_rate": 31.4,
+          "net_pnl": -18580.04,
+          "avg_pnl": -530.86,
+          "long_pnl": -5911.42,
+          "short_pnl": -12668.62,
+          "largest_win": 21692.64,
+          "largest_loss": -6071.15
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 37,
+          "long_wins": 14,
+          "long_wr": 37.8,
+          "long_pnl": -12628.57,
+          "short_trades": 17,
+          "short_wins": 10,
+          "short_wr": 58.8,
+          "short_pnl": 8256.69
+        },
+        "2025_Batch6": {
+          "long_trades": 32,
+          "long_wins": 10,
+          "long_wr": 31.2,
+          "long_pnl": 10667.94,
+          "short_trades": 30,
+          "short_wins": 10,
+          "short_wr": 33.3,
+          "short_pnl": 19576.14
+        },
+        "2026_Batch1": {
+          "long_trades": 31,
+          "long_wins": 8,
+          "long_wr": 25.8,
+          "long_pnl": -23074.34,
+          "short_trades": 27,
+          "short_wins": 8,
+          "short_wr": 29.6,
+          "short_pnl": -14596.35
+        },
+        "2026_Batch2": {
+          "long_trades": 18,
+          "long_wins": 8,
+          "long_wr": 44.4,
+          "long_pnl": -5911.42,
+          "short_trades": 17,
+          "short_wins": 3,
+          "short_wr": 17.6,
+          "short_pnl": -12668.62
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "BIAS_FLIP": {
+            "count": 1,
+            "pnl": -2393.69
+          },
+          "EOD": {
+            "count": 1,
+            "pnl": 3146.98
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 968.39
+          },
+          "SL": {
+            "count": 34,
+            "pnl": -49449.35
+          },
+          "TARGET": {
+            "count": 17,
+            "pnl": 43355.79
+          }
+        },
+        "2025_Batch6": {
+          "BIAS_FLIP": {
+            "count": 1,
+            "pnl": -914.79
+          },
+          "NEAR_TGT": {
+            "count": 3,
+            "pnl": 12166.24
+          },
+          "SL": {
+            "count": 41,
+            "pnl": -64869.23
+          },
+          "TARGET": {
+            "count": 17,
+            "pnl": 83861.86
+          }
+        },
+        "2026_Batch1": {
+          "BIAS_FLIP": {
+            "count": 2,
+            "pnl": -1367.92
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 4724.34
+          },
+          "SL": {
+            "count": 43,
+            "pnl": -76453.8
+          },
+          "TARGET": {
+            "count": 12,
+            "pnl": 35426.69
+          }
+        },
+        "2026_Batch2": {
+          "BIAS_FLIP": {
+            "count": 3,
+            "pnl": -2210.97
+          },
+          "EOD": {
+            "count": 2,
+            "pnl": -652.88
+          },
+          "NEAR_TGT": {
+            "count": 2,
+            "pnl": 2372.58
+          },
+          "SL": {
+            "count": 21,
+            "pnl": -57071.15
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 38982.38
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 131,
+        "profitable_days": 52,
+        "loss_days": 79,
+        "max_loss_day": -8862.11,
+        "max_profit_day": 21692.64,
+        "avg_daily_pnl": -231.9,
+        "risk_limit_hit_days": 37,
+        "pct_profitable_days": 39.7
+      },
+      "options_analysis": {
+        "total_opt_trades": 209,
+        "avg_spread_cost": 9.79,
+        "total_spread_cost": 2045.76,
+        "avg_delta": 0.6223,
+        "ce_trades": 118,
+        "ce_pnl": -30946.39,
+        "ce_wr": 33.9,
+        "pe_trades": 91,
+        "pe_pnl": 567.86,
+        "pe_wr": 34.1
+      }
+    },
+    "NF_15x60_sl2.0_RR1.5_ITM": {
+      "label": "NF_15x60_sl2.0_RR1.5_ITM_A",
+      "total_trades": 78,
+      "wins": 33,
+      "losses": 45,
+      "win_rate": 42.31,
+      "long_trades": 37,
+      "short_trades": 41,
+      "long_wr": 45.95,
+      "short_wr": 39.02,
+      "gross_profit": 103490.08,
+      "gross_loss": 113388.8,
+      "total_costs": 5347.42,
+      "net_pnl": -9898.72,
+      "net_pnl_pct": -19.8,
+      "profit_factor": 0.91,
+      "avg_win": 3136.06,
+      "avg_loss": 2519.75,
+      "avg_rr": 1.54,
+      "avg_held": 6.6,
+      "max_dd": 50446.51,
+      "max_dd_pct": 89.64,
+      "long_pnl": 20445.89,
+      "short_pnl": -30344.61,
+      "exit_reasons": {
+        "SL": 42,
+        "EOD": 9,
+        "NEAR_TGT": 4,
+        "TARGET": 21,
+        "BIAS_FLIP": 2
+      },
+      "monthly_pnl": {
+        "2025-09": -5456.62,
+        "2025-10": 5078.28,
+        "2025-11": -7702.4,
+        "2025-12": -9033.92,
+        "2026-01": -12423.27,
+        "2026-02": -10035.43,
+        "2026-03": 390.58,
+        "2026-04": 29284.06
+      },
+      "cost_per_trade": 68.56,
+      "avg_spread_cost": 4.86,
+      "avg_delta": 0.7339,
+      "opt_trades": 78,
+      "fut_trades": 0,
+      "largest_win": 13496.95,
+      "largest_loss": -11396.25,
+      "max_win_streak": 4,
+      "max_loss_streak": 6,
+      "trading_days": 64,
+      "avg_daily_pnl": -154.67,
+      "sharpe_approx": -0.56,
+      "final_capital": 40101.28,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": -378.34,
+        "2025_Batch6": -16736.32,
+        "2026_Batch1": -22458.7,
+        "2026_Batch2": 29674.64
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 15,
+          "wins": 8,
+          "losses": 7,
+          "win_rate": 53.3,
+          "net_pnl": -378.34,
+          "avg_pnl": -25.22,
+          "long_pnl": -10178.76,
+          "short_pnl": 9800.42,
+          "largest_win": 4203.04,
+          "largest_loss": -11396.25
+        },
+        "2025_Batch6": {
+          "trades": 23,
+          "wins": 8,
+          "losses": 15,
+          "win_rate": 34.8,
+          "net_pnl": -16736.32,
+          "avg_pnl": -727.67,
+          "long_pnl": -10450.68,
+          "short_pnl": -6285.64,
+          "largest_win": 7035.41,
+          "largest_loss": -6228.08
+        },
+        "2026_Batch1": {
+          "trades": 27,
+          "wins": 9,
+          "losses": 18,
+          "win_rate": 33.3,
+          "net_pnl": -22458.7,
+          "avg_pnl": -831.8,
+          "long_pnl": 9318.38,
+          "short_pnl": -31777.08,
+          "largest_win": 6397.17,
+          "largest_loss": -8605.81
+        },
+        "2026_Batch2": {
+          "trades": 13,
+          "wins": 8,
+          "losses": 5,
+          "win_rate": 61.5,
+          "net_pnl": 29674.64,
+          "avg_pnl": 2282.66,
+          "long_pnl": 31756.95,
+          "short_pnl": -2082.31,
+          "largest_win": 13496.95,
+          "largest_loss": -4923.73
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 9,
+          "long_wins": 4,
+          "long_wr": 44.4,
+          "long_pnl": -10178.76,
+          "short_trades": 6,
+          "short_wins": 4,
+          "short_wr": 66.7,
+          "short_pnl": 9800.42
+        },
+        "2025_Batch6": {
+          "long_trades": 13,
+          "long_wins": 3,
+          "long_wr": 23.1,
+          "long_pnl": -10450.68,
+          "short_trades": 10,
+          "short_wins": 5,
+          "short_wr": 50.0,
+          "short_pnl": -6285.64
+        },
+        "2026_Batch1": {
+          "long_trades": 10,
+          "long_wins": 5,
+          "long_wr": 50.0,
+          "long_pnl": 9318.38,
+          "short_trades": 17,
+          "short_wins": 4,
+          "short_wr": 23.5,
+          "short_pnl": -31777.08
+        },
+        "2026_Batch2": {
+          "long_trades": 5,
+          "long_wins": 5,
+          "long_wr": 100.0,
+          "long_pnl": 31756.95,
+          "short_trades": 8,
+          "short_wins": 3,
+          "short_wr": 37.5,
+          "short_pnl": -2082.31
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "BIAS_FLIP": {
+            "count": 2,
+            "pnl": -960.6
+          },
+          "EOD": {
+            "count": 1,
+            "pnl": 1279.46
+          },
+          "NEAR_TGT": {
+            "count": 2,
+            "pnl": 3108.76
+          },
+          "SL": {
+            "count": 6,
+            "pnl": -16622.03
+          },
+          "TARGET": {
+            "count": 4,
+            "pnl": 12816.07
+          }
+        },
+        "2025_Batch6": {
+          "EOD": {
+            "count": 2,
+            "pnl": 3222.74
+          },
+          "NEAR_TGT": {
+            "count": 2,
+            "pnl": 3367.65
+          },
+          "SL": {
+            "count": 15,
+            "pnl": -36320.28
+          },
+          "TARGET": {
+            "count": 4,
+            "pnl": 12993.57
+          }
+        },
+        "2026_Batch1": {
+          "EOD": {
+            "count": 4,
+            "pnl": -345.14
+          },
+          "SL": {
+            "count": 17,
+            "pnl": -42321.81
+          },
+          "TARGET": {
+            "count": 6,
+            "pnl": 20208.25
+          }
+        },
+        "2026_Batch2": {
+          "EOD": {
+            "count": 2,
+            "pnl": 249.68
+          },
+          "SL": {
+            "count": 4,
+            "pnl": -12241.05
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 41666.01
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 64,
+        "profitable_days": 29,
+        "loss_days": 35,
+        "max_loss_day": -13004.53,
+        "max_profit_day": 13496.95,
+        "avg_daily_pnl": -154.67,
+        "risk_limit_hit_days": 11,
+        "pct_profitable_days": 45.3
+      },
+      "options_analysis": {
+        "total_opt_trades": 78,
+        "avg_spread_cost": 4.86,
+        "total_spread_cost": 378.86,
+        "avg_delta": 0.7339,
+        "ce_trades": 37,
+        "ce_pnl": 20445.89,
+        "ce_wr": 45.9,
+        "pe_trades": 41,
+        "pe_pnl": -30344.61,
+        "pe_wr": 39.0
+      }
+    },
+    "NF_15x60_sl2.0_RR1.5_ATM": {
+      "label": "NF_15x60_sl2.0_RR1.5_ATM_A",
+      "total_trades": 80,
+      "wins": 34,
+      "losses": 46,
+      "win_rate": 42.5,
+      "long_trades": 39,
+      "short_trades": 41,
+      "long_wr": 46.15,
+      "short_wr": 39.02,
+      "gross_profit": 234094.23,
+      "gross_loss": 131556.14,
+      "total_costs": 6241.97,
+      "net_pnl": 102538.09,
+      "net_pnl_pct": 205.08,
+      "profit_factor": 1.78,
+      "avg_win": 6885.12,
+      "avg_loss": 2859.92,
+      "avg_rr": 1.54,
+      "avg_held": 6.5,
+      "max_dd": 22892.58,
+      "max_dd_pct": 27.92,
+      "long_pnl": 103448.34,
+      "short_pnl": -910.25,
+      "exit_reasons": {
+        "SL": 42,
+        "EOD": 10,
+        "NEAR_TGT": 4,
+        "TARGET": 22,
+        "BIAS_FLIP": 2
+      },
+      "monthly_pnl": {
+        "2025-09": 7241.43,
+        "2025-10": 14680.54,
+        "2025-11": -4946.4,
+        "2025-12": 6511.43,
+        "2026-01": 4766.48,
+        "2026-02": -13726.96,
+        "2026-03": 11193.58,
+        "2026-04": 76817.99
+      },
+      "cost_per_trade": 78.02,
+      "avg_spread_cost": 3.96,
+      "avg_delta": 0.4997,
+      "opt_trades": 80,
+      "fut_trades": 0,
+      "largest_win": 40661.57,
+      "largest_loss": -10133.22,
+      "max_win_streak": 4,
+      "max_loss_streak": 6,
+      "trading_days": 64,
+      "avg_daily_pnl": 1602.16,
+      "sharpe_approx": 3.22,
+      "final_capital": 152538.09,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": 21921.97,
+        "2025_Batch6": 1565.03,
+        "2026_Batch1": -8960.48,
+        "2026_Batch2": 88011.57
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 15,
+          "wins": 8,
+          "losses": 7,
+          "win_rate": 53.3,
+          "net_pnl": 21921.97,
+          "avg_pnl": 1461.46,
+          "long_pnl": 5363.22,
+          "short_pnl": 16558.75,
+          "largest_win": 12098.07,
+          "largest_loss": -5035.75
+        },
+        "2025_Batch6": {
+          "trades": 24,
+          "wins": 9,
+          "losses": 15,
+          "win_rate": 37.5,
+          "net_pnl": 1565.03,
+          "avg_pnl": 65.21,
+          "long_pnl": -9891.28,
+          "short_pnl": 11456.31,
+          "largest_win": 10681.33,
+          "largest_loss": -7393.07
+        },
+        "2026_Batch1": {
+          "trades": 28,
+          "wins": 9,
+          "losses": 19,
+          "win_rate": 32.1,
+          "net_pnl": -8960.48,
+          "avg_pnl": -320.02,
+          "long_pnl": 25005.1,
+          "short_pnl": -33965.58,
+          "largest_win": 18605.15,
+          "largest_loss": -10133.22
+        },
+        "2026_Batch2": {
+          "trades": 13,
+          "wins": 8,
+          "losses": 5,
+          "win_rate": 61.5,
+          "net_pnl": 88011.57,
+          "avg_pnl": 6770.12,
+          "long_pnl": 82971.3,
+          "short_pnl": 5040.27,
+          "largest_win": 40661.57,
+          "largest_loss": -8376.87
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 9,
+          "long_wins": 4,
+          "long_wr": 44.4,
+          "long_pnl": 5363.22,
+          "short_trades": 6,
+          "short_wins": 4,
+          "short_wr": 66.7,
+          "short_pnl": 16558.75
+        },
+        "2025_Batch6": {
+          "long_trades": 14,
+          "long_wins": 4,
+          "long_wr": 28.6,
+          "long_pnl": -9891.28,
+          "short_trades": 10,
+          "short_wins": 5,
+          "short_wr": 50.0,
+          "short_pnl": 11456.31
+        },
+        "2026_Batch1": {
+          "long_trades": 11,
+          "long_wins": 5,
+          "long_wr": 45.5,
+          "long_pnl": 25005.1,
+          "short_trades": 17,
+          "short_wins": 4,
+          "short_wr": 23.5,
+          "short_pnl": -33965.58
+        },
+        "2026_Batch2": {
+          "long_trades": 5,
+          "long_wins": 5,
+          "long_wr": 100.0,
+          "long_pnl": 82971.3,
+          "short_trades": 8,
+          "short_wins": 3,
+          "short_wr": 37.5,
+          "short_pnl": 5040.27
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "BIAS_FLIP": {
+            "count": 2,
+            "pnl": -1834.8
+          },
+          "EOD": {
+            "count": 1,
+            "pnl": 1075.13
+          },
+          "NEAR_TGT": {
+            "count": 2,
+            "pnl": 9836.49
+          },
+          "SL": {
+            "count": 6,
+            "pnl": -13391.47
+          },
+          "TARGET": {
+            "count": 4,
+            "pnl": 26236.62
+          }
+        },
+        "2025_Batch6": {
+          "EOD": {
+            "count": 2,
+            "pnl": -373.66
+          },
+          "NEAR_TGT": {
+            "count": 2,
+            "pnl": 7396.27
+          },
+          "SL": {
+            "count": 15,
+            "pnl": -35506.98
+          },
+          "TARGET": {
+            "count": 5,
+            "pnl": 30049.4
+          }
+        },
+        "2026_Batch1": {
+          "EOD": {
+            "count": 5,
+            "pnl": -218.3
+          },
+          "SL": {
+            "count": 17,
+            "pnl": -54852.96
+          },
+          "TARGET": {
+            "count": 6,
+            "pnl": 46110.78
+          }
+        },
+        "2026_Batch2": {
+          "EOD": {
+            "count": 2,
+            "pnl": 528.11
+          },
+          "SL": {
+            "count": 4,
+            "pnl": -15635.52
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 103118.98
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 64,
+        "profitable_days": 32,
+        "loss_days": 32,
+        "max_loss_day": -10133.22,
+        "max_profit_day": 40661.57,
+        "avg_daily_pnl": 1602.16,
+        "risk_limit_hit_days": 19,
+        "pct_profitable_days": 50.0
+      },
+      "options_analysis": {
+        "total_opt_trades": 80,
+        "avg_spread_cost": 3.96,
+        "total_spread_cost": 316.69,
+        "avg_delta": 0.4997,
+        "ce_trades": 39,
+        "ce_pnl": 103448.34,
+        "ce_wr": 46.2,
+        "pe_trades": 41,
+        "pe_pnl": -910.25,
+        "pe_wr": 39.0
+      }
+    },
+    "NF_15x60_sl2.5_RR2.0_ITM": {
+      "label": "NF_15x60_sl2.5_RR2.0_ITM_A",
+      "total_trades": 80,
+      "wins": 33,
+      "losses": 47,
+      "win_rate": 41.25,
+      "long_trades": 39,
+      "short_trades": 41,
+      "long_wr": 41.03,
+      "short_wr": 41.46,
+      "gross_profit": 163420.35,
+      "gross_loss": 113590.19,
+      "total_costs": 6172.54,
+      "net_pnl": 49830.16,
+      "net_pnl_pct": 99.66,
+      "profit_factor": 1.44,
+      "avg_win": 4952.13,
+      "avg_loss": 2416.81,
+      "avg_rr": 2.0,
+      "avg_held": 5.2,
+      "max_dd": 20309.65,
+      "max_dd_pct": 35.37,
+      "long_pnl": 47375.59,
+      "short_pnl": 2454.57,
+      "exit_reasons": {
+        "SL": 48,
+        "EOD": 6,
+        "NEAR_TGT": 4,
+        "TARGET": 19,
+        "BIAS_FLIP": 3
+      },
+      "monthly_pnl": {
+        "2025-09": -6446.02,
+        "2025-10": 5137.02,
+        "2025-11": 1694.33,
+        "2025-12": 1485.58,
+        "2026-01": 9937.55,
+        "2026-02": -2326.23,
+        "2026-03": 6398.5,
+        "2026-04": 33949.43
+      },
+      "cost_per_trade": 77.16,
+      "avg_spread_cost": 4.87,
+      "avg_delta": 0.7309,
+      "opt_trades": 80,
+      "fut_trades": 0,
+      "largest_win": 27034.6,
+      "largest_loss": -11389.09,
+      "max_win_streak": 4,
+      "max_loss_streak": 9,
+      "trading_days": 64,
+      "avg_daily_pnl": 778.6,
+      "sharpe_approx": 2.02,
+      "final_capital": 99830.16,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": -1309.0,
+        "2025_Batch6": 3179.91,
+        "2026_Batch1": 7611.32,
+        "2026_Batch2": 40347.93
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 15,
+          "wins": 8,
+          "losses": 7,
+          "win_rate": 53.3,
+          "net_pnl": -1309.0,
+          "avg_pnl": -87.27,
+          "long_pnl": -8834.59,
+          "short_pnl": 7525.59,
+          "largest_win": 4203.04,
+          "largest_loss": -10627.59
+        },
+        "2025_Batch6": {
+          "trades": 24,
+          "wins": 7,
+          "losses": 17,
+          "win_rate": 29.2,
+          "net_pnl": 3179.91,
+          "avg_pnl": 132.5,
+          "long_pnl": -1466.51,
+          "short_pnl": 4646.42,
+          "largest_win": 7035.41,
+          "largest_loss": -4609.29
+        },
+        "2026_Batch1": {
+          "trades": 28,
+          "wins": 11,
+          "losses": 17,
+          "win_rate": 39.3,
+          "net_pnl": 7611.32,
+          "avg_pnl": 271.83,
+          "long_pnl": 15055.42,
+          "short_pnl": -7444.1,
+          "largest_win": 12835.02,
+          "largest_loss": -10140.26
+        },
+        "2026_Batch2": {
+          "trades": 13,
+          "wins": 7,
+          "losses": 6,
+          "win_rate": 53.8,
+          "net_pnl": 40347.93,
+          "avg_pnl": 3103.69,
+          "long_pnl": 42621.27,
+          "short_pnl": -2273.34,
+          "largest_win": 27034.6,
+          "largest_loss": -11389.09
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 9,
+          "long_wins": 4,
+          "long_wr": 44.4,
+          "long_pnl": -8834.59,
+          "short_trades": 6,
+          "short_wins": 4,
+          "short_wr": 66.7,
+          "short_pnl": 7525.59
+        },
+        "2025_Batch6": {
+          "long_trades": 14,
+          "long_wins": 3,
+          "long_wr": 21.4,
+          "long_pnl": -1466.51,
+          "short_trades": 10,
+          "short_wins": 4,
+          "short_wr": 40.0,
+          "short_pnl": 4646.42
+        },
+        "2026_Batch1": {
+          "long_trades": 11,
+          "long_wins": 5,
+          "long_wr": 45.5,
+          "long_pnl": 15055.42,
+          "short_trades": 17,
+          "short_wins": 6,
+          "short_wr": 35.3,
+          "short_pnl": -7444.1
+        },
+        "2026_Batch2": {
+          "long_trades": 5,
+          "long_wins": 4,
+          "long_wr": 80.0,
+          "long_pnl": 42621.27,
+          "short_trades": 8,
+          "short_wins": 3,
+          "short_wr": 37.5,
+          "short_pnl": -2273.34
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "BIAS_FLIP": {
+            "count": 1,
+            "pnl": 1140.23
+          },
+          "EOD": {
+            "count": 1,
+            "pnl": 1279.46
+          },
+          "NEAR_TGT": {
+            "count": 2,
+            "pnl": 3108.76
+          },
+          "SL": {
+            "count": 7,
+            "pnl": -19653.52
+          },
+          "TARGET": {
+            "count": 4,
+            "pnl": 12816.07
+          }
+        },
+        "2025_Batch6": {
+          "EOD": {
+            "count": 1,
+            "pnl": 5314.61
+          },
+          "NEAR_TGT": {
+            "count": 2,
+            "pnl": 6816.71
+          },
+          "SL": {
+            "count": 18,
+            "pnl": -23009.08
+          },
+          "TARGET": {
+            "count": 3,
+            "pnl": 14057.67
+          }
+        },
+        "2026_Batch1": {
+          "BIAS_FLIP": {
+            "count": 2,
+            "pnl": 12628.6
+          },
+          "EOD": {
+            "count": 2,
+            "pnl": -1266.45
+          },
+          "SL": {
+            "count": 18,
+            "pnl": -37059.5
+          },
+          "TARGET": {
+            "count": 6,
+            "pnl": 33308.67
+          }
+        },
+        "2026_Batch2": {
+          "EOD": {
+            "count": 2,
+            "pnl": 2345.8
+          },
+          "SL": {
+            "count": 5,
+            "pnl": -27550.88
+          },
+          "TARGET": {
+            "count": 6,
+            "pnl": 65553.01
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 64,
+        "profitable_days": 30,
+        "loss_days": 34,
+        "max_loss_day": -11389.09,
+        "max_profit_day": 27034.6,
+        "avg_daily_pnl": 778.6,
+        "risk_limit_hit_days": 15,
+        "pct_profitable_days": 46.9
+      },
+      "options_analysis": {
+        "total_opt_trades": 80,
+        "avg_spread_cost": 4.87,
+        "total_spread_cost": 389.66,
+        "avg_delta": 0.7309,
+        "ce_trades": 39,
+        "ce_pnl": 47375.59,
+        "ce_wr": 41.0,
+        "pe_trades": 41,
+        "pe_pnl": 2454.57,
+        "pe_wr": 41.5
+      }
+    },
+    "NF_15x15_sl2.0_RR1.5_ITM": {
+      "label": "NF_15x15_sl2.0_RR1.5_ITM_A",
+      "total_trades": 50,
+      "wins": 12,
+      "losses": 38,
+      "win_rate": 24.0,
+      "long_trades": 22,
+      "short_trades": 28,
+      "long_wr": 27.27,
+      "short_wr": 21.43,
+      "gross_profit": 36712.41,
+      "gross_loss": 88604.21,
+      "total_costs": 3289.36,
+      "net_pnl": -51891.8,
+      "net_pnl_pct": -103.78,
+      "profit_factor": 0.41,
+      "avg_win": 3059.37,
+      "avg_loss": 2331.69,
+      "avg_rr": 1.54,
+      "avg_held": 5.0,
+      "max_dd": 62149.55,
+      "max_dd_pct": 103.14,
+      "long_pnl": -19621.79,
+      "short_pnl": -32270.01,
+      "exit_reasons": {
+        "EOD": 3,
+        "SL": 32,
+        "NEAR_TGT": 2,
+        "BIAS_FLIP": 5,
+        "TARGET": 8
+      },
+      "monthly_pnl": {
+        "2025-09": -15063.98,
+        "2025-10": 4722.42,
+        "2025-11": -9654.79,
+        "2025-12": -7840.29,
+        "2026-01": -24055.16
+      },
+      "cost_per_trade": 65.79,
+      "avg_spread_cost": 2.98,
+      "avg_delta": 0.7386,
+      "opt_trades": 50,
+      "fut_trades": 0,
+      "largest_win": 10257.75,
+      "largest_loss": -17074.02,
+      "max_win_streak": 3,
+      "max_loss_streak": 8,
+      "trading_days": 40,
+      "avg_daily_pnl": -1297.3,
+      "sharpe_approx": -5.11,
+      "final_capital": -1891.8,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": -10341.56,
+        "2025_Batch6": -17495.08,
+        "2026_Batch1": -24055.16
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 15,
+          "wins": 5,
+          "losses": 10,
+          "win_rate": 33.3,
+          "net_pnl": -10341.56,
+          "avg_pnl": -689.44,
+          "long_pnl": -5402.52,
+          "short_pnl": -4939.04,
+          "largest_win": 10257.75,
+          "largest_loss": -17074.02
+        },
+        "2025_Batch6": {
+          "trades": 23,
+          "wins": 6,
+          "losses": 17,
+          "win_rate": 26.1,
+          "net_pnl": -17495.08,
+          "avg_pnl": -760.66,
+          "long_pnl": -9547.47,
+          "short_pnl": -7947.61,
+          "largest_win": 2428.12,
+          "largest_loss": -4460.24
+        },
+        "2026_Batch1": {
+          "trades": 12,
+          "wins": 1,
+          "losses": 11,
+          "win_rate": 8.3,
+          "net_pnl": -24055.16,
+          "avg_pnl": -2004.6,
+          "long_pnl": -4671.8,
+          "short_pnl": -19383.36,
+          "largest_win": 3239.69,
+          "largest_loss": -4736.97
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 6,
+          "long_wins": 3,
+          "long_wr": 50.0,
+          "long_pnl": -5402.52,
+          "short_trades": 9,
+          "short_wins": 2,
+          "short_wr": 22.2,
+          "short_pnl": -4939.04
+        },
+        "2025_Batch6": {
+          "long_trades": 11,
+          "long_wins": 2,
+          "long_wr": 18.2,
+          "long_pnl": -9547.47,
+          "short_trades": 12,
+          "short_wins": 4,
+          "short_wr": 33.3,
+          "short_pnl": -7947.61
+        },
+        "2026_Batch1": {
+          "long_trades": 5,
+          "long_wins": 1,
+          "long_wr": 20.0,
+          "long_pnl": -4671.8,
+          "short_trades": 7,
+          "short_wins": 0,
+          "short_wr": 0.0,
+          "short_pnl": -19383.36
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "BIAS_FLIP": {
+            "count": 2,
+            "pnl": -2606.41
+          },
+          "EOD": {
+            "count": 2,
+            "pnl": 12312.86
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 1716.33
+          },
+          "SL": {
+            "count": 8,
+            "pnl": -28384.37
+          },
+          "TARGET": {
+            "count": 2,
+            "pnl": 6620.03
+          }
+        },
+        "2025_Batch6": {
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 2235.13
+          },
+          "SL": {
+            "count": 17,
+            "pnl": -30318.58
+          },
+          "TARGET": {
+            "count": 5,
+            "pnl": 10588.37
+          }
+        },
+        "2026_Batch1": {
+          "BIAS_FLIP": {
+            "count": 3,
+            "pnl": -8009.25
+          },
+          "EOD": {
+            "count": 1,
+            "pnl": -2138.32
+          },
+          "SL": {
+            "count": 7,
+            "pnl": -17147.28
+          },
+          "TARGET": {
+            "count": 1,
+            "pnl": 3239.69
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 40,
+        "profitable_days": 12,
+        "loss_days": 28,
+        "max_loss_day": -17074.02,
+        "max_profit_day": 10257.75,
+        "avg_daily_pnl": -1297.3,
+        "risk_limit_hit_days": 7,
+        "pct_profitable_days": 30.0
+      },
+      "options_analysis": {
+        "total_opt_trades": 50,
+        "avg_spread_cost": 2.98,
+        "total_spread_cost": 149.23,
+        "avg_delta": 0.7386,
+        "ce_trades": 22,
+        "ce_pnl": -19621.79,
+        "ce_wr": 27.3,
+        "pe_trades": 28,
+        "pe_pnl": -32270.01,
+        "pe_wr": 21.4
+      }
+    },
+    "NF_5x60_sl2.0_RR1.5_ITM": {
+      "label": "NF_5x60_sl2.0_RR1.5_ITM_A",
+      "total_trades": 213,
+      "wins": 98,
+      "losses": 115,
+      "win_rate": 46.01,
+      "long_trades": 109,
+      "short_trades": 104,
+      "long_wr": 42.2,
+      "short_wr": 50.0,
+      "gross_profit": 361055.25,
+      "gross_loss": 371736.19,
+      "total_costs": 19590.75,
+      "net_pnl": -10680.94,
+      "net_pnl_pct": -21.36,
+      "profit_factor": 0.97,
+      "avg_win": 3684.24,
+      "avg_loss": 3232.49,
+      "avg_rr": 1.55,
+      "avg_held": 6.7,
+      "max_dd": 104249.03,
+      "max_dd_pct": 72.61,
+      "long_pnl": -17235.62,
+      "short_pnl": 6554.68,
+      "exit_reasons": {
+        "SL": 122,
+        "NEAR_TGT": 27,
+        "TARGET": 63,
+        "BIAS_FLIP": 1
+      },
+      "monthly_pnl": {
+        "2025-09": 12511.62,
+        "2025-10": 26030.39,
+        "2025-11": 28169.58,
+        "2025-12": 14723.9,
+        "2026-01": 4333.34,
+        "2026-02": -25854.11,
+        "2026-03": -48388.06,
+        "2026-04": -22207.6
+      },
+      "cost_per_trade": 91.98,
+      "avg_spread_cost": 5.01,
+      "avg_delta": 0.7099,
+      "opt_trades": 213,
+      "fut_trades": 0,
+      "largest_win": 17592.36,
+      "largest_loss": -13881.47,
+      "max_win_streak": 6,
+      "max_loss_streak": 10,
+      "trading_days": 126,
+      "avg_daily_pnl": -84.77,
+      "sharpe_approx": -0.21,
+      "final_capital": 39319.06,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": 38542.01,
+        "2025_Batch6": 42893.48,
+        "2026_Batch1": -21520.77,
+        "2026_Batch2": -70595.66
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 50,
+          "wins": 24,
+          "losses": 26,
+          "win_rate": 48.0,
+          "net_pnl": 38542.01,
+          "avg_pnl": 770.84,
+          "long_pnl": -10094.63,
+          "short_pnl": 48636.64,
+          "largest_win": 8950.24,
+          "largest_loss": -3992.24
+        },
+        "2025_Batch6": {
+          "trades": 58,
+          "wins": 30,
+          "losses": 28,
+          "win_rate": 51.7,
+          "net_pnl": 42893.48,
+          "avg_pnl": 739.54,
+          "long_pnl": 32386.44,
+          "short_pnl": 10507.04,
+          "largest_win": 6843.34,
+          "largest_loss": -5896.26
+        },
+        "2026_Batch1": {
+          "trades": 65,
+          "wins": 24,
+          "losses": 41,
+          "win_rate": 36.9,
+          "net_pnl": -21520.77,
+          "avg_pnl": -331.09,
+          "long_pnl": -47798.59,
+          "short_pnl": 26277.82,
+          "largest_win": 17592.36,
+          "largest_loss": -9553.52
+        },
+        "2026_Batch2": {
+          "trades": 40,
+          "wins": 20,
+          "losses": 20,
+          "win_rate": 50.0,
+          "net_pnl": -70595.66,
+          "avg_pnl": -1764.89,
+          "long_pnl": 8271.16,
+          "short_pnl": -78866.82,
+          "largest_win": 8065.75,
+          "largest_loss": -13881.47
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 32,
+          "long_wins": 9,
+          "long_wr": 28.1,
+          "long_pnl": -10094.63,
+          "short_trades": 18,
+          "short_wins": 15,
+          "short_wr": 83.3,
+          "short_pnl": 48636.64
+        },
+        "2025_Batch6": {
+          "long_trades": 24,
+          "long_wins": 14,
+          "long_wr": 58.3,
+          "long_pnl": 32386.44,
+          "short_trades": 34,
+          "short_wins": 16,
+          "short_wr": 47.1,
+          "short_pnl": 10507.04
+        },
+        "2026_Batch1": {
+          "long_trades": 34,
+          "long_wins": 9,
+          "long_wr": 26.5,
+          "long_pnl": -47798.59,
+          "short_trades": 31,
+          "short_wins": 15,
+          "short_wr": 48.4,
+          "short_pnl": 26277.82
+        },
+        "2026_Batch2": {
+          "long_trades": 19,
+          "long_wins": 14,
+          "long_wr": 73.7,
+          "long_pnl": 8271.16,
+          "short_trades": 21,
+          "short_wins": 6,
+          "short_wr": 28.6,
+          "short_pnl": -78866.82
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "NEAR_TGT": {
+            "count": 11,
+            "pnl": 39547.83
+          },
+          "SL": {
+            "count": 27,
+            "pnl": -37482.27
+          },
+          "TARGET": {
+            "count": 12,
+            "pnl": 36476.45
+          }
+        },
+        "2025_Batch6": {
+          "NEAR_TGT": {
+            "count": 7,
+            "pnl": 12850.46
+          },
+          "SL": {
+            "count": 30,
+            "pnl": -60694.06
+          },
+          "TARGET": {
+            "count": 21,
+            "pnl": 90737.08
+          }
+        },
+        "2026_Batch1": {
+          "BIAS_FLIP": {
+            "count": 1,
+            "pnl": -3006.39
+          },
+          "NEAR_TGT": {
+            "count": 6,
+            "pnl": 26058.27
+          },
+          "SL": {
+            "count": 44,
+            "pnl": -133263.2
+          },
+          "TARGET": {
+            "count": 14,
+            "pnl": 88690.55
+          }
+        },
+        "2026_Batch2": {
+          "NEAR_TGT": {
+            "count": 3,
+            "pnl": 4844.96
+          },
+          "SL": {
+            "count": 21,
+            "pnl": -111549.01
+          },
+          "TARGET": {
+            "count": 16,
+            "pnl": 36108.39
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 126,
+        "profitable_days": 66,
+        "loss_days": 60,
+        "max_loss_day": -19985.52,
+        "max_profit_day": 17259.86,
+        "avg_daily_pnl": -84.77,
+        "risk_limit_hit_days": 38,
+        "pct_profitable_days": 52.4
+      },
+      "options_analysis": {
+        "total_opt_trades": 213,
+        "avg_spread_cost": 5.01,
+        "total_spread_cost": 1068.19,
+        "avg_delta": 0.7099,
+        "ce_trades": 109,
+        "ce_pnl": -17235.62,
+        "ce_wr": 42.2,
+        "pe_trades": 104,
+        "pe_pnl": 6554.68,
+        "pe_wr": 50.0
+      }
+    }
+  },
+  "method_b_4batch_reset": {
+    "BN_15x60_sl2.0_RR1.5_ITM": {
+      "label": "BN_15x60_sl2.0_RR1.5_ITM_B",
+      "total_trades": 64,
+      "wins": 32,
+      "losses": 32,
+      "win_rate": 50.0,
+      "long_trades": 36,
+      "short_trades": 28,
+      "long_wr": 41.67,
+      "short_wr": 60.71,
+      "gross_profit": 334030.03,
+      "gross_loss": 82639.71,
+      "total_costs": 5367.83,
+      "net_pnl": 251390.32,
+      "net_pnl_pct": 502.78,
+      "profit_factor": 4.04,
+      "avg_win": 10438.44,
+      "avg_loss": 2582.49,
+      "avg_rr": 1.52,
+      "avg_held": 6.1,
+      "max_dd": 19194.11,
+      "max_dd_pct": 21.83,
+      "long_pnl": 165033.84,
+      "short_pnl": 86356.48,
+      "exit_reasons": {
+        "SL": 30,
+        "TARGET": 26,
+        "NEAR_TGT": 2,
+        "EOD": 6
+      },
+      "monthly_pnl": {
+        "2025-09": 9957.04,
+        "2025-10": -5679.56,
+        "2025-11": 21958.02,
+        "2025-12": 31220.18,
+        "2026-01": -6221.34,
+        "2026-02": 22002.26,
+        "2026-03": 32442.19,
+        "2026-04": 145711.53
+      },
+      "cost_per_trade": 83.87,
+      "avg_spread_cost": 11.11,
+      "avg_delta": 0.6566,
+      "opt_trades": 64,
+      "fut_trades": 0,
+      "largest_win": 68842.02,
+      "largest_loss": -7832.19,
+      "max_win_streak": 6,
+      "max_loss_streak": 4,
+      "trading_days": 50,
+      "avg_daily_pnl": 5027.81,
+      "sharpe_approx": 5.74,
+      "final_capital": 301390.32,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": 4277.48,
+        "2025_Batch6": 53178.2,
+        "2026_Batch1": 15780.92,
+        "2026_Batch2": 178153.72
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 16,
+          "wins": 6,
+          "losses": 10,
+          "win_rate": 37.5,
+          "net_pnl": 4277.48,
+          "avg_pnl": 267.34,
+          "long_pnl": 3860.47,
+          "short_pnl": 417.01,
+          "largest_win": 9542.92,
+          "largest_loss": -5445.22
+        },
+        "2025_Batch6": {
+          "trades": 17,
+          "wins": 10,
+          "losses": 7,
+          "win_rate": 58.8,
+          "net_pnl": 53178.2,
+          "avg_pnl": 3128.13,
+          "long_pnl": 22772.93,
+          "short_pnl": 30405.27,
+          "largest_win": 11794.95,
+          "largest_loss": -7398.91
+        },
+        "2026_Batch1": {
+          "trades": 20,
+          "wins": 9,
+          "losses": 11,
+          "win_rate": 45.0,
+          "net_pnl": 15780.92,
+          "avg_pnl": 789.05,
+          "long_pnl": -13225.94,
+          "short_pnl": 29006.86,
+          "largest_win": 18110.43,
+          "largest_loss": -7832.19
+        },
+        "2026_Batch2": {
+          "trades": 11,
+          "wins": 7,
+          "losses": 4,
+          "win_rate": 63.6,
+          "net_pnl": 178153.72,
+          "avg_pnl": 16195.79,
+          "long_pnl": 151626.38,
+          "short_pnl": 26527.34,
+          "largest_win": 68842.02,
+          "largest_loss": -849.26
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 9,
+          "long_wins": 3,
+          "long_wr": 33.3,
+          "long_pnl": 3860.47,
+          "short_trades": 7,
+          "short_wins": 3,
+          "short_wr": 42.9,
+          "short_pnl": 417.01
+        },
+        "2025_Batch6": {
+          "long_trades": 9,
+          "long_wins": 4,
+          "long_wr": 44.4,
+          "long_pnl": 22772.93,
+          "short_trades": 8,
+          "short_wins": 6,
+          "short_wr": 75.0,
+          "short_pnl": 30405.27
+        },
+        "2026_Batch1": {
+          "long_trades": 12,
+          "long_wins": 3,
+          "long_wr": 25.0,
+          "long_pnl": -13225.94,
+          "short_trades": 8,
+          "short_wins": 6,
+          "short_wr": 75.0,
+          "short_pnl": 29006.86
+        },
+        "2026_Batch2": {
+          "long_trades": 6,
+          "long_wins": 5,
+          "long_wr": 83.3,
+          "long_pnl": 151626.38,
+          "short_trades": 5,
+          "short_wins": 2,
+          "short_wr": 40.0,
+          "short_pnl": 26527.34
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 1965.34
+          },
+          "SL": {
+            "count": 10,
+            "pnl": -21458.77
+          },
+          "TARGET": {
+            "count": 5,
+            "pnl": 23770.91
+          }
+        },
+        "2025_Batch6": {
+          "EOD": {
+            "count": 5,
+            "pnl": 17302.64
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 9699.45
+          },
+          "SL": {
+            "count": 5,
+            "pnl": -16908.05
+          },
+          "TARGET": {
+            "count": 6,
+            "pnl": 43084.16
+          }
+        },
+        "2026_Batch1": {
+          "EOD": {
+            "count": 1,
+            "pnl": -762.28
+          },
+          "SL": {
+            "count": 11,
+            "pnl": -40504.57
+          },
+          "TARGET": {
+            "count": 8,
+            "pnl": 57047.77
+          }
+        },
+        "2026_Batch2": {
+          "SL": {
+            "count": 4,
+            "pnl": -1758.19
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 179911.91
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 50,
+        "profitable_days": 28,
+        "loss_days": 22,
+        "max_loss_day": -11934.27,
+        "max_profit_day": 68842.02,
+        "avg_daily_pnl": 5027.81,
+        "risk_limit_hit_days": 10,
+        "pct_profitable_days": 56.0
+      },
+      "options_analysis": {
+        "total_opt_trades": 64,
+        "avg_spread_cost": 11.11,
+        "total_spread_cost": 711.07,
+        "avg_delta": 0.6566,
+        "ce_trades": 36,
+        "ce_pnl": 165033.84,
+        "ce_wr": 41.7,
+        "pe_trades": 28,
+        "pe_pnl": 86356.48,
+        "pe_wr": 60.7
+      }
+    },
+    "BN_15x60_sl2.0_RR1.5_ATM": {
+      "label": "BN_15x60_sl2.0_RR1.5_ATM_B",
+      "total_trades": 64,
+      "wins": 32,
+      "losses": 32,
+      "win_rate": 50.0,
+      "long_trades": 36,
+      "short_trades": 28,
+      "long_wr": 41.67,
+      "short_wr": 60.71,
+      "gross_profit": 317263.61,
+      "gross_loss": 65983.14,
+      "total_costs": 5243.38,
+      "net_pnl": 251280.47,
+      "net_pnl_pct": 502.56,
+      "profit_factor": 4.81,
+      "avg_win": 9914.49,
+      "avg_loss": 2061.97,
+      "avg_rr": 1.52,
+      "avg_held": 6.1,
+      "max_dd": 9849.38,
+      "max_dd_pct": 16.47,
+      "long_pnl": 171610.63,
+      "short_pnl": 79669.84,
+      "exit_reasons": {
+        "SL": 30,
+        "TARGET": 26,
+        "NEAR_TGT": 2,
+        "EOD": 6
+      },
+      "monthly_pnl": {
+        "2025-09": 9567.69,
+        "2025-10": -4716.83,
+        "2025-11": 20184.61,
+        "2025-12": 22216.59,
+        "2026-01": 5742.83,
+        "2026-02": 26486.3,
+        "2026-03": 32437.04,
+        "2026-04": 139362.24
+      },
+      "cost_per_trade": 81.93,
+      "avg_spread_cost": 11.9,
+      "avg_delta": 0.4806,
+      "opt_trades": 64,
+      "fut_trades": 0,
+      "largest_win": 67628.34,
+      "largest_loss": -6498.86,
+      "max_win_streak": 6,
+      "max_loss_streak": 4,
+      "trading_days": 50,
+      "avg_daily_pnl": 5025.61,
+      "sharpe_approx": 6.18,
+      "final_capital": 301280.47,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": 4850.86,
+        "2025_Batch6": 42401.2,
+        "2026_Batch1": 32229.13,
+        "2026_Batch2": 171799.28
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 16,
+          "wins": 6,
+          "losses": 10,
+          "win_rate": 37.5,
+          "net_pnl": 4850.86,
+          "avg_pnl": 303.18,
+          "long_pnl": 2390.84,
+          "short_pnl": 2460.02,
+          "largest_win": 8620.55,
+          "largest_loss": -5329.03
+        },
+        "2025_Batch6": {
+          "trades": 17,
+          "wins": 10,
+          "losses": 7,
+          "win_rate": 58.8,
+          "net_pnl": 42401.2,
+          "avg_pnl": 2494.19,
+          "long_pnl": 22339.96,
+          "short_pnl": 20061.24,
+          "largest_win": 9371.01,
+          "largest_loss": -6498.86
+        },
+        "2026_Batch1": {
+          "trades": 20,
+          "wins": 9,
+          "losses": 11,
+          "win_rate": 45.0,
+          "net_pnl": 32229.13,
+          "avg_pnl": 1611.46,
+          "long_pnl": -3398.06,
+          "short_pnl": 35627.19,
+          "largest_win": 15189.28,
+          "largest_loss": -6454.18
+        },
+        "2026_Batch2": {
+          "trades": 11,
+          "wins": 7,
+          "losses": 4,
+          "win_rate": 63.6,
+          "net_pnl": 171799.28,
+          "avg_pnl": 15618.12,
+          "long_pnl": 150277.89,
+          "short_pnl": 21521.39,
+          "largest_win": 67628.34,
+          "largest_loss": -1002.04
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 9,
+          "long_wins": 3,
+          "long_wr": 33.3,
+          "long_pnl": 2390.84,
+          "short_trades": 7,
+          "short_wins": 3,
+          "short_wr": 42.9,
+          "short_pnl": 2460.02
+        },
+        "2025_Batch6": {
+          "long_trades": 9,
+          "long_wins": 4,
+          "long_wr": 44.4,
+          "long_pnl": 22339.96,
+          "short_trades": 8,
+          "short_wins": 6,
+          "short_wr": 75.0,
+          "short_pnl": 20061.24
+        },
+        "2026_Batch1": {
+          "long_trades": 12,
+          "long_wins": 3,
+          "long_wr": 25.0,
+          "long_pnl": -3398.06,
+          "short_trades": 8,
+          "short_wins": 6,
+          "short_wr": 75.0,
+          "short_pnl": 35627.19
+        },
+        "2026_Batch2": {
+          "long_trades": 6,
+          "long_wins": 5,
+          "long_wr": 83.3,
+          "long_pnl": 150277.89,
+          "short_trades": 5,
+          "short_wins": 2,
+          "short_wr": 40.0,
+          "short_pnl": 21521.39
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 3612.05
+          },
+          "SL": {
+            "count": 10,
+            "pnl": -20085.49
+          },
+          "TARGET": {
+            "count": 5,
+            "pnl": 21324.3
+          }
+        },
+        "2025_Batch6": {
+          "EOD": {
+            "count": 5,
+            "pnl": 9065.65
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 9371.01
+          },
+          "SL": {
+            "count": 5,
+            "pnl": -11056.67
+          },
+          "TARGET": {
+            "count": 6,
+            "pnl": 35021.21
+          }
+        },
+        "2026_Batch1": {
+          "EOD": {
+            "count": 1,
+            "pnl": -1398.95
+          },
+          "SL": {
+            "count": 11,
+            "pnl": -29419.15
+          },
+          "TARGET": {
+            "count": 8,
+            "pnl": 63047.23
+          }
+        },
+        "2026_Batch2": {
+          "SL": {
+            "count": 4,
+            "pnl": -1963.45
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 173762.73
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 50,
+        "profitable_days": 28,
+        "loss_days": 22,
+        "max_loss_day": -6498.86,
+        "max_profit_day": 67628.34,
+        "avg_daily_pnl": 5025.61,
+        "risk_limit_hit_days": 8,
+        "pct_profitable_days": 56.0
+      },
+      "options_analysis": {
+        "total_opt_trades": 64,
+        "avg_spread_cost": 11.9,
+        "total_spread_cost": 761.87,
+        "avg_delta": 0.4806,
+        "ce_trades": 36,
+        "ce_pnl": 171610.63,
+        "ce_wr": 41.7,
+        "pe_trades": 28,
+        "pe_pnl": 79669.84,
+        "pe_wr": 60.7
+      }
+    },
+    "BN_15x60_sl2.5_RR2.0_ITM": {
+      "label": "BN_15x60_sl2.5_RR2.0_ITM_B",
+      "total_trades": 65,
+      "wins": 29,
+      "losses": 36,
+      "win_rate": 44.62,
+      "long_trades": 37,
+      "short_trades": 28,
+      "long_wr": 37.84,
+      "short_wr": 53.57,
+      "gross_profit": 320150.64,
+      "gross_loss": 69418.98,
+      "total_costs": 5519.34,
+      "net_pnl": 250731.66,
+      "net_pnl_pct": 501.46,
+      "profit_factor": 4.61,
+      "avg_win": 11039.68,
+      "avg_loss": 1928.3,
+      "avg_rr": 2.0,
+      "avg_held": 4.6,
+      "max_dd": 21742.05,
+      "max_dd_pct": 18.62,
+      "long_pnl": 171669.41,
+      "short_pnl": 79062.25,
+      "exit_reasons": {
+        "SL": 36,
+        "TARGET": 22,
+        "EOD": 5,
+        "NEAR_TGT": 2
+      },
+      "monthly_pnl": {
+        "2025-09": 8904.65,
+        "2025-10": 3555.94,
+        "2025-11": 21958.02,
+        "2025-12": 17559.66,
+        "2026-01": -6963.37,
+        "2026-02": 27563.04,
+        "2026-03": 32442.19,
+        "2026-04": 145711.53
+      },
+      "cost_per_trade": 84.91,
+      "avg_spread_cost": 11.09,
+      "avg_delta": 0.6526,
+      "opt_trades": 65,
+      "fut_trades": 0,
+      "largest_win": 68842.02,
+      "largest_loss": -7832.19,
+      "max_win_streak": 6,
+      "max_loss_streak": 7,
+      "trading_days": 50,
+      "avg_daily_pnl": 5014.63,
+      "sharpe_approx": 5.81,
+      "final_capital": 300731.66,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": 12460.59,
+        "2025_Batch6": 39517.68,
+        "2026_Batch1": 20599.67,
+        "2026_Batch2": 178153.72
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 17,
+          "wins": 7,
+          "losses": 10,
+          "win_rate": 41.2,
+          "net_pnl": 12460.59,
+          "avg_pnl": 732.98,
+          "long_pnl": 1495.42,
+          "short_pnl": 10965.17,
+          "largest_win": 9542.92,
+          "largest_loss": -4997.2
+        },
+        "2025_Batch6": {
+          "trades": 17,
+          "wins": 8,
+          "losses": 9,
+          "win_rate": 47.1,
+          "net_pnl": 39517.68,
+          "avg_pnl": 2324.57,
+          "long_pnl": 18567.56,
+          "short_pnl": 20950.12,
+          "largest_win": 11794.95,
+          "largest_loss": -5775.49
+        },
+        "2026_Batch1": {
+          "trades": 20,
+          "wins": 7,
+          "losses": 13,
+          "win_rate": 35.0,
+          "net_pnl": 20599.67,
+          "avg_pnl": 1029.98,
+          "long_pnl": -19.95,
+          "short_pnl": 20619.62,
+          "largest_win": 18110.43,
+          "largest_loss": -7832.19
+        },
+        "2026_Batch2": {
+          "trades": 11,
+          "wins": 7,
+          "losses": 4,
+          "win_rate": 63.6,
+          "net_pnl": 178153.72,
+          "avg_pnl": 16195.79,
+          "long_pnl": 151626.38,
+          "short_pnl": 26527.34,
+          "largest_win": 68842.02,
+          "largest_loss": -849.26
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 10,
+          "long_wins": 3,
+          "long_wr": 30.0,
+          "long_pnl": 1495.42,
+          "short_trades": 7,
+          "short_wins": 4,
+          "short_wr": 57.1,
+          "short_pnl": 10965.17
+        },
+        "2025_Batch6": {
+          "long_trades": 9,
+          "long_wins": 3,
+          "long_wr": 33.3,
+          "long_pnl": 18567.56,
+          "short_trades": 8,
+          "short_wins": 5,
+          "short_wr": 62.5,
+          "short_pnl": 20950.12
+        },
+        "2026_Batch1": {
+          "long_trades": 12,
+          "long_wins": 3,
+          "long_wr": 25.0,
+          "long_pnl": -19.95,
+          "short_trades": 8,
+          "short_wins": 4,
+          "short_wr": 50.0,
+          "short_pnl": 20619.62
+        },
+        "2026_Batch2": {
+          "long_trades": 6,
+          "long_wins": 5,
+          "long_wr": 83.3,
+          "long_pnl": 151626.38,
+          "short_trades": 5,
+          "short_wins": 2,
+          "short_wr": 40.0,
+          "short_pnl": 26527.34
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "EOD": {
+            "count": 1,
+            "pnl": 6974.93
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 3974.88
+          },
+          "SL": {
+            "count": 10,
+            "pnl": -22260.13
+          },
+          "TARGET": {
+            "count": 5,
+            "pnl": 23770.91
+          }
+        },
+        "2025_Batch6": {
+          "EOD": {
+            "count": 3,
+            "pnl": 18465.74
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 9699.45
+          },
+          "SL": {
+            "count": 9,
+            "pnl": -15783.58
+          },
+          "TARGET": {
+            "count": 4,
+            "pnl": 27136.07
+          }
+        },
+        "2026_Batch1": {
+          "EOD": {
+            "count": 1,
+            "pnl": -762.28
+          },
+          "SL": {
+            "count": 13,
+            "pnl": -28770.05
+          },
+          "TARGET": {
+            "count": 6,
+            "pnl": 50132.0
+          }
+        },
+        "2026_Batch2": {
+          "SL": {
+            "count": 4,
+            "pnl": -1758.19
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 179911.91
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 50,
+        "profitable_days": 25,
+        "loss_days": 25,
+        "max_loss_day": -11871.35,
+        "max_profit_day": 68842.02,
+        "avg_daily_pnl": 5014.63,
+        "risk_limit_hit_days": 7,
+        "pct_profitable_days": 50.0
+      },
+      "options_analysis": {
+        "total_opt_trades": 65,
+        "avg_spread_cost": 11.09,
+        "total_spread_cost": 720.65,
+        "avg_delta": 0.6526,
+        "ce_trades": 37,
+        "ce_pnl": 171669.41,
+        "ce_wr": 37.8,
+        "pe_trades": 28,
+        "pe_pnl": 79062.25,
+        "pe_wr": 53.6
+      }
+    },
+    "BN_15x15_sl2.0_RR1.5_ITM": {
+      "label": "BN_15x15_sl2.0_RR1.5_ITM_B",
+      "total_trades": 81,
+      "wins": 41,
+      "losses": 40,
+      "win_rate": 50.62,
+      "long_trades": 29,
+      "short_trades": 52,
+      "long_wr": 34.48,
+      "short_wr": 59.62,
+      "gross_profit": 364985.55,
+      "gross_loss": 116321.15,
+      "total_costs": 6612.65,
+      "net_pnl": 248664.4,
+      "net_pnl_pct": 497.33,
+      "profit_factor": 3.14,
+      "avg_win": 8902.09,
+      "avg_loss": 2908.03,
+      "avg_rr": 1.64,
+      "avg_held": 5.8,
+      "max_dd": 16852.17,
+      "max_dd_pct": 21.6,
+      "long_pnl": 100977.39,
+      "short_pnl": 147687.01,
+      "exit_reasons": {
+        "TARGET": 28,
+        "SL": 34,
+        "EOD": 15,
+        "BIAS_FLIP": 3,
+        "NEAR_TGT": 1
+      },
+      "monthly_pnl": {
+        "2025-09": 5914.1,
+        "2025-10": 42537.17,
+        "2025-11": 4804.39,
+        "2025-12": 8556.67,
+        "2026-01": 4606.65,
+        "2026-02": 40310.95,
+        "2026-03": 9757.77,
+        "2026-04": 132176.7
+      },
+      "cost_per_trade": 81.64,
+      "avg_spread_cost": 11.02,
+      "avg_delta": 0.6242,
+      "opt_trades": 81,
+      "fut_trades": 0,
+      "largest_win": 68842.02,
+      "largest_loss": -11355.79,
+      "max_win_streak": 7,
+      "max_loss_streak": 6,
+      "trading_days": 67,
+      "avg_daily_pnl": 3711.41,
+      "sharpe_approx": 4.57,
+      "final_capital": 298664.4,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": 48451.27,
+        "2025_Batch6": 13361.06,
+        "2026_Batch1": 44917.6,
+        "2026_Batch2": 141934.47
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 19,
+          "wins": 9,
+          "losses": 10,
+          "win_rate": 47.4,
+          "net_pnl": 48451.27,
+          "avg_pnl": 2550.07,
+          "long_pnl": 2304.65,
+          "short_pnl": 46146.62,
+          "largest_win": 28510.73,
+          "largest_loss": -8145.73
+        },
+        "2025_Batch6": {
+          "trades": 22,
+          "wins": 10,
+          "losses": 12,
+          "win_rate": 45.5,
+          "net_pnl": 13361.06,
+          "avg_pnl": 607.32,
+          "long_pnl": 5917.81,
+          "short_pnl": 7443.25,
+          "largest_win": 13310.65,
+          "largest_loss": -4896.16
+        },
+        "2026_Batch1": {
+          "trades": 26,
+          "wins": 13,
+          "losses": 13,
+          "win_rate": 50.0,
+          "net_pnl": 44917.6,
+          "avg_pnl": 1727.6,
+          "long_pnl": 24931.5,
+          "short_pnl": 19986.1,
+          "largest_win": 19923.15,
+          "largest_loss": -8706.23
+        },
+        "2026_Batch2": {
+          "trades": 14,
+          "wins": 9,
+          "losses": 5,
+          "win_rate": 64.3,
+          "net_pnl": 141934.47,
+          "avg_pnl": 10138.18,
+          "long_pnl": 67823.43,
+          "short_pnl": 74111.04,
+          "largest_win": 68842.02,
+          "largest_loss": -11355.79
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 5,
+          "long_wins": 1,
+          "long_wr": 20.0,
+          "long_pnl": 2304.65,
+          "short_trades": 14,
+          "short_wins": 8,
+          "short_wr": 57.1,
+          "short_pnl": 46146.62
+        },
+        "2025_Batch6": {
+          "long_trades": 8,
+          "long_wins": 2,
+          "long_wr": 25.0,
+          "long_pnl": 5917.81,
+          "short_trades": 14,
+          "short_wins": 8,
+          "short_wr": 57.1,
+          "short_pnl": 7443.25
+        },
+        "2026_Batch1": {
+          "long_trades": 12,
+          "long_wins": 5,
+          "long_wr": 41.7,
+          "long_pnl": 24931.5,
+          "short_trades": 14,
+          "short_wins": 8,
+          "short_wr": 57.1,
+          "short_pnl": 19986.1
+        },
+        "2026_Batch2": {
+          "long_trades": 4,
+          "long_wins": 2,
+          "long_wr": 50.0,
+          "long_pnl": 67823.43,
+          "short_trades": 10,
+          "short_wins": 7,
+          "short_wr": 70.0,
+          "short_pnl": 74111.04
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "EOD": {
+            "count": 2,
+            "pnl": 29329.66
+          },
+          "SL": {
+            "count": 10,
+            "pnl": -29444.47
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 48566.08
+          }
+        },
+        "2025_Batch6": {
+          "BIAS_FLIP": {
+            "count": 2,
+            "pnl": -2411.04
+          },
+          "EOD": {
+            "count": 7,
+            "pnl": 7712.53
+          },
+          "SL": {
+            "count": 8,
+            "pnl": -18209.61
+          },
+          "TARGET": {
+            "count": 5,
+            "pnl": 26269.18
+          }
+        },
+        "2026_Batch1": {
+          "EOD": {
+            "count": 3,
+            "pnl": 19911.7
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 6545.84
+          },
+          "SL": {
+            "count": 13,
+            "pnl": -34729.04
+          },
+          "TARGET": {
+            "count": 9,
+            "pnl": 53189.1
+          }
+        },
+        "2026_Batch2": {
+          "BIAS_FLIP": {
+            "count": 1,
+            "pnl": -3154.6
+          },
+          "EOD": {
+            "count": 3,
+            "pnl": 41601.15
+          },
+          "SL": {
+            "count": 3,
+            "pnl": -19105.85
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 122593.77
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 67,
+        "profitable_days": 37,
+        "loss_days": 30,
+        "max_loss_day": -14510.39,
+        "max_profit_day": 68842.02,
+        "avg_daily_pnl": 3711.41,
+        "risk_limit_hit_days": 17,
+        "pct_profitable_days": 55.2
+      },
+      "options_analysis": {
+        "total_opt_trades": 81,
+        "avg_spread_cost": 11.02,
+        "total_spread_cost": 892.56,
+        "avg_delta": 0.6242,
+        "ce_trades": 29,
+        "ce_pnl": 100977.39,
+        "ce_wr": 34.5,
+        "pe_trades": 52,
+        "pe_pnl": 147687.01,
+        "pe_wr": 59.6
+      }
+    },
+    "BN_5x60_sl2.0_RR1.5_ITM": {
+      "label": "BN_5x60_sl2.0_RR1.5_ITM_B",
+      "total_trades": 206,
+      "wins": 70,
+      "losses": 136,
+      "win_rate": 33.98,
+      "long_trades": 118,
+      "short_trades": 88,
+      "long_wr": 33.9,
+      "short_wr": 34.09,
+      "gross_profit": 244226.14,
+      "gross_loss": 272660.98,
+      "total_costs": 15304.59,
+      "net_pnl": -28434.84,
+      "net_pnl_pct": -56.87,
+      "profit_factor": 0.9,
+      "avg_win": 3488.94,
+      "avg_loss": 2004.86,
+      "avg_rr": 1.53,
+      "avg_held": 7.2,
+      "max_dd": 78906.26,
+      "max_dd_pct": 89.03,
+      "long_pnl": -38209.42,
+      "short_pnl": 9774.58,
+      "exit_reasons": {
+        "SL": 138,
+        "TARGET": 52,
+        "NEAR_TGT": 7,
+        "BIAS_FLIP": 6,
+        "EOD": 3
+      },
+      "monthly_pnl": {
+        "2025-09": -13136.03,
+        "2025-10": 8764.15,
+        "2025-11": 9235.34,
+        "2025-12": 17481.06,
+        "2026-01": -1398.58,
+        "2026-02": -29137.44,
+        "2026-03": -2668.22,
+        "2026-04": -17575.12
+      },
+      "cost_per_trade": 74.29,
+      "avg_spread_cost": 9.77,
+      "avg_delta": 0.6235,
+      "opt_trades": 206,
+      "fut_trades": 0,
+      "largest_win": 21692.64,
+      "largest_loss": -8966.26,
+      "max_win_streak": 4,
+      "max_loss_streak": 9,
+      "trading_days": 131,
+      "avg_daily_pnl": -217.06,
+      "sharpe_approx": -0.69,
+      "final_capital": 21565.16,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": -4371.88,
+        "2025_Batch6": 26716.4,
+        "2026_Batch1": -30536.02,
+        "2026_Batch2": -20243.34
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 54,
+          "wins": 24,
+          "losses": 30,
+          "win_rate": 44.4,
+          "net_pnl": -4371.88,
+          "avg_pnl": -80.96,
+          "long_pnl": -12628.57,
+          "short_pnl": 8256.69,
+          "largest_win": 5517.13,
+          "largest_loss": -5992.21
+        },
+        "2025_Batch6": {
+          "trades": 62,
+          "wins": 20,
+          "losses": 42,
+          "win_rate": 32.3,
+          "net_pnl": 26716.4,
+          "avg_pnl": 430.91,
+          "long_pnl": 8247.48,
+          "short_pnl": 18468.92,
+          "largest_win": 10978.41,
+          "largest_loss": -4451.63
+        },
+        "2026_Batch1": {
+          "trades": 55,
+          "wins": 15,
+          "losses": 40,
+          "win_rate": 27.3,
+          "net_pnl": -30536.02,
+          "avg_pnl": -555.2,
+          "long_pnl": -23455.88,
+          "short_pnl": -7080.14,
+          "largest_win": 14865.0,
+          "largest_loss": -8252.23
+        },
+        "2026_Batch2": {
+          "trades": 35,
+          "wins": 11,
+          "losses": 24,
+          "win_rate": 31.4,
+          "net_pnl": -20243.34,
+          "avg_pnl": -578.38,
+          "long_pnl": -10372.45,
+          "short_pnl": -9870.89,
+          "largest_win": 21692.64,
+          "largest_loss": -8966.26
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 37,
+          "long_wins": 14,
+          "long_wr": 37.8,
+          "long_pnl": -12628.57,
+          "short_trades": 17,
+          "short_wins": 10,
+          "short_wr": 58.8,
+          "short_pnl": 8256.69
+        },
+        "2025_Batch6": {
+          "long_trades": 32,
+          "long_wins": 10,
+          "long_wr": 31.2,
+          "long_pnl": 8247.48,
+          "short_trades": 30,
+          "short_wins": 10,
+          "short_wr": 33.3,
+          "short_pnl": 18468.92
+        },
+        "2026_Batch1": {
+          "long_trades": 31,
+          "long_wins": 8,
+          "long_wr": 25.8,
+          "long_pnl": -23455.88,
+          "short_trades": 24,
+          "short_wins": 7,
+          "short_wr": 29.2,
+          "short_pnl": -7080.14
+        },
+        "2026_Batch2": {
+          "long_trades": 18,
+          "long_wins": 8,
+          "long_wr": 44.4,
+          "long_pnl": -10372.45,
+          "short_trades": 17,
+          "short_wins": 3,
+          "short_wr": 17.6,
+          "short_pnl": -9870.89
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "BIAS_FLIP": {
+            "count": 1,
+            "pnl": -2393.69
+          },
+          "EOD": {
+            "count": 1,
+            "pnl": 3146.98
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 968.39
+          },
+          "SL": {
+            "count": 34,
+            "pnl": -49449.35
+          },
+          "TARGET": {
+            "count": 17,
+            "pnl": 43355.79
+          }
+        },
+        "2025_Batch6": {
+          "BIAS_FLIP": {
+            "count": 1,
+            "pnl": -914.79
+          },
+          "NEAR_TGT": {
+            "count": 3,
+            "pnl": 12166.24
+          },
+          "SL": {
+            "count": 41,
+            "pnl": -68396.91
+          },
+          "TARGET": {
+            "count": 17,
+            "pnl": 83861.86
+          }
+        },
+        "2026_Batch1": {
+          "BIAS_FLIP": {
+            "count": 1,
+            "pnl": -17.1
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 3134.82
+          },
+          "SL": {
+            "count": 42,
+            "pnl": -58597.58
+          },
+          "TARGET": {
+            "count": 11,
+            "pnl": 24943.84
+          }
+        },
+        "2026_Batch2": {
+          "BIAS_FLIP": {
+            "count": 3,
+            "pnl": -2210.97
+          },
+          "EOD": {
+            "count": 2,
+            "pnl": -652.88
+          },
+          "NEAR_TGT": {
+            "count": 2,
+            "pnl": 2372.58
+          },
+          "SL": {
+            "count": 21,
+            "pnl": -61532.18
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 41780.11
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 131,
+        "profitable_days": 52,
+        "loss_days": 79,
+        "max_loss_day": -8966.26,
+        "max_profit_day": 21692.64,
+        "avg_daily_pnl": -217.06,
+        "risk_limit_hit_days": 31,
+        "pct_profitable_days": 39.7
+      },
+      "options_analysis": {
+        "total_opt_trades": 206,
+        "avg_spread_cost": 9.77,
+        "total_spread_cost": 2013.33,
+        "avg_delta": 0.6235,
+        "ce_trades": 118,
+        "ce_pnl": -38209.42,
+        "ce_wr": 33.9,
+        "pe_trades": 88,
+        "pe_pnl": 9774.58,
+        "pe_wr": 34.1
+      }
+    },
+    "NF_15x60_sl2.0_RR1.5_ITM": {
+      "label": "NF_15x60_sl2.0_RR1.5_ITM_B",
+      "total_trades": 77,
+      "wins": 32,
+      "losses": 45,
+      "win_rate": 41.56,
+      "long_trades": 37,
+      "short_trades": 40,
+      "long_wr": 45.95,
+      "short_wr": 37.5,
+      "gross_profit": 133173.13,
+      "gross_loss": 134615.69,
+      "total_costs": 5520.33,
+      "net_pnl": -1442.56,
+      "net_pnl_pct": -2.89,
+      "profit_factor": 0.99,
+      "avg_win": 4161.66,
+      "avg_loss": 2991.46,
+      "avg_rr": 1.54,
+      "avg_held": 6.6,
+      "max_dd": 71693.76,
+      "max_dd_pct": 127.39,
+      "long_pnl": 33661.04,
+      "short_pnl": -35103.6,
+      "exit_reasons": {
+        "SL": 42,
+        "EOD": 9,
+        "NEAR_TGT": 4,
+        "TARGET": 20,
+        "BIAS_FLIP": 2
+      },
+      "monthly_pnl": {
+        "2025-09": -5456.62,
+        "2025-10": 5078.28,
+        "2025-11": -9854.48,
+        "2025-12": -9033.92,
+        "2026-01": -22410.32,
+        "2026-02": -10035.43,
+        "2026-03": 3094.03,
+        "2026-04": 47175.9
+      },
+      "cost_per_trade": 71.69,
+      "avg_spread_cost": 4.88,
+      "avg_delta": 0.734,
+      "opt_trades": 77,
+      "fut_trades": 0,
+      "largest_win": 27034.6,
+      "largest_loss": -13702.87,
+      "max_win_streak": 4,
+      "max_loss_streak": 6,
+      "trading_days": 64,
+      "avg_daily_pnl": -22.54,
+      "sharpe_approx": -0.06,
+      "final_capital": 48557.44,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": -378.34,
+        "2025_Batch6": -18888.4,
+        "2026_Batch1": -32445.75,
+        "2026_Batch2": 50269.93
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 15,
+          "wins": 8,
+          "losses": 7,
+          "win_rate": 53.3,
+          "net_pnl": -378.34,
+          "avg_pnl": -25.22,
+          "long_pnl": -10178.76,
+          "short_pnl": 9800.42,
+          "largest_win": 4203.04,
+          "largest_loss": -11396.25
+        },
+        "2025_Batch6": {
+          "trades": 23,
+          "wins": 8,
+          "losses": 15,
+          "win_rate": 34.8,
+          "net_pnl": -18888.4,
+          "avg_pnl": -821.23,
+          "long_pnl": -12602.76,
+          "short_pnl": -6285.64,
+          "largest_win": 7035.41,
+          "largest_loss": -6228.08
+        },
+        "2026_Batch1": {
+          "trades": 26,
+          "wins": 8,
+          "losses": 18,
+          "win_rate": 30.8,
+          "net_pnl": -32445.75,
+          "avg_pnl": -1247.91,
+          "long_pnl": 7748.32,
+          "short_pnl": -40194.07,
+          "largest_win": 6397.17,
+          "largest_loss": -8756.75
+        },
+        "2026_Batch2": {
+          "trades": 13,
+          "wins": 8,
+          "losses": 5,
+          "win_rate": 61.5,
+          "net_pnl": 50269.93,
+          "avg_pnl": 3866.92,
+          "long_pnl": 48694.24,
+          "short_pnl": 1575.69,
+          "largest_win": 27034.6,
+          "largest_loss": -13702.87
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 9,
+          "long_wins": 4,
+          "long_wr": 44.4,
+          "long_pnl": -10178.76,
+          "short_trades": 6,
+          "short_wins": 4,
+          "short_wr": 66.7,
+          "short_pnl": 9800.42
+        },
+        "2025_Batch6": {
+          "long_trades": 13,
+          "long_wins": 3,
+          "long_wr": 23.1,
+          "long_pnl": -12602.76,
+          "short_trades": 10,
+          "short_wins": 5,
+          "short_wr": 50.0,
+          "short_pnl": -6285.64
+        },
+        "2026_Batch1": {
+          "long_trades": 10,
+          "long_wins": 5,
+          "long_wr": 50.0,
+          "long_pnl": 7748.32,
+          "short_trades": 16,
+          "short_wins": 3,
+          "short_wr": 18.8,
+          "short_pnl": -40194.07
+        },
+        "2026_Batch2": {
+          "long_trades": 5,
+          "long_wins": 5,
+          "long_wr": 100.0,
+          "long_pnl": 48694.24,
+          "short_trades": 8,
+          "short_wins": 3,
+          "short_wr": 37.5,
+          "short_pnl": 1575.69
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "BIAS_FLIP": {
+            "count": 2,
+            "pnl": -960.6
+          },
+          "EOD": {
+            "count": 1,
+            "pnl": 1279.46
+          },
+          "NEAR_TGT": {
+            "count": 2,
+            "pnl": 3108.76
+          },
+          "SL": {
+            "count": 6,
+            "pnl": -16622.03
+          },
+          "TARGET": {
+            "count": 4,
+            "pnl": 12816.07
+          }
+        },
+        "2025_Batch6": {
+          "EOD": {
+            "count": 2,
+            "pnl": 3222.74
+          },
+          "NEAR_TGT": {
+            "count": 2,
+            "pnl": 3367.65
+          },
+          "SL": {
+            "count": 15,
+            "pnl": -38472.36
+          },
+          "TARGET": {
+            "count": 4,
+            "pnl": 12993.57
+          }
+        },
+        "2026_Batch1": {
+          "EOD": {
+            "count": 4,
+            "pnl": -1915.2
+          },
+          "SL": {
+            "count": 17,
+            "pnl": -48142.91
+          },
+          "TARGET": {
+            "count": 5,
+            "pnl": 17612.36
+          }
+        },
+        "2026_Batch2": {
+          "EOD": {
+            "count": 2,
+            "pnl": 3779.76
+          },
+          "SL": {
+            "count": 4,
+            "pnl": -23924.7
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 70414.87
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 64,
+        "profitable_days": 28,
+        "loss_days": 36,
+        "max_loss_day": -17362.56,
+        "max_profit_day": 27034.6,
+        "avg_daily_pnl": -22.54,
+        "risk_limit_hit_days": 12,
+        "pct_profitable_days": 43.8
+      },
+      "options_analysis": {
+        "total_opt_trades": 77,
+        "avg_spread_cost": 4.88,
+        "total_spread_cost": 376.03,
+        "avg_delta": 0.734,
+        "ce_trades": 37,
+        "ce_pnl": 33661.04,
+        "ce_wr": 45.9,
+        "pe_trades": 40,
+        "pe_pnl": -35103.6,
+        "pe_wr": 37.5
+      }
+    },
+    "NF_15x60_sl2.0_RR1.5_ATM": {
+      "label": "NF_15x60_sl2.0_RR1.5_ATM_B",
+      "total_trades": 78,
+      "wins": 33,
+      "losses": 45,
+      "win_rate": 42.31,
+      "long_trades": 37,
+      "short_trades": 41,
+      "long_wr": 45.95,
+      "short_wr": 39.02,
+      "gross_profit": 210973.15,
+      "gross_loss": 116057.09,
+      "total_costs": 5677.61,
+      "net_pnl": 94916.06,
+      "net_pnl_pct": 189.83,
+      "profit_factor": 1.82,
+      "avg_win": 6393.13,
+      "avg_loss": 2579.05,
+      "avg_rr": 1.54,
+      "avg_held": 6.6,
+      "max_dd": 29012.07,
+      "max_dd_pct": 35.31,
+      "long_pnl": 91145.37,
+      "short_pnl": 3770.69,
+      "exit_reasons": {
+        "SL": 42,
+        "EOD": 9,
+        "NEAR_TGT": 4,
+        "TARGET": 21,
+        "BIAS_FLIP": 2
+      },
+      "monthly_pnl": {
+        "2025-09": 7241.43,
+        "2025-10": 14680.54,
+        "2025-11": -10688.44,
+        "2025-12": 5559.15,
+        "2026-01": 5224.81,
+        "2026-02": -11837.09,
+        "2026-03": 11193.58,
+        "2026-04": 73542.08
+      },
+      "cost_per_trade": 72.79,
+      "avg_spread_cost": 3.99,
+      "avg_delta": 0.4967,
+      "opt_trades": 78,
+      "fut_trades": 0,
+      "largest_win": 40661.57,
+      "largest_loss": -8596.88,
+      "max_win_streak": 4,
+      "max_loss_streak": 6,
+      "trading_days": 64,
+      "avg_daily_pnl": 1483.06,
+      "sharpe_approx": 3.09,
+      "final_capital": 144916.06,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": 21921.97,
+        "2025_Batch6": -5129.29,
+        "2026_Batch1": -6612.28,
+        "2026_Batch2": 84735.66
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 15,
+          "wins": 8,
+          "losses": 7,
+          "win_rate": 53.3,
+          "net_pnl": 21921.97,
+          "avg_pnl": 1461.46,
+          "long_pnl": 5363.22,
+          "short_pnl": 16558.75,
+          "largest_win": 12098.07,
+          "largest_loss": -5035.75
+        },
+        "2025_Batch6": {
+          "trades": 23,
+          "wins": 8,
+          "losses": 15,
+          "win_rate": 34.8,
+          "net_pnl": -5129.29,
+          "avg_pnl": -223.01,
+          "long_pnl": -14344.28,
+          "short_pnl": 9214.99,
+          "largest_win": 10681.33,
+          "largest_loss": -7393.07
+        },
+        "2026_Batch1": {
+          "trades": 27,
+          "wins": 9,
+          "losses": 18,
+          "win_rate": 33.3,
+          "net_pnl": -6612.28,
+          "avg_pnl": -244.9,
+          "long_pnl": 20431.04,
+          "short_pnl": -27043.32,
+          "largest_win": 18605.15,
+          "largest_loss": -8596.88
+        },
+        "2026_Batch2": {
+          "trades": 13,
+          "wins": 8,
+          "losses": 5,
+          "win_rate": 61.5,
+          "net_pnl": 84735.66,
+          "avg_pnl": 6518.13,
+          "long_pnl": 79695.39,
+          "short_pnl": 5040.27,
+          "largest_win": 40661.57,
+          "largest_loss": -8376.87
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 9,
+          "long_wins": 4,
+          "long_wr": 44.4,
+          "long_pnl": 5363.22,
+          "short_trades": 6,
+          "short_wins": 4,
+          "short_wr": 66.7,
+          "short_pnl": 16558.75
+        },
+        "2025_Batch6": {
+          "long_trades": 13,
+          "long_wins": 3,
+          "long_wr": 23.1,
+          "long_pnl": -14344.28,
+          "short_trades": 10,
+          "short_wins": 5,
+          "short_wr": 50.0,
+          "short_pnl": 9214.99
+        },
+        "2026_Batch1": {
+          "long_trades": 10,
+          "long_wins": 5,
+          "long_wr": 50.0,
+          "long_pnl": 20431.04,
+          "short_trades": 17,
+          "short_wins": 4,
+          "short_wr": 23.5,
+          "short_pnl": -27043.32
+        },
+        "2026_Batch2": {
+          "long_trades": 5,
+          "long_wins": 5,
+          "long_wr": 100.0,
+          "long_pnl": 79695.39,
+          "short_trades": 8,
+          "short_wins": 3,
+          "short_wr": 37.5,
+          "short_pnl": 5040.27
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "BIAS_FLIP": {
+            "count": 2,
+            "pnl": -1834.8
+          },
+          "EOD": {
+            "count": 1,
+            "pnl": 1075.13
+          },
+          "NEAR_TGT": {
+            "count": 2,
+            "pnl": 9836.49
+          },
+          "SL": {
+            "count": 6,
+            "pnl": -13391.47
+          },
+          "TARGET": {
+            "count": 4,
+            "pnl": 26236.62
+          }
+        },
+        "2025_Batch6": {
+          "EOD": {
+            "count": 2,
+            "pnl": -161.37
+          },
+          "NEAR_TGT": {
+            "count": 2,
+            "pnl": 6517.97
+          },
+          "SL": {
+            "count": 15,
+            "pnl": -32643.63
+          },
+          "TARGET": {
+            "count": 4,
+            "pnl": 21157.74
+          }
+        },
+        "2026_Batch1": {
+          "EOD": {
+            "count": 4,
+            "pnl": -158.12
+          },
+          "SL": {
+            "count": 17,
+            "pnl": -43148.05
+          },
+          "TARGET": {
+            "count": 6,
+            "pnl": 36693.89
+          }
+        },
+        "2026_Batch2": {
+          "EOD": {
+            "count": 2,
+            "pnl": 528.11
+          },
+          "SL": {
+            "count": 4,
+            "pnl": -15635.52
+          },
+          "TARGET": {
+            "count": 7,
+            "pnl": 99843.07
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 64,
+        "profitable_days": 30,
+        "loss_days": 34,
+        "max_loss_day": -10091.24,
+        "max_profit_day": 40661.57,
+        "avg_daily_pnl": 1483.06,
+        "risk_limit_hit_days": 17,
+        "pct_profitable_days": 46.9
+      },
+      "options_analysis": {
+        "total_opt_trades": 78,
+        "avg_spread_cost": 3.99,
+        "total_spread_cost": 311.46,
+        "avg_delta": 0.4967,
+        "ce_trades": 37,
+        "ce_pnl": 91145.37,
+        "ce_wr": 45.9,
+        "pe_trades": 41,
+        "pe_pnl": 3770.69,
+        "pe_wr": 39.0
+      }
+    },
+    "NF_15x60_sl2.5_RR2.0_ITM": {
+      "label": "NF_15x60_sl2.5_RR2.0_ITM_B",
+      "total_trades": 80,
+      "wins": 33,
+      "losses": 47,
+      "win_rate": 41.25,
+      "long_trades": 39,
+      "short_trades": 41,
+      "long_wr": 41.03,
+      "short_wr": 41.46,
+      "gross_profit": 155994.72,
+      "gross_loss": 112119.21,
+      "total_costs": 6153.03,
+      "net_pnl": 43875.51,
+      "net_pnl_pct": 87.75,
+      "profit_factor": 1.39,
+      "avg_win": 4727.11,
+      "avg_loss": 2385.52,
+      "avg_rr": 2.0,
+      "avg_held": 5.2,
+      "max_dd": 20410.9,
+      "max_dd_pct": 35.72,
+      "long_pnl": 39845.08,
+      "short_pnl": 4030.43,
+      "exit_reasons": {
+        "SL": 48,
+        "EOD": 6,
+        "NEAR_TGT": 4,
+        "TARGET": 19,
+        "BIAS_FLIP": 3
+      },
+      "monthly_pnl": {
+        "2025-09": -6446.02,
+        "2025-10": 5137.02,
+        "2025-11": 1315.27,
+        "2025-12": 1485.58,
+        "2026-01": 9937.55,
+        "2026-02": -4502.18,
+        "2026-03": 6398.5,
+        "2026-04": 30549.79
+      },
+      "cost_per_trade": 76.91,
+      "avg_spread_cost": 4.87,
+      "avg_delta": 0.7309,
+      "opt_trades": 80,
+      "fut_trades": 0,
+      "largest_win": 27034.6,
+      "largest_loss": -11389.09,
+      "max_win_streak": 4,
+      "max_loss_streak": 9,
+      "trading_days": 64,
+      "avg_daily_pnl": 685.55,
+      "sharpe_approx": 1.81,
+      "final_capital": 93875.51,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": -1309.0,
+        "2025_Batch6": 2800.85,
+        "2026_Batch1": 5435.37,
+        "2026_Batch2": 36948.29
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 15,
+          "wins": 8,
+          "losses": 7,
+          "win_rate": 53.3,
+          "net_pnl": -1309.0,
+          "avg_pnl": -87.27,
+          "long_pnl": -8834.59,
+          "short_pnl": 7525.59,
+          "largest_win": 4203.04,
+          "largest_loss": -10627.59
+        },
+        "2025_Batch6": {
+          "trades": 24,
+          "wins": 7,
+          "losses": 17,
+          "win_rate": 29.2,
+          "net_pnl": 2800.85,
+          "avg_pnl": 116.7,
+          "long_pnl": -1656.39,
+          "short_pnl": 4457.24,
+          "largest_win": 7035.41,
+          "largest_loss": -4609.29
+        },
+        "2026_Batch1": {
+          "trades": 28,
+          "wins": 11,
+          "losses": 17,
+          "win_rate": 39.3,
+          "net_pnl": 5435.37,
+          "avg_pnl": 194.12,
+          "long_pnl": 11114.43,
+          "short_pnl": -5679.06,
+          "largest_win": 12835.02,
+          "largest_loss": -10140.26
+        },
+        "2026_Batch2": {
+          "trades": 13,
+          "wins": 7,
+          "losses": 6,
+          "win_rate": 53.8,
+          "net_pnl": 36948.29,
+          "avg_pnl": 2842.18,
+          "long_pnl": 39221.63,
+          "short_pnl": -2273.34,
+          "largest_win": 27034.6,
+          "largest_loss": -11389.09
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 9,
+          "long_wins": 4,
+          "long_wr": 44.4,
+          "long_pnl": -8834.59,
+          "short_trades": 6,
+          "short_wins": 4,
+          "short_wr": 66.7,
+          "short_pnl": 7525.59
+        },
+        "2025_Batch6": {
+          "long_trades": 14,
+          "long_wins": 3,
+          "long_wr": 21.4,
+          "long_pnl": -1656.39,
+          "short_trades": 10,
+          "short_wins": 4,
+          "short_wr": 40.0,
+          "short_pnl": 4457.24
+        },
+        "2026_Batch1": {
+          "long_trades": 11,
+          "long_wins": 5,
+          "long_wr": 45.5,
+          "long_pnl": 11114.43,
+          "short_trades": 17,
+          "short_wins": 6,
+          "short_wr": 35.3,
+          "short_pnl": -5679.06
+        },
+        "2026_Batch2": {
+          "long_trades": 5,
+          "long_wins": 4,
+          "long_wr": 80.0,
+          "long_pnl": 39221.63,
+          "short_trades": 8,
+          "short_wins": 3,
+          "short_wr": 37.5,
+          "short_pnl": -2273.34
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "BIAS_FLIP": {
+            "count": 1,
+            "pnl": 1140.23
+          },
+          "EOD": {
+            "count": 1,
+            "pnl": 1279.46
+          },
+          "NEAR_TGT": {
+            "count": 2,
+            "pnl": 3108.76
+          },
+          "SL": {
+            "count": 7,
+            "pnl": -19653.52
+          },
+          "TARGET": {
+            "count": 4,
+            "pnl": 12816.07
+          }
+        },
+        "2025_Batch6": {
+          "EOD": {
+            "count": 1,
+            "pnl": 5314.61
+          },
+          "NEAR_TGT": {
+            "count": 2,
+            "pnl": 6816.71
+          },
+          "SL": {
+            "count": 18,
+            "pnl": -23388.14
+          },
+          "TARGET": {
+            "count": 3,
+            "pnl": 14057.67
+          }
+        },
+        "2026_Batch1": {
+          "BIAS_FLIP": {
+            "count": 2,
+            "pnl": 12628.6
+          },
+          "EOD": {
+            "count": 2,
+            "pnl": -1266.45
+          },
+          "SL": {
+            "count": 18,
+            "pnl": -35209.46
+          },
+          "TARGET": {
+            "count": 6,
+            "pnl": 29282.68
+          }
+        },
+        "2026_Batch2": {
+          "EOD": {
+            "count": 2,
+            "pnl": 2345.8
+          },
+          "SL": {
+            "count": 5,
+            "pnl": -27550.88
+          },
+          "TARGET": {
+            "count": 6,
+            "pnl": 62153.37
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 64,
+        "profitable_days": 30,
+        "loss_days": 34,
+        "max_loss_day": -11389.09,
+        "max_profit_day": 27034.6,
+        "avg_daily_pnl": 685.55,
+        "risk_limit_hit_days": 13,
+        "pct_profitable_days": 46.9
+      },
+      "options_analysis": {
+        "total_opt_trades": 80,
+        "avg_spread_cost": 4.87,
+        "total_spread_cost": 389.66,
+        "avg_delta": 0.7309,
+        "ce_trades": 39,
+        "ce_pnl": 39845.08,
+        "ce_wr": 41.0,
+        "pe_trades": 41,
+        "pe_pnl": 4030.43,
+        "pe_wr": 41.5
+      }
+    },
+    "NF_15x15_sl2.0_RR1.5_ITM": {
+      "label": "NF_15x15_sl2.0_RR1.5_ITM_B",
+      "total_trades": 78,
+      "wins": 26,
+      "losses": 52,
+      "win_rate": 33.33,
+      "long_trades": 37,
+      "short_trades": 41,
+      "long_wr": 43.24,
+      "short_wr": 24.39,
+      "gross_profit": 130950.77,
+      "gross_loss": 142238.15,
+      "total_costs": 5637.29,
+      "net_pnl": -11287.38,
+      "net_pnl_pct": -22.57,
+      "profit_factor": 0.92,
+      "avg_win": 5036.57,
+      "avg_loss": 2735.35,
+      "avg_rr": 1.63,
+      "avg_held": 5.5,
+      "max_dd": 88001.03,
+      "max_dd_pct": 146.04,
+      "long_pnl": 45917.02,
+      "short_pnl": -57204.4,
+      "exit_reasons": {
+        "EOD": 7,
+        "SL": 45,
+        "NEAR_TGT": 2,
+        "BIAS_FLIP": 5,
+        "TARGET": 19
+      },
+      "monthly_pnl": {
+        "2025-09": -15063.98,
+        "2025-10": 4722.42,
+        "2025-11": -13536.37,
+        "2025-12": -7840.29,
+        "2026-01": -46025.06,
+        "2026-02": 9690.46,
+        "2026-03": 4995.97,
+        "2026-04": 51769.47
+      },
+      "cost_per_trade": 72.27,
+      "avg_spread_cost": 5.09,
+      "avg_delta": 0.7165,
+      "opt_trades": 78,
+      "fut_trades": 0,
+      "largest_win": 27034.6,
+      "largest_loss": -17074.02,
+      "max_win_streak": 4,
+      "max_loss_streak": 11,
+      "trading_days": 63,
+      "avg_daily_pnl": -179.16,
+      "sharpe_approx": -0.46,
+      "final_capital": 38712.62,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": -10341.56,
+        "2025_Batch6": -21376.66,
+        "2026_Batch1": -36334.6,
+        "2026_Batch2": 56765.44
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 15,
+          "wins": 5,
+          "losses": 10,
+          "win_rate": 33.3,
+          "net_pnl": -10341.56,
+          "avg_pnl": -689.44,
+          "long_pnl": -5402.52,
+          "short_pnl": -4939.04,
+          "largest_win": 10257.75,
+          "largest_loss": -17074.02
+        },
+        "2025_Batch6": {
+          "trades": 23,
+          "wins": 6,
+          "losses": 17,
+          "win_rate": 26.1,
+          "net_pnl": -21376.66,
+          "avg_pnl": -929.42,
+          "long_pnl": -9547.47,
+          "short_pnl": -11829.19,
+          "largest_win": 2428.12,
+          "largest_loss": -6670.01
+        },
+        "2026_Batch1": {
+          "trades": 27,
+          "wins": 7,
+          "losses": 20,
+          "win_rate": 25.9,
+          "net_pnl": -36334.6,
+          "avg_pnl": -1345.73,
+          "long_pnl": 7176.8,
+          "short_pnl": -43511.4,
+          "largest_win": 7130.35,
+          "largest_loss": -9433.26
+        },
+        "2026_Batch2": {
+          "trades": 13,
+          "wins": 8,
+          "losses": 5,
+          "win_rate": 61.5,
+          "net_pnl": 56765.44,
+          "avg_pnl": 4366.57,
+          "long_pnl": 53690.21,
+          "short_pnl": 3075.23,
+          "largest_win": 27034.6,
+          "largest_loss": -5060.44
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 6,
+          "long_wins": 3,
+          "long_wr": 50.0,
+          "long_pnl": -5402.52,
+          "short_trades": 9,
+          "short_wins": 2,
+          "short_wr": 22.2,
+          "short_pnl": -4939.04
+        },
+        "2025_Batch6": {
+          "long_trades": 11,
+          "long_wins": 2,
+          "long_wr": 18.2,
+          "long_pnl": -9547.47,
+          "short_trades": 12,
+          "short_wins": 4,
+          "short_wr": 33.3,
+          "short_pnl": -11829.19
+        },
+        "2026_Batch1": {
+          "long_trades": 13,
+          "long_wins": 5,
+          "long_wr": 38.5,
+          "long_pnl": 7176.8,
+          "short_trades": 14,
+          "short_wins": 2,
+          "short_wr": 14.3,
+          "short_pnl": -43511.4
+        },
+        "2026_Batch2": {
+          "long_trades": 7,
+          "long_wins": 6,
+          "long_wr": 85.7,
+          "long_pnl": 53690.21,
+          "short_trades": 6,
+          "short_wins": 2,
+          "short_wr": 33.3,
+          "short_pnl": 3075.23
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "BIAS_FLIP": {
+            "count": 2,
+            "pnl": -2606.41
+          },
+          "EOD": {
+            "count": 2,
+            "pnl": 12312.86
+          },
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 1716.33
+          },
+          "SL": {
+            "count": 8,
+            "pnl": -28384.37
+          },
+          "TARGET": {
+            "count": 2,
+            "pnl": 6620.03
+          }
+        },
+        "2025_Batch6": {
+          "NEAR_TGT": {
+            "count": 1,
+            "pnl": 2235.13
+          },
+          "SL": {
+            "count": 17,
+            "pnl": -34200.16
+          },
+          "TARGET": {
+            "count": 5,
+            "pnl": 10588.37
+          }
+        },
+        "2026_Batch1": {
+          "BIAS_FLIP": {
+            "count": 3,
+            "pnl": -12387.46
+          },
+          "EOD": {
+            "count": 2,
+            "pnl": -1157.31
+          },
+          "SL": {
+            "count": 16,
+            "pnl": -45959.42
+          },
+          "TARGET": {
+            "count": 6,
+            "pnl": 23169.59
+          }
+        },
+        "2026_Batch2": {
+          "EOD": {
+            "count": 3,
+            "pnl": -1230.84
+          },
+          "SL": {
+            "count": 4,
+            "pnl": 729.43
+          },
+          "TARGET": {
+            "count": 6,
+            "pnl": 57266.85
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 63,
+        "profitable_days": 24,
+        "loss_days": 39,
+        "max_loss_day": -17784.82,
+        "max_profit_day": 27034.6,
+        "avg_daily_pnl": -179.16,
+        "risk_limit_hit_days": 13,
+        "pct_profitable_days": 38.1
+      },
+      "options_analysis": {
+        "total_opt_trades": 78,
+        "avg_spread_cost": 5.09,
+        "total_spread_cost": 397.05,
+        "avg_delta": 0.7165,
+        "ce_trades": 37,
+        "ce_pnl": 45917.02,
+        "ce_wr": 43.2,
+        "pe_trades": 41,
+        "pe_pnl": -57204.4,
+        "pe_wr": 24.4
+      }
+    },
+    "NF_5x60_sl2.0_RR1.5_ITM": {
+      "label": "NF_5x60_sl2.0_RR1.5_ITM_B",
+      "total_trades": 203,
+      "wins": 92,
+      "losses": 111,
+      "win_rate": 45.32,
+      "long_trades": 105,
+      "short_trades": 98,
+      "long_wr": 41.9,
+      "short_wr": 48.98,
+      "gross_profit": 254113.79,
+      "gross_loss": 248727.52,
+      "total_costs": 15776.36,
+      "net_pnl": 5386.27,
+      "net_pnl_pct": 10.77,
+      "profit_factor": 1.02,
+      "avg_win": 2762.11,
+      "avg_loss": 2240.79,
+      "avg_rr": 1.55,
+      "avg_held": 6.7,
+      "max_dd": 73059.4,
+      "max_dd_pct": 56.88,
+      "long_pnl": -8930.42,
+      "short_pnl": 14316.69,
+      "exit_reasons": {
+        "SL": 118,
+        "NEAR_TGT": 27,
+        "TARGET": 57,
+        "BIAS_FLIP": 1
+      },
+      "monthly_pnl": {
+        "2025-09": 12511.62,
+        "2025-10": 26030.39,
+        "2025-11": 10791.65,
+        "2025-12": 8374.42,
+        "2026-01": 12341.54,
+        "2026-02": -15032.7,
+        "2026-03": -39272.79,
+        "2026-04": -10357.86
+      },
+      "cost_per_trade": 77.72,
+      "avg_spread_cost": 4.98,
+      "avg_delta": 0.7089,
+      "opt_trades": 203,
+      "fut_trades": 0,
+      "largest_win": 11714.68,
+      "largest_loss": -13881.47,
+      "max_win_streak": 6,
+      "max_loss_streak": 10,
+      "trading_days": 126,
+      "avg_daily_pnl": 42.75,
+      "sharpe_approx": 0.14,
+      "final_capital": 55386.27,
+      "starting_capital": 50000,
+      "batch_pnl": {
+        "2025_Batch5": 38542.01,
+        "2025_Batch6": 19166.07,
+        "2026_Batch1": -2691.16,
+        "2026_Batch2": -49630.65
+      },
+      "batch_stats": {
+        "2025_Batch5": {
+          "trades": 50,
+          "wins": 24,
+          "losses": 26,
+          "win_rate": 48.0,
+          "net_pnl": 38542.01,
+          "avg_pnl": 770.84,
+          "long_pnl": -10094.63,
+          "short_pnl": 48636.64,
+          "largest_win": 8950.24,
+          "largest_loss": -3992.24
+        },
+        "2025_Batch6": {
+          "trades": 57,
+          "wins": 29,
+          "losses": 28,
+          "win_rate": 50.9,
+          "net_pnl": 19166.07,
+          "avg_pnl": 336.25,
+          "long_pnl": 13866.43,
+          "short_pnl": 5299.64,
+          "largest_win": 6589.69,
+          "largest_loss": -5827.24
+        },
+        "2026_Batch1": {
+          "trades": 59,
+          "wins": 22,
+          "losses": 37,
+          "win_rate": 37.3,
+          "net_pnl": -2691.16,
+          "avg_pnl": -45.61,
+          "long_pnl": -20578.28,
+          "short_pnl": 17887.12,
+          "largest_win": 11714.68,
+          "largest_loss": -6382.58
+        },
+        "2026_Batch2": {
+          "trades": 37,
+          "wins": 17,
+          "losses": 20,
+          "win_rate": 45.9,
+          "net_pnl": -49630.65,
+          "avg_pnl": -1341.37,
+          "long_pnl": 7876.06,
+          "short_pnl": -57506.71,
+          "largest_win": 4012.52,
+          "largest_loss": -13881.47
+        }
+      },
+      "direction_analysis": {
+        "2025_Batch5": {
+          "long_trades": 32,
+          "long_wins": 9,
+          "long_wr": 28.1,
+          "long_pnl": -10094.63,
+          "short_trades": 18,
+          "short_wins": 15,
+          "short_wr": 83.3,
+          "short_pnl": 48636.64
+        },
+        "2025_Batch6": {
+          "long_trades": 24,
+          "long_wins": 14,
+          "long_wr": 58.3,
+          "long_pnl": 13866.43,
+          "short_trades": 33,
+          "short_wins": 15,
+          "short_wr": 45.5,
+          "short_pnl": 5299.64
+        },
+        "2026_Batch1": {
+          "long_trades": 32,
+          "long_wins": 9,
+          "long_wr": 28.1,
+          "long_pnl": -20578.28,
+          "short_trades": 27,
+          "short_wins": 13,
+          "short_wr": 48.1,
+          "short_pnl": 17887.12
+        },
+        "2026_Batch2": {
+          "long_trades": 17,
+          "long_wins": 12,
+          "long_wr": 70.6,
+          "long_pnl": 7876.06,
+          "short_trades": 20,
+          "short_wins": 5,
+          "short_wr": 25.0,
+          "short_pnl": -57506.71
+        }
+      },
+      "exit_analysis": {
+        "2025_Batch5": {
+          "NEAR_TGT": {
+            "count": 11,
+            "pnl": 39547.83
+          },
+          "SL": {
+            "count": 27,
+            "pnl": -37482.27
+          },
+          "TARGET": {
+            "count": 12,
+            "pnl": 36476.45
+          }
+        },
+        "2025_Batch6": {
+          "NEAR_TGT": {
+            "count": 7,
+            "pnl": 7853.89
+          },
+          "SL": {
+            "count": 30,
+            "pnl": -49238.22
+          },
+          "TARGET": {
+            "count": 20,
+            "pnl": 60550.4
+          }
+        },
+        "2026_Batch1": {
+          "BIAS_FLIP": {
+            "count": 1,
+            "pnl": -1523.55
+          },
+          "NEAR_TGT": {
+            "count": 6,
+            "pnl": 8523.28
+          },
+          "SL": {
+            "count": 40,
+            "pnl": -66190.51
+          },
+          "TARGET": {
+            "count": 12,
+            "pnl": 56499.62
+          }
+        },
+        "2026_Batch2": {
+          "NEAR_TGT": {
+            "count": 3,
+            "pnl": 4844.96
+          },
+          "SL": {
+            "count": 21,
+            "pnl": -77426.36
+          },
+          "TARGET": {
+            "count": 13,
+            "pnl": 22950.75
+          }
+        }
+      },
+      "risk_analysis": {
+        "trading_days": 126,
+        "profitable_days": 62,
+        "loss_days": 64,
+        "max_loss_day": -19985.52,
+        "max_profit_day": 13680.74,
+        "avg_daily_pnl": 42.75,
+        "risk_limit_hit_days": 30,
+        "pct_profitable_days": 49.2
+      },
+      "options_analysis": {
+        "total_opt_trades": 203,
+        "avg_spread_cost": 4.98,
+        "total_spread_cost": 1011.6,
+        "avg_delta": 0.7089,
+        "ce_trades": 105,
+        "ce_pnl": -8930.42,
+        "ce_wr": 41.9,
+        "pe_trades": 98,
+        "pe_pnl": 14316.69,
+        "pe_wr": 49.0
+      }
+    }
+  },
+  "cross_check_issues": [
+    "WARN: BN_15x60_sl2.0_RR1.5_ITM Method A hit daily risk limit 11 days",
+    "INSIGHT: BN_15x60_sl2.0_RR1.5_ITM A 2025_Batch6 \u2014 Long WR=44.4% vs Short WR=75.0% (significant direction bias)",
+    "INSIGHT: BN_15x60_sl2.0_RR1.5_ITM A 2026_Batch1 \u2014 Long WR=25.0% vs Short WR=75.0% (significant direction bias)",
+    "INSIGHT: BN_15x60_sl2.0_RR1.5_ITM A 2026_Batch2 \u2014 Long WR=83.3% vs Short WR=40.0% (significant direction bias)",
+    "WARN: BN_15x60_sl2.0_RR1.5_ATM Method A hit daily risk limit 8 days",
+    "INSIGHT: BN_15x60_sl2.0_RR1.5_ATM A 2025_Batch6 \u2014 Long WR=44.4% vs Short WR=75.0% (significant direction bias)",
+    "INSIGHT: BN_15x60_sl2.0_RR1.5_ATM A 2026_Batch1 \u2014 Long WR=25.0% vs Short WR=75.0% (significant direction bias)",
+    "INSIGHT: BN_15x60_sl2.0_RR1.5_ATM A 2026_Batch2 \u2014 Long WR=83.3% vs Short WR=40.0% (significant direction bias)",
+    "WARN: BN_15x60_sl2.5_RR2.0_ITM Method A hit daily risk limit 9 days",
+    "INSIGHT: BN_15x60_sl2.5_RR2.0_ITM A 2026_Batch2 \u2014 Long WR=83.3% vs Short WR=40.0% (significant direction bias)",
+    "WARN: BN_15x15_sl2.0_RR1.5_ITM Method A hit daily risk limit 19 days",
+    "INSIGHT: BN_15x15_sl2.0_RR1.5_ITM A 2025_Batch5 \u2014 Long WR=20.0% vs Short WR=57.1% (significant direction bias)",
+    "INSIGHT: BN_15x15_sl2.0_RR1.5_ITM A 2025_Batch6 \u2014 Long WR=25.0% vs Short WR=57.1% (significant direction bias)",
+    "WARN: BN_5x60_sl2.0_RR1.5_ITM Method A hit daily risk limit 37 days",
+    "DANGER: BN_5x60_sl2.0_RR1.5_ITM Method A has drawdown 88.53% (near account blow-up)",
+    "WARN: NF_15x60_sl2.0_RR1.5_ITM Method A hit daily risk limit 11 days",
+    "DANGER: NF_15x60_sl2.0_RR1.5_ITM Method A has drawdown 89.64% (near account blow-up)",
+    "INSIGHT: NF_15x60_sl2.0_RR1.5_ITM A 2026_Batch2 \u2014 Long WR=100.0% vs Short WR=37.5% (significant direction bias)",
+    "WARN: NF_15x60_sl2.0_RR1.5_ATM Method A hit daily risk limit 19 days",
+    "INSIGHT: NF_15x60_sl2.0_RR1.5_ATM A 2026_Batch2 \u2014 Long WR=100.0% vs Short WR=37.5% (significant direction bias)",
+    "WARN: NF_15x60_sl2.5_RR2.0_ITM Method A hit daily risk limit 15 days",
+    "INSIGHT: NF_15x60_sl2.5_RR2.0_ITM A 2026_Batch2 \u2014 Long WR=80.0% vs Short WR=37.5% (significant direction bias)",
+    "BUG: NF_15x15_sl2.0_RR1.5_ITM Method A has NEGATIVE final capital: -1891.8",
+    "WARN: NF_15x15_sl2.0_RR1.5_ITM Method A hit daily risk limit 7 days",
+    "DANGER: NF_15x15_sl2.0_RR1.5_ITM Method A has drawdown 103.14% (near account blow-up)",
+    "WARN: NF_5x60_sl2.0_RR1.5_ITM Method A hit daily risk limit 38 days",
+    "INSIGHT: NF_5x60_sl2.0_RR1.5_ITM A 2025_Batch5 \u2014 Long WR=28.1% vs Short WR=83.3% (significant direction bias)",
+    "INSIGHT: NF_5x60_sl2.0_RR1.5_ITM A 2026_Batch2 \u2014 Long WR=73.7% vs Short WR=28.6% (significant direction bias)"
+  ]
+}
