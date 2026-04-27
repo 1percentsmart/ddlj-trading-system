@@ -85,7 +85,7 @@ export function TokenPage() {
   };
 
   return (
-    <div className="space-y-4 p-4 max-w-3xl">
+    <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 max-w-3xl">
       {/* ── Token Status ── */}
       <Card className={cn('bg-card/80 border', engineStatus.token.valid ? 'border-emerald-500/20' : 'border-red-500/20')}>
         <CardHeader>

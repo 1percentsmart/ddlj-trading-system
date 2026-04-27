@@ -11,13 +11,12 @@ import { useDDLJStore } from '@/lib/store';
 import { cn, formatCurrency, pnlColor, formatDuration } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { SettingsPanel } from '@/components/ddlj/settings-panel';
-import { DDLJSidebar } from '@/components/ddlj/sidebar';
-import { Wifi, WifiOff, Clock, Zap, Search } from 'lucide-react';
+import { Wifi, WifiOff, Clock, Zap, Search, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 
 export function DDLJTopBar() {
-  const { engineStatus, isConnected } = useDDLJStore();
+  const { engineStatus, isConnected, setMobileMenuOpen } = useDDLJStore();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -37,8 +36,16 @@ export function DDLJTopBar() {
     <header className="h-12 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-2 sm:px-4 gap-2">
       {/* ── Left: Hamburger (mobile) + Account Summary ── */}
       <div className="flex items-center gap-2 sm:gap-4 text-sm min-w-0">
-        {/* Mobile sidebar trigger */}
-        <DDLJSidebar />
+        {/* Mobile sidebar trigger — just a button, not the full sidebar component */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden h-8 w-8 flex-shrink-0"
+          onClick={() => setMobileMenuOpen(true)}
+        >
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Open navigation</span>
+        </Button>
 
         {/* Capital — always visible */}
         <div className="flex items-center gap-1.5">

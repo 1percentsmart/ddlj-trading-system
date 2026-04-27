@@ -5,7 +5,7 @@
  * =============================================
  * Professional sidebar with icon + label navigation.
  * Desktop: collapsible sidebar (w-60 or w-16)
- * Mobile: Sheet drawer (slides in from left)
+ * Mobile: Sheet drawer (slides in from left, controlled by store state)
  */
 
 import {
@@ -23,7 +23,6 @@ import {
   Bell,
   BookOpen,
   Search,
-  Menu,
 } from 'lucide-react';
 import { useDDLJStore, type PageId } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -36,7 +35,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -224,23 +222,17 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function DDLJSidebar() {
   const isMobile = useIsMobile();
-  const { sidebarCollapsed } = useDDLJStore();
+  const { sidebarCollapsed, mobileMenuOpen, setMobileMenuOpen } = useDDLJStore();
 
-  // Mobile: Sheet drawer
+  // Mobile: Controlled Sheet drawer (triggered by hamburger button in topbar)
   if (isMobile) {
     return (
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="md:hidden h-8 w-8">
-            <Menu className="h-5 w-5" />
-            <span className="sr-only">Open navigation</span>
-          </Button>
-        </SheetTrigger>
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
         <SheetContent side="left" className="w-64 p-0 bg-sidebar border-sidebar-border">
           <SheetHeader className="sr-only">
             <SheetTitle>Navigation</SheetTitle>
           </SheetHeader>
-          <SidebarContent />
+          <SidebarContent onNavigate={() => setMobileMenuOpen(false)} />
         </SheetContent>
       </Sheet>
     );

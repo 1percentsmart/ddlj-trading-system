@@ -58,7 +58,7 @@ export function HealthPage() {
     healthChecks.some(h => h.status === 'unhealthy') ? 'unhealthy' : 'degraded';
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-3 sm:space-y-4 p-3 sm:p-4">
       {/* ── Overall Health ── */}
       <Card className={cn('bg-card/80 border',
         overallHealth === 'healthy' ? 'border-emerald-500/20' :

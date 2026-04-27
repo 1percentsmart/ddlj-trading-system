@@ -41,6 +41,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  Cell,
 } from 'recharts';
 import { mockEquityCurve, mockDailyPnl } from '@/lib/mock-data';
 
@@ -303,7 +304,7 @@ export function DashboardPage() {
                   <ReferenceLine y={0} stroke="var(--muted-foreground)" />
                   <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                     {mockDailyPnl.map((entry, index) => (
-                      <rect key={index} fill={entry.pnl >= 0 ? '#22c55e' : '#ef4444'} />
+                      <Cell key={index} fill={entry.pnl >= 0 ? '#22c55e' : '#ef4444'} />
                     ))}
                   </Bar>
                 </BarChart>

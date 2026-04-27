@@ -60,7 +60,7 @@ export function TradesPage() {
   }));
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-3 sm:space-y-4 p-3 sm:p-4">
       {/* ── Summary Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <Card className="bg-card/80 border-border">
@@ -272,14 +272,14 @@ export function TradesPage() {
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={tradePnlChart}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#888' }} />
-                      <YAxis tick={{ fontSize: 10, fill: '#888' }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}K`} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
+                      <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}K`} />
                       <Tooltip
-                        contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }}
+                        contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)' }}
                         formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'P&L']}
                       />
-                      <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
+                      <ReferenceLine y={0} stroke="var(--muted-foreground)" />
                       <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                         {tradePnlChart.map((entry, index) => (
                           <Cell key={index} fill={entry.pnl >= 0 ? '#22c55e' : '#ef4444'} />

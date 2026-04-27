@@ -58,7 +58,7 @@ export function JournalPage() {
   }));
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-3 sm:space-y-4 p-3 sm:p-4">
       {/* Header */}
       <Card className="bg-card/80 border-border">
         <CardHeader>
@@ -210,11 +210,11 @@ export function JournalPage() {
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={emotionChart} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                      <XAxis type="number" tick={{ fontSize: 10, fill: '#888' }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}K`} />
-                      <YAxis dataKey="emotion" type="category" tick={{ fontSize: 10, fill: '#888' }} width={90} />
-                      <Tooltip contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }} formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Avg P&L']} />
-                      <ReferenceLine x={0} stroke="rgba(255,255,255,0.2)" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}K`} />
+                      <YAxis dataKey="emotion" type="category" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} width={90} />
+                      <Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)' }} formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Avg P&L']} />
+                      <ReferenceLine x={0} stroke="var(--muted-foreground)" />
                       <Bar dataKey="avg_pnl" radius={[0, 4, 4, 0]} barSize={18}>
                         {emotionChart.map((entry, index) => (
                           <Cell key={index} fill={entry.avg_pnl >= 0 ? '#22c55e' : '#ef4444'} />
@@ -235,11 +235,11 @@ export function JournalPage() {
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={emotionChart} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                      <XAxis type="number" tick={{ fontSize: 10, fill: '#888' }} tickFormatter={(v) => `${v}%`} domain={[0, 100]} />
-                      <YAxis dataKey="emotion" type="category" tick={{ fontSize: 10, fill: '#888' }} width={90} />
-                      <Tooltip contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }} formatter={(value: number) => [`${value}%`, 'Win Rate']} />
-                      <ReferenceLine x={50} stroke="rgba(255,255,255,0.2)" strokeDasharray="5 5" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `${v}%`} domain={[0, 100]} />
+                      <YAxis dataKey="emotion" type="category" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} width={90} />
+                      <Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)' }} formatter={(value: number) => [`${value}%`, 'Win Rate']} />
+                      <ReferenceLine x={50} stroke="var(--muted-foreground)" strokeDasharray="5 5" />
                       <Bar dataKey="win_rate" radius={[0, 4, 4, 0]} barSize={18}>
                         {emotionChart.map((entry, index) => (
                           <Cell key={index} fill={entry.win_rate >= 50 ? '#22c55e' : entry.win_rate >= 30 ? '#f59e0b' : '#ef4444'} />

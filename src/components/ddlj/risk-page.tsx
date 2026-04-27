@@ -28,7 +28,7 @@ export function RiskPage() {
   const unacknowledgedCount = alerts.filter(a => !a.acknowledged).length;
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-3 sm:space-y-4 p-3 sm:p-4">
       {/* Risk Overview Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="bg-card/80 border-border">
@@ -166,10 +166,10 @@ export function RiskPage() {
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={risk.vix_regime.history}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="time" tick={{ fontSize: 10, fill: '#888' }} />
-                  <YAxis tick={{ fontSize: 10, fill: '#888' }} domain={[8, 30]} tickFormatter={(v) => `${v}`} />
-                  <Tooltip contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} domain={[8, 30]} tickFormatter={(v) => `${v}`} />
+                  <Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)' }} />
                   <ReferenceLine y={25} stroke="#ef4444" strokeDasharray="5 5" label={{ value: 'High', position: 'right', fill: '#ef4444', fontSize: 9 }} />
                   <ReferenceLine y={12} stroke="#22c55e" strokeDasharray="5 5" label={{ value: 'Low', position: 'right', fill: '#22c55e', fontSize: 9 }} />
                   <Line type="monotone" dataKey="vix" stroke="#f59e0b" strokeWidth={2} dot={false} name="India VIX" />
@@ -199,11 +199,11 @@ export function RiskPage() {
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={risk.drawdown_timeline}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#888' }} />
-                <YAxis tick={{ fontSize: 10, fill: '#888' }} tickFormatter={(v) => `${v}%`} />
-                <Tooltip contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }} formatter={(value: number) => [`${value.toFixed(1)}%`, 'Drawdown']} />
-                <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
+                <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `${v}%`} />
+                <Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)' }} formatter={(value: number) => [`${value.toFixed(1)}%`, 'Drawdown']} />
+                <ReferenceLine y={0} stroke="var(--muted-foreground)" />
                 <Bar dataKey="drawdown_pct" radius={[4, 4, 0, 0]} barSize={16}>
                   {risk.drawdown_timeline.map((entry, i) => (
                     <Cell key={i} fill={entry.drawdown_pct > 3 ? '#ef4444' : entry.drawdown_pct > 1 ? '#f59e0b' : '#22c55e'} />

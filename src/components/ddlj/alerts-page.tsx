@@ -44,7 +44,7 @@ export function AlertsPage() {
   };
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-3 sm:space-y-4 p-3 sm:p-4">
       {/* Header */}
       <Card className="bg-card/80 border-border">
         <CardHeader>

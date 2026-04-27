@@ -67,6 +67,8 @@ interface DDLJStore {
   setActivePage: (page: PageId) => void;
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
+  mobileMenuOpen: boolean;
+  setMobileMenuOpen: (open: boolean) => void;
 
   // Engine
   engineStatus: EngineStatus;
@@ -140,6 +142,8 @@ export const useDDLJStore = create<DDLJStore>((set) => ({
   setActivePage: (page) => set({ activePage: page }),
   sidebarCollapsed: false,
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+  mobileMenuOpen: false,
+  setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
 
   // ── Engine ──
   engineStatus: mockEngineStatus,

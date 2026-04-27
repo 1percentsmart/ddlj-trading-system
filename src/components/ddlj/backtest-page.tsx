@@ -66,7 +66,7 @@ export function BacktestPage() {
   const bestConfig = [...backtestResults].sort((a, b) => b.net_pnl - a.net_pnl)[0];
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-3 sm:space-y-4 p-3 sm:p-4">
       {/* ── Backtest Controls ── */}
       <Card className="bg-card/80 border-border">
         <CardHeader>
@@ -185,14 +185,14 @@ export function BacktestPage() {
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis type="number" tick={{ fontSize: 10, fill: '#888' }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}K`} />
-                <YAxis dataKey="name" type="category" tick={{ fontSize: 10, fill: '#888' }} width={120} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}K`} />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} width={120} />
                 <Tooltip
-                  contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }}
+                  contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)' }}
                   formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Net P&L']}
                 />
-                <ReferenceLine x={0} stroke="rgba(255,255,255,0.2)" />
+                <ReferenceLine x={0} stroke="var(--muted-foreground)" />
                 <Bar dataKey="pnl" radius={[0, 4, 4, 0]} barSize={24}>
                   {chartData.map((entry, index) => (
                     <Cell key={index} fill={entry.pnl >= 0 ? '#22c55e' : '#ef4444'} />

@@ -55,3 +55,65 @@ Stage Summary:
 - Mobile responsive: sidebar becomes Sheet drawer, topbar collapses, pages adapt
 - All chart tooltips work in both themes
 - Zero TypeScript errors, clean build
+
+---
+Task ID: 2-a
+Agent: Main Agent
+Task: Fix double hamburger menu bug
+
+Work Log:
+- Identified root cause: DDLJSidebar component rendered twice — once in page.tsx and once in topbar.tsx
+- Added mobileMenuOpen + setMobileMenuOpen to Zustand store
+- Refactored DDLJSidebar to use controlled Sheet (open state from store)
+- Replaced full DDLJSidebar in topbar.tsx with a simple hamburger Button that sets mobileMenuOpen=true
+- Tested build: compiles with zero errors
+
+Stage Summary:
+- Double hamburger menu bug fixed
+- Mobile navigation now works correctly with single hamburger button in topbar
+- Sheet drawer controlled by store state, closes on navigation
+
+---
+Task ID: 2-b
+Agent: Main Agent
+Task: Fix Daily PnL graph and chart tooltip theme issues
+
+Work Log:
+- Fixed Daily PnL graph: replaced <rect> with <Cell> from recharts for proper per-bar coloring
+- Fixed all hardcoded dark-mode colors (#1a1a2e, rgba(255,255,255,...)) across all pages
+- Replaced with CSS variable-based colors (var(--card), var(--border), var(--muted-foreground), etc.)
+- Fixed pages: dashboard, trades, risk, journal, backtest
+
+Stage Summary:
+- Daily PnL graph now renders correctly with green/red bars based on profit/loss
+- Chart tooltips now work properly in both light and dark modes
+- All charts across all pages use theme-aware CSS variables
+
+---
+Task ID: 2-c
+Agent: Main Agent
+Task: Fix responsive padding and component layout
+
+Work Log:
+- Updated all pages from `space-y-4 p-4` to `space-y-3 sm:space-y-4 p-3 sm:p-4`
+- Fixed pages: engine, trades, risk, token, journal, backtest, alerts, health
+
+Stage Summary:
+- All pages now have responsive padding that adjusts for mobile screens
+- Consistent spacing across the entire dashboard
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Create Strategy Documentation and Strategy Guide PDFs
+
+Work Log:
+- Analyzed all 10 backend engine modules for comprehensive understanding
+- Generated Strategy Documentation PDF (144KB, 13 sections)
+- Generated Strategy Guide PDF (151KB, 10 sections)
+- Both documents use professional formatting with ReportLab
+
+Stage Summary:
+- ddlj-strategy-documentation.pdf: Comprehensive module-by-module documentation with kid-friendly explanations
+- ddlj-strategy-guide.pdf: Practical day-by-day operator's manual with checklists and step-by-step instructions
+- Both PDFs saved to /home/z/my-project/download/
