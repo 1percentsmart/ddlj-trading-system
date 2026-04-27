@@ -2,50 +2,44 @@
  * DDLJ Trading System — Global State Store (Zustand)
  * ====================================================
  * 
- * Central state management for the entire trading dashboard.
- * Handles navigation, engine status, trades, positions, config,
- * and real-time updates.
+ * Central state management for the trading dashboard.
+ * All data comes from real API calls — no mock data.
  */
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type {
-  EngineStatus,
-  Trade,
-  Position,
-  ConfigParam,
-  BacktestResult,
-  HealthCheck,
-  SignalLog,
-  OptionsChainData,
-  RiskMetrics,
-  RiskAlert,
-  AlertConfig,
-  AlertHistoryEntry,
-  TelegramConfig,
-  JournalEntry,
-  ThemePreferences,
-  AccentColor,
-  ConfigPreset,
-} from './mock-data';
 import {
-  mockEngineStatus,
-  mockTrades,
-  mockPositions,
-  mockConfig,
-  mockBacktestResults,
-  mockHealthChecks,
-  mockSignalLog,
-  mockOptionsChain,
-  mockRiskMetrics,
-  mockRiskAlerts,
-  mockAlertConfigs,
-  mockAlertHistory,
-  mockTelegramConfig,
-  mockJournalEntries,
-  defaultThemePreferences,
-  mockConfigPresets,
-} from './mock-data';
+  engineApi,
+  tradesApi,
+  configApi,
+  healthApi,
+  tokenApi,
+  type EngineStatus,
+  type Trade,
+  type Position,
+  type HealthStatus,
+  type TokenStatus,
+  type TokenExchangeResult,
+} from './api';
+
+// ── Theme Types ─────────────────────────────────────────────────
+export type AccentColor = 'emerald' | 'blue' | 'purple' | 'amber' | 'red';
+
+export interface ThemePreferences {
+  mode: 'dark' | 'light' | 'system';
+  accent: AccentColor;
+  sidebarPosition: 'left' | 'right';
+  compactMode: boolean;
+  numberFormat: 'indian' | 'international';
+}
+
+const defaultThemePreferences: ThemePreferences = {
+  mode: 'dark',
+  accent: 'emerald',
+  sidebarPosition: 'left',
+  compactMode: false,
+  numberFormat: 'indian',
+};
 
 // ── Navigation ───────────────────────────────────────────────────
 export type PageId = 
@@ -53,13 +47,24 @@ export type PageId =
   | 'engine'
   | 'trades'
   | 'config'
-  | 'backtest'
   | 'token'
   | 'health'
+  | 'backtest'
   | 'options'
   | 'risk'
   | 'alerts'
   | 'journal';
+
+// ── Default engine status ───────────────────────────────────────
+const defaultEngineStatus: EngineStatus = {
+  engine_running: false,
+  initialized: false,
+  error_count: 0,
+  start_time: null,
+  stop_time: null,
+  token: { stored: false, valid: false, user: null },
+  last_heartbeat: null,
+};
 
 // ── Store State ──────────────────────────────────────────────────
 interface DDLJStore {
@@ -73,59 +78,40 @@ interface DDLJStore {
 
   // Engine
   engineStatus: EngineStatus;
-  updateEngineStatus: (status: Partial<EngineStatus>) => void;
   isEngineLoading: boolean;
-  setEngineLoading: (loading: boolean) => void;
 
   // Trades & Positions
   trades: Trade[];
+  tradesTotal: number;
   positions: Position[];
-  addTrade: (trade: Trade) => void;
-  addPosition: (position: Position) => void;
-  removePosition: (id: string) => void;
+  positionsCount: number;
 
-  // Config
-  config: ConfigParam[];
-  updateConfigParam: (key: string, value: string | number | boolean) => void;
-  resetConfigParam: (key: string) => void;
-  resetAllConfig: () => void;
-  configPresets: ConfigPreset[];
-  applyConfigPreset: (preset: ConfigPreset) => void;
-
-  // Backtest
-  backtestResults: BacktestResult[];
-  isBacktestRunning: boolean;
-  setBacktestRunning: (running: boolean) => void;
+  // Config (flat key-value)
+  config: Record<string, unknown>;
 
   // Health
-  healthChecks: HealthCheck[];
+  healthStatus: HealthStatus | null;
 
-  // Signal Log
-  signalLog: SignalLog[];
-  addSignal: (signal: SignalLog) => void;
+  // Token
+  tokenStatus: TokenStatus | null;
+  loginUrl: string | null;
 
   // Connection
   isConnected: boolean;
   setConnected: (connected: boolean) => void;
 
-  // Options Chain
-  optionsChain: OptionsChainData;
-  selectedOptionsIndex: 'BANKNIFTY' | 'NIFTY';
-  setSelectedOptionsIndex: (index: 'BANKNIFTY' | 'NIFTY') => void;
-
-  // Risk
-  riskMetrics: RiskMetrics;
-  riskAlerts: RiskAlert[];
-
-  // Alerts
-  alertConfigs: AlertConfig[];
-  alertHistory: AlertHistoryEntry[];
-  telegramConfig: TelegramConfig;
-  updateTelegramConfig: (config: Partial<TelegramConfig>) => void;
-
-  // Journal
-  journalEntries: JournalEntry[];
-  addJournalEntry: (entry: JournalEntry) => void;
+  // Async actions
+  fetchStatus: () => Promise<void>;
+  fetchTrades: (limit?: number, offset?: number) => Promise<void>;
+  fetchPositions: () => Promise<void>;
+  fetchConfig: () => Promise<void>;
+  fetchHealth: () => Promise<void>;
+  fetchTokenStatus: () => Promise<void>;
+  fetchLoginUrl: () => Promise<void>;
+  startEngine: () => Promise<void>;
+  stopEngine: () => Promise<void>;
+  exchangeToken: (requestToken: string) => Promise<TokenExchangeResult>;
+  updateConfig: (data: Record<string, unknown>) => Promise<void>;
 
   // Theme
   theme: ThemePreferences;
@@ -139,7 +125,7 @@ interface DDLJStore {
 
 export const useDDLJStore = create<DDLJStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
   // ── Navigation ──
   activePage: 'dashboard',
   setActivePage: (page) => set({ activePage: page }),
@@ -149,88 +135,129 @@ export const useDDLJStore = create<DDLJStore>()(
   setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
 
   // ── Engine ──
-  engineStatus: mockEngineStatus,
-  updateEngineStatus: (partial) =>
-    set((s) => ({ engineStatus: { ...s.engineStatus, ...partial } })),
+  engineStatus: defaultEngineStatus,
   isEngineLoading: false,
-  setEngineLoading: (loading) => set({ isEngineLoading: loading }),
 
   // ── Trades & Positions ──
-  trades: mockTrades,
-  positions: mockPositions,
-  addTrade: (trade) => set((s) => ({ trades: [trade, ...s.trades] })),
-  addPosition: (position) =>
-    set((s) => ({ positions: [...s.positions, position] })),
-  removePosition: (id) =>
-    set((s) => ({ positions: s.positions.filter((p) => p.id !== id) })),
+  trades: [],
+  tradesTotal: 0,
+  positions: [],
+  positionsCount: 0,
 
   // ── Config ──
-  config: mockConfig,
-  updateConfigParam: (key, value) =>
-    set((s) => ({
-      config: s.config.map((p) =>
-        p.key === key ? { ...p, value } : p
-      ),
-    })),
-  resetConfigParam: (key) =>
-    set((s) => ({
-      config: s.config.map((p) =>
-        p.key === key ? { ...p, value: p.default } : p
-      ),
-    })),
-  resetAllConfig: () =>
-    set((s) => ({
-      config: s.config.map((p) => ({ ...p, value: p.default })),
-    })),
-  configPresets: mockConfigPresets,
-  applyConfigPreset: (preset) =>
-    set((s) => {
-      const newConfig = s.config.map((p) => {
-        if (p.key in preset.changes) {
-          return { ...p, value: preset.changes[p.key] };
-        }
-        return p;
-      });
-      return { config: newConfig };
-    }),
-
-  // ── Backtest ──
-  backtestResults: mockBacktestResults,
-  isBacktestRunning: false,
-  setBacktestRunning: (running) => set({ isBacktestRunning: running }),
+  config: {},
 
   // ── Health ──
-  healthChecks: mockHealthChecks,
+  healthStatus: null,
 
-  // ── Signal Log ──
-  signalLog: mockSignalLog,
-  addSignal: (signal) =>
-    set((s) => ({ signalLog: [signal, ...s.signalLog].slice(0, 100) })),
+  // ── Token ──
+  tokenStatus: null,
+  loginUrl: null,
 
   // ── Connection ──
-  isConnected: true,
+  isConnected: false,
   setConnected: (connected) => set({ isConnected: connected }),
 
-  // ── Options ──
-  optionsChain: mockOptionsChain,
-  selectedOptionsIndex: 'BANKNIFTY',
-  setSelectedOptionsIndex: (index) => set({ selectedOptionsIndex: index }),
+  // ── Async Actions ──
+  fetchStatus: async () => {
+    try {
+      const status = await engineApi.getStatus();
+      set({ engineStatus: status, isConnected: true });
+    } catch {
+      set({ isConnected: false });
+    }
+  },
 
-  // ── Risk ──
-  riskMetrics: mockRiskMetrics,
-  riskAlerts: mockRiskAlerts,
+  fetchTrades: async (limit = 100, offset = 0) => {
+    try {
+      const data = await tradesApi.getHistory(limit, offset);
+      set({ trades: data.trades, tradesTotal: data.total, isConnected: true });
+    } catch {
+      set({ isConnected: false });
+    }
+  },
 
-  // ── Alerts ──
-  alertConfigs: mockAlertConfigs,
-  alertHistory: mockAlertHistory,
-  telegramConfig: mockTelegramConfig,
-  updateTelegramConfig: (partial) =>
-    set((s) => ({ telegramConfig: { ...s.telegramConfig, ...partial } })),
+  fetchPositions: async () => {
+    try {
+      const data = await tradesApi.getPositions();
+      set({ positions: data.positions, positionsCount: data.count, isConnected: true });
+    } catch {
+      set({ isConnected: false });
+    }
+  },
 
-  // ── Journal ──
-  journalEntries: mockJournalEntries,
-  addJournalEntry: (entry) =>
-    set((s) => ({ journalEntries: [entry, ...s.journalEntries] })),
+  fetchConfig: async () => {
+    try {
+      const data = await configApi.getAll();
+      set({ config: data, isConnected: true });
+    } catch {
+      set({ isConnected: false });
+    }
+  },
+
+  fetchHealth: async () => {
+    try {
+      const data = await healthApi.getHealth();
+      set({ healthStatus: data, isConnected: true });
+    } catch {
+      set({ isConnected: false });
+    }
+  },
+
+  fetchTokenStatus: async () => {
+    try {
+      const data = await tokenApi.getStatus();
+      set({ tokenStatus: data, isConnected: true });
+    } catch {
+      set({ isConnected: false });
+    }
+  },
+
+  fetchLoginUrl: async () => {
+    try {
+      const data = await tokenApi.getLoginUrl();
+      set({ loginUrl: data.login_url, isConnected: true });
+    } catch {
+      set({ isConnected: false });
+    }
+  },
+
+  startEngine: async () => {
+    set({ isEngineLoading: true });
+    try {
+      await engineApi.start();
+      await get().fetchStatus();
+    } catch {
+      // Error handled by fetchStatus
+    } finally {
+      set({ isEngineLoading: false });
+    }
+  },
+
+  stopEngine: async () => {
+    set({ isEngineLoading: true });
+    try {
+      await engineApi.stop();
+      await get().fetchStatus();
+    } catch {
+      // Error handled by fetchStatus
+    } finally {
+      set({ isEngineLoading: false });
+    }
+  },
+
+  exchangeToken: async (requestToken: string) => {
+    const result = await tokenApi.exchange(requestToken);
+    // Refresh status after token exchange
+    await get().fetchStatus();
+    await get().fetchTokenStatus();
+    return result;
+  },
+
+  updateConfig: async (data: Record<string, unknown>) => {
+    await configApi.update(data);
+    await get().fetchConfig();
+  },
 
   // ── Theme ──
   theme: defaultThemePreferences,

@@ -10,7 +10,7 @@
 
 import { useEffect } from 'react';
 import { useDDLJStore } from '@/lib/store';
-import type { AccentColor } from '@/lib/mock-data';
+import type { AccentColor } from '@/lib/store';
 
 // Accent color → CSS variable mapping (same as settings-panel)
 const accentColorMap: Record<AccentColor, Record<string, string>> = {

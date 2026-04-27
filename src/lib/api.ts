@@ -2,24 +2,111 @@
  * DDLJ Trading System — API Service Layer
  * ==========================================
  * Type-safe API client for the FastAPI backend.
- * Falls back to mock data when backend is unavailable.
+ * All endpoints match the real backend at https://ddlj.up.railway.app/api/v1
  */
 
-import type {
-  EngineStatus,
-  Trade,
-  Position,
-  ConfigParam,
-  BacktestResult,
-  HealthCheck,
-  SignalLog,
-} from './mock-data';
-
 // ── Config ──────────────────────────────────────────────────────
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://ddlj.up.railway.app/api/v1';
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'wss://ddlj.up.railway.app/ws';
 
 export { API_BASE, WS_URL };
+
+// ── Types ──────────────────────────────────────────────────────
+export interface EngineStatus {
+  engine_running: boolean;
+  initialized: boolean;
+  error_count: number;
+  start_time: string | null;
+  stop_time: string | null;
+  token: {
+    stored: boolean;
+    valid: boolean;
+    user: string | null;
+  };
+  last_heartbeat: string | null;
+}
+
+export interface HealthStatus {
+  status: 'healthy' | 'degraded';
+  reason?: string;
+  action?: string;
+  engine_running?: boolean;
+  token_valid?: boolean;
+}
+
+export interface TradesResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  trades: Trade[];
+}
+
+export interface Trade {
+  id: string;
+  symbol: string;
+  direction: 'LONG' | 'SHORT';
+  entry: number;
+  exit: number;
+  entry_time: string;
+  exit_time: string;
+  sl: number;
+  target: number;
+  qty: number;
+  gross: number;
+  costs: number;
+  net: number;
+  exit_reason: string;
+  rr: number;
+  held: string;
+  mode: string;
+  option_strike?: number;
+  option_type?: 'CE' | 'PE';
+  option_entry_premium?: number;
+  option_exit_premium?: number;
+  option_delta?: number;
+  option_iv_entry?: number;
+  option_iv_exit?: number;
+}
+
+export interface PositionsResponse {
+  count: number;
+  positions: Position[];
+}
+
+export interface Position {
+  id: string;
+  symbol: string;
+  direction: 'LONG' | 'SHORT';
+  entry: number;
+  entry_time: string;
+  qty: number;
+  sl: number;
+  target: number;
+  rr: number;
+  held: string;
+  be_done: boolean;
+  atr_at_entry: number;
+  current_premium?: number;
+  unrealized_pnl?: number;
+  option_strike?: number;
+  option_type?: 'CE' | 'PE';
+}
+
+export interface TokenStatus {
+  stored: boolean;
+  valid: boolean;
+  user: string | null;
+}
+
+export interface TokenExchangeResult {
+  status: string;
+  user: string;
+  message: string;
+}
+
+export interface TokenLoginUrl {
+  login_url: string;
+}
 
 // ── Helper ─────────────────────────────────────────────────────
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -36,158 +123,37 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // ── Engine ──────────────────────────────────────────────────────
 export const engineApi = {
-  getStatus: () => request<EngineStatus>('/engine/status'),
-  start: () => request<{ ok: boolean }>('/engine/start', { method: 'POST' }),
-  stop: () => request<{ ok: boolean }>('/engine/stop', { method: 'POST' }),
-  restart: () => request<{ ok: boolean }>('/engine/restart', { method: 'POST' }),
-  forceCloseAll: () => request<{ ok: boolean }>('/engine/force-close', { method: 'POST' }),
+  getStatus: () => request<EngineStatus>('/status'),
+  start: () => request<{ ok: boolean }>('/start', { method: 'POST' }),
+  stop: () => request<{ ok: boolean }>('/stop', { method: 'POST' }),
 };
 
 // ── Config ──────────────────────────────────────────────────────
 export const configApi = {
-  getAll: () => request<ConfigParam[]>('/config'),
-  update: (key: string, value: string | number | boolean) =>
-    request<ConfigParam>(`/config/${key}`, { method: 'PUT', body: JSON.stringify({ value }) }),
-  resetAll: () => request<{ ok: boolean }>('/config/reset', { method: 'POST' }),
-  exportConfig: () => request<Record<string, unknown>>('/config/export'),
-  importConfig: (data: Record<string, unknown>) =>
-    request<{ ok: boolean }>('/config/import', { method: 'POST', body: JSON.stringify(data) }),
+  getAll: () => request<Record<string, unknown>>('/config'),
+  update: (data: Record<string, unknown>) =>
+    request<Record<string, unknown>>('/config', { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 // ── Trades & Positions ──────────────────────────────────────────
 export const tradesApi = {
   getHistory: (limit = 100, offset = 0) =>
-    request<Trade[]>('/trades', undefined),
-  getPositions: () => request<Position[]>('/positions'),
-};
-
-// ── Backtest ────────────────────────────────────────────────────
-export const backtestApi = {
-  run: (params: { index?: string; timeframe?: string; option_type?: string }) =>
-    request<BacktestResult[]>('/backtest/run', { method: 'POST', body: JSON.stringify(params) }),
-  getResults: () => request<BacktestResult[]>('/backtest/results'),
+    request<TradesResponse>(`/trades?limit=${limit}&offset=${offset}`),
+  getPositions: () => request<PositionsResponse>('/positions'),
 };
 
 // ── Health ──────────────────────────────────────────────────────
 export const healthApi = {
-  getChecks: () => request<HealthCheck[]>('/health'),
+  getHealth: () => request<HealthStatus>('/health'),
 };
 
 // ── Token ───────────────────────────────────────────────────────
 export const tokenApi = {
   exchange: (requestToken: string) =>
-    request<{ ok: boolean; user_name?: string }>('/token/exchange', {
+    request<TokenExchangeResult>('/token', {
       method: 'POST',
       body: JSON.stringify({ request_token: requestToken }),
     }),
-  getStatus: () => request<EngineStatus['token']>('/token/status'),
-};
-
-// ── Options ─────────────────────────────────────────────────────
-export interface OptionsChainRow {
-  strike: number;
-  ce_ltp: number;
-  ce_volume: number;
-  ce_oi: number;
-  ce_iv: number;
-  ce_delta: number;
-  ce_gamma: number;
-  pe_ltp: number;
-  pe_volume: number;
-  pe_oi: number;
-  pe_iv: number;
-  pe_delta: number;
-  pe_gamma: number;
-  is_atm: boolean;
-  is_itm_ce: boolean;
-  is_itm_pe: boolean;
-}
-
-export const optionsApi = {
-  getChain: (index: string, spot: number) =>
-    request<OptionsChainRow[]>('/options/chain', undefined),
-};
-
-// ── Alerts ──────────────────────────────────────────────────────
-export interface AlertRule {
-  id: string;
-  name: string;
-  type: 'price' | 'vix' | 'trade' | 'risk' | 'system';
-  condition: string;
-  threshold: number;
-  channel: 'telegram' | 'in_app' | 'both';
-  enabled: boolean;
-  created_at: string;
-  last_triggered: string | null;
-}
-
-export const alertsApi = {
-  getRules: () => request<AlertRule[]>('/alerts/rules'),
-  createRule: (rule: Partial<AlertRule>) =>
-    request<AlertRule>('/alerts/rules', { method: 'POST', body: JSON.stringify(rule) }),
-  updateRule: (id: string, rule: Partial<AlertRule>) =>
-    request<AlertRule>(`/alerts/rules/${id}`, { method: 'PUT', body: JSON.stringify(rule) }),
-  deleteRule: (id: string) =>
-    request<{ ok: boolean }>(`/alerts/rules/${id}`, { method: 'DELETE' }),
-  getHistory: () => request<SignalLog[]>('/alerts/history'),
-};
-
-// ── Risk ────────────────────────────────────────────────────────
-export interface RiskMetrics {
-  total_exposure: number;
-  margin_used: number;
-  buying_power: number;
-  daily_risk_used_pct: number;
-  daily_risk_limit_pct: number;
-  current_drawdown_pct: number;
-  max_drawdown_pct: number;
-  capital_floor_pct: number;
-  total_delta: number;
-  total_gamma: number;
-  total_theta: number;
-  total_vega: number;
-  vix_regime: 'LOW' | 'NORMAL' | 'HIGH';
-  circuit_breaker_active: boolean;
-  circuit_breaker_reason: string | null;
-}
-
-export const riskApi = {
-  getMetrics: () => request<RiskMetrics>('/risk/metrics'),
-};
-
-// ── Journal ─────────────────────────────────────────────────────
-export interface JournalEntry {
-  id: string;
-  trade_id: string;
-  pre_trade_rationale: string;
-  post_trade_review: string;
-  emotional_state: string;
-  tags: string[];
-  screenshot_url: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export const journalApi = {
-  getEntries: () => request<JournalEntry[]>('/journal'),
-  createEntry: (entry: Partial<JournalEntry>) =>
-    request<JournalEntry>('/journal', { method: 'POST', body: JSON.stringify(entry) }),
-  updateEntry: (id: string, entry: Partial<JournalEntry>) =>
-    request<JournalEntry>(`/journal/${id}`, { method: 'PUT', body: JSON.stringify(entry) }),
-};
-
-// ── Settings (Telegram, etc.) ───────────────────────────────────
-export interface AppSettings {
-  telegram_bot_token: string;
-  telegram_chat_id: string;
-  notifications_enabled: boolean;
-  daily_summary_enabled: boolean;
-  trade_alerts_enabled: boolean;
-  risk_alerts_enabled: boolean;
-}
-
-export const settingsApi = {
-  get: () => request<AppSettings>('/settings'),
-  update: (settings: Partial<AppSettings>) =>
-    request<AppSettings>('/settings', { method: 'PUT', body: JSON.stringify(settings) }),
+  getStatus: () => request<TokenStatus>('/token/status'),
+  getLoginUrl: () => request<TokenLoginUrl>('/token/login'),
 };

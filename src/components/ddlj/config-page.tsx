@@ -1,515 +1,344 @@
 'use client';
 
 /**
- * DDLJ Configuration Page (Enhanced)
- * ====================================
- * Apply confirmation dialog, config history/version tracking, undo button.
+ * DDLJ Configuration Page — Simplified
+ * =======================================
+ * Fetches real config from backend (flat key-value).
+ * Groups by prefix. No presets, diff view, or undo history.
+ * Scroll fix: no ScrollArea wrapper — normal page flow.
  */
 
 import { useDDLJStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   Settings,
   RotateCcw,
   Save,
-  Info,
+  ChevronDown,
+  ChevronRight,
   Zap,
-  AlertTriangle,
-  CheckCircle2,
   Download,
-  Upload,
-  Copy,
-  FileJson,
-  ArrowRight,
-  Shield,
-  Swords,
-  Scale,
-  History,
-  Undo2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useState, useRef } from 'react';
-import type { ConfigPreset } from '@/lib/mock-data';
+import { useState, useEffect, useMemo } from 'react';
 
-interface ConfigHistoryEntry {
-  id: string;
-  timestamp: string;
-  key: string;
-  oldValue: string | number | boolean;
-  newValue: string | number | boolean;
+// ── Config Grouping Logic ─────────────────────────────────────
+interface ConfigGroup {
+  title: string;
+  keys: string[];
+  collapsible?: boolean;
+  defaultCollapsed?: boolean;
+}
+
+function getConfigGroups(keys: string[]): ConfigGroup[] {
+  const groups: ConfigGroup[] = [];
+  const assigned = new Set<string>();
+
+  // Define groups by prefix patterns
+  const groupDefs: { title: string; prefixes: string[] }[] = [
+    { title: 'Index Settings', prefixes: ['BANKNIFTY_', 'NIFTY_', 'TRADE_INDEX', 'STARTING_CAPITAL', 'LOT_SIZE', 'NUM_LOTS'] },
+    { title: 'EMA Settings', prefixes: ['EMA_'] },
+    { title: 'Bias Settings', prefixes: ['BIAS_', 'BIAS_TIMEFRAME', 'ENTRY_TIMEFRAME'] },
+    { title: 'Risk Management', prefixes: ['DAILY_RISK_', 'DRAWDOWN_', 'CAPITAL_FLOOR_', 'RISK_PER_POSITION', 'MAX_OPEN_POSITIONS'] },
+    { title: 'Entry Rules', prefixes: ['ENTRY_', 'ATR_SL_', 'ATR_TARGET_'] },
+    { title: 'Exit Rules', prefixes: ['FORCE_CLOSE_', 'MAX_TRADE_', 'BE_TRIGGER_', 'TRAILING_', 'NEAR_TARGET_', 'BIAS_FLIP_'] },
+    { title: 'Position Limits', prefixes: ['MAX_'] },
+    { title: 'Options Settings', prefixes: ['OPTION_', 'IV_', 'STRIKE_OFFSET_'] },
+    { title: 'Notifications', prefixes: ['NOTIFY_', 'TELEGRAM_', 'ALERT_'] },
+    { title: 'Advanced', prefixes: ['POLL_', 'CACHE_', 'LOG_', 'KITE_', 'WARMUP_', 'SAVE_', 'COST_', 'USE_REAL_', 'VIX_', 'RSI_'] },
+  ];
+
+  for (const def of groupDefs) {
+    const matchingKeys = keys.filter(key => {
+      if (assigned.has(key)) return false;
+      // Check if key starts with any prefix, or matches exactly
+      return def.prefixes.some(prefix => key.startsWith(prefix) || key === prefix);
+    });
+    if (matchingKeys.length > 0) {
+      matchingKeys.forEach(k => assigned.add(k));
+      groups.push({
+        title: def.title,
+        keys: matchingKeys,
+        collapsible: def.title === 'Advanced',
+        defaultCollapsed: def.title === 'Advanced',
+      });
+    }
+  }
+
+  // Catch any remaining keys
+  const remaining = keys.filter(k => !assigned.has(k));
+  if (remaining.length > 0) {
+    groups.push({
+      title: 'Other',
+      keys: remaining,
+      collapsible: true,
+      defaultCollapsed: true,
+    });
+  }
+
+  return groups;
+}
+
+function guessValueType(value: unknown): 'boolean' | 'number' | 'string' {
+  if (typeof value === 'boolean') return 'boolean';
+  if (typeof value === 'number') return 'number';
+  if (typeof value === 'string') {
+    if (value === 'true' || value === 'false') return 'boolean';
+    if (!isNaN(Number(value)) && value !== '') return 'number';
+  }
+  return 'string';
+}
+
+function parseValue(value: unknown): boolean | number | string {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    const num = Number(value);
+    if (!isNaN(num) && value !== '') return num;
+  }
+  return String(value);
 }
 
 export function ConfigPage() {
-  const { config, updateConfigParam, resetConfigParam, resetAllConfig, applyConfigPreset, configPresets } = useDDLJStore();
+  const { config, fetchConfig, updateConfig } = useDDLJStore();
   const [searchTerm, setSearchTerm] = useState('');
+  const [localConfig, setLocalConfig] = useState<Record<string, unknown>>({});
   const [hasChanges, setHasChanges] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  const [showDiff, setShowDiff] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [configHistory, setConfigHistory] = useState<ConfigHistoryEntry[]>([
-    { id: 'H001', timestamp: '2026-04-28T08:15:00+05:30', key: 'DAILY_RISK_PCT', oldValue: 2.0, newValue: 3.0 },
-    { id: 'H002', timestamp: '2026-04-28T07:15:00+05:30', key: 'EMA_FAST', oldValue: 12, newValue: 9 },
-    { id: 'H003', timestamp: '2026-04-27T09:15:00+05:30', key: 'MAX_OPEN_POSITIONS', oldValue: 3, newValue: 2 },
-    { id: 'H004', timestamp: '2026-04-26T09:15:00+05:30', key: 'TRAILING_STOP_ENABLED', oldValue: false, newValue: true },
-    { id: 'H005', timestamp: '2026-04-25T09:15:00+05:30', key: 'VIX_HIGH_THRESHOLD', oldValue: 20, newValue: 25 },
-  ]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
-  const categories = config.reduce<Record<string, typeof config>>((acc, param) => {
-    if (!acc[param.category]) acc[param.category] = [];
-    acc[param.category].push(param);
-    return acc;
-  }, {});
+  useEffect(() => {
+    fetchConfig();
+  }, [fetchConfig]);
 
-  const filteredCategories = Object.entries(categories).reduce<Record<string, typeof config>>((acc, [cat, params]) => {
-    const filtered = params.filter(p =>
-      p.key.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cat.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    if (filtered.length > 0) acc[cat] = filtered;
-    return acc;
-  }, {});
+  useEffect(() => {
+    setLocalConfig(config);
+  }, [config]);
 
-  const changedParams = config.filter(p => JSON.stringify(p.value) !== JSON.stringify(p.default));
+  const keys = useMemo(() => Object.keys(localConfig).sort(), [localConfig]);
+  const groups = useMemo(() => getConfigGroups(keys), [keys]);
 
-  const validateParam = (key: string, value: string | number | boolean): string | null => {
-    const param = config.find(p => p.key === key);
-    if (!param) return null;
-    if (param.type === 'number') {
-      const num = Number(value);
-      if (isNaN(num)) return 'Must be a valid number';
-      if (param.min !== undefined && num < param.min) return `Minimum: ${param.min}`;
-      if (param.max !== undefined && num > param.max) return `Maximum: ${param.max}`;
-    }
-    return null;
-  };
+  // Filter groups by search term
+  const filteredGroups = useMemo(() => {
+    if (!searchTerm) return groups;
+    return groups
+      .map(g => ({
+        ...g,
+        keys: g.keys.filter(k => k.toLowerCase().includes(searchTerm.toLowerCase())),
+      }))
+      .filter(g => g.keys.length > 0);
+  }, [groups, searchTerm]);
 
-  const handleUpdate = (key: string, value: string | number | boolean) => {
-    const error = validateParam(key, value);
-    const param = config.find(p => p.key === key);
-    setValidationErrors((prev) => {
-      const next = { ...prev };
-      if (error) next[key] = error;
-      else delete next[key];
-      return next;
-    });
-    // Track history
-    if (param) {
-      setConfigHistory(prev => [{
-        id: `H${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        key,
-        oldValue: param.value,
-        newValue: value,
-      }, ...prev].slice(0, 20));
-    }
-    updateConfigParam(key, value);
+  const handleLocalChange = (key: string, value: boolean | number | string) => {
+    setLocalConfig(prev => ({ ...prev, [key]: value }));
     setHasChanges(true);
   };
 
-  const handleSave = () => {
-    if (Object.keys(validationErrors).length > 0) {
-      toast.error('Fix validation errors before saving');
-      return;
+  const handleSave = async () => {
+    try {
+      // Find changed keys
+      const changes: Record<string, unknown> = {};
+      for (const key of Object.keys(localConfig)) {
+        if (JSON.stringify(localConfig[key]) !== JSON.stringify(config[key])) {
+          changes[key] = localConfig[key];
+        }
+      }
+      if (Object.keys(changes).length === 0) {
+        toast.info('No changes to save');
+        return;
+      }
+      await updateConfig(changes);
+      setHasChanges(false);
+      toast.success(`${Object.keys(changes).length} parameter(s) saved`);
+    } catch (err) {
+      toast.error(`Save failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
-    toast.success(`${changedParams.length} configuration parameters saved`);
-    setHasChanges(false);
   };
 
-  const handleUndoLastChange = () => {
-    if (configHistory.length === 0) {
-      toast.info('No changes to undo');
-      return;
-    }
-    const lastChange = configHistory[0];
-    updateConfigParam(lastChange.key, lastChange.oldValue);
-    setConfigHistory(prev => prev.slice(1));
-    setHasChanges(true);
-    toast.success(`Undone: ${lastChange.key} reverted to ${String(lastChange.oldValue)}`);
-  };
-
-  const handleResetAll = () => {
-    resetAllConfig();
-    setValidationErrors({});
-    toast.info('All parameters reset to defaults');
-    setHasChanges(false);
-  };
-
-  const handleResetCategory = (category: string) => {
-    const catParams = config.filter(p => p.category === category);
-    catParams.forEach(p => resetConfigParam(p.key));
-    toast.info(`${category} reset to defaults`);
+  const handleResetKey = (key: string) => {
+    setLocalConfig(prev => ({ ...prev, [key]: config[key] }));
     setHasChanges(true);
   };
 
   const handleExport = () => {
-    const configObj = config.reduce<Record<string, string | number | boolean>>((acc, p) => {
-      acc[p.key] = p.value;
-      return acc;
-    }, {});
-    const blob = new Blob([JSON.stringify(configObj, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(localConfig, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'ddlj-config.json';
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('Config exported as JSON');
+    toast.success('Config exported');
   };
 
-  const handleImport = () => { fileInputRef.current?.click(); };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const imported = JSON.parse(event.target?.result as string);
-        Object.entries(imported).forEach(([key, value]) => {
-          const param = config.find(p => p.key === key);
-          if (param) updateConfigParam(key, value as string | number | boolean);
-        });
-        setHasChanges(true);
-        toast.success('Config imported successfully');
-      } catch {
-        toast.error('Invalid JSON file');
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  };
-
-  const handleCopyConfig = () => {
-    const configObj = config.reduce<Record<string, string | number | boolean>>((acc, p) => {
-      acc[p.key] = p.value;
-      return acc;
-    }, {});
-    navigator.clipboard.writeText(JSON.stringify(configObj, null, 2));
-    toast.success('Config copied to clipboard');
-  };
-
-  const presetIcons: Record<string, React.ReactNode> = {
-    Conservative: <Shield className="h-4 w-4 text-emerald-400" />,
-    Moderate: <Scale className="h-4 w-4 text-amber-400" />,
-    Aggressive: <Swords className="h-4 w-4 text-red-400" />,
+  const toggleGroup = (title: string) => {
+    setCollapsedGroups(prev => ({ ...prev, [title]: !prev[title] }));
   };
 
   return (
-    <div className="space-y-3 sm:space-y-4 p-3 sm:p-4">
+    <div className="space-y-4 p-4 max-w-4xl">
       {/* ── Header ── */}
-      <Card className="bg-card/80 border-border">
+      <Card className="bg-card/60 border-border">
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <CardTitle className="text-lg">Strategy Configuration</CardTitle>
-              <CardDescription>
-                All trading engine parameters — edit live or restart required parameters
-              </CardDescription>
+              <p className="text-xs text-muted-foreground mt-1">
+                {keys.length} parameters — edit and save to apply
+              </p>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {changedParams.length > 0 && (
-                <Badge variant="secondary" className="gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  {changedParams.length} modified
-                </Badge>
-              )}
-              <Button variant="outline" size="sm" onClick={handleUndoLastChange} disabled={configHistory.length === 0} className="gap-1.5 text-xs">
-                <Undo2 className="h-3.5 w-3.5" /> Undo
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleImport} className="gap-1.5 text-xs">
-                <Upload className="h-3.5 w-3.5" /> Import
-              </Button>
+            <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5 text-xs">
                 <Download className="h-3.5 w-3.5" /> Export
               </Button>
-              <Button variant="outline" size="sm" onClick={handleCopyConfig} className="gap-1.5 text-xs">
-                <Copy className="h-3.5 w-3.5" /> Copy
-              </Button>
-              <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleFileChange} />
-              <Button variant="outline" size="sm" onClick={handleResetAll} className="gap-1.5 text-xs">
-                <RotateCcw className="h-3.5 w-3.5" /> Reset All
+              <Button size="sm" onClick={handleSave} disabled={!hasChanges} className="gap-1.5 text-xs">
+                <Save className="h-3.5 w-3.5" /> Save Changes
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3 flex-wrap">
-            <Input
-              placeholder="Search parameters... (e.g., EMA, risk, VIX)"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-full sm:max-w-md"
-            />
-            <Button variant={showDiff ? 'default' : 'outline'} size="sm" onClick={() => setShowDiff(!showDiff)} className="gap-1.5 text-xs">
-              <FileJson className="h-3.5 w-3.5" /> Diff View
-            </Button>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><Zap className="h-3 w-3 text-emerald-400" /> Live update</span>
-              <span className="flex items-center gap-1"><RotateCcw className="h-3 w-3 text-amber-400" /> Restart needed</span>
-            </div>
-          </div>
+          <Input
+            placeholder="Search parameters... (e.g., EMA, risk, VIX)"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-md"
+          />
         </CardContent>
       </Card>
 
-      {/* ── Config Presets ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-        {configPresets.map((preset) => (
-          <Card key={preset.name} className="bg-card/80 border-border hover:border-primary/30 transition-colors cursor-pointer">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
+      {/* ── Config Sections (normal flow, no ScrollArea) ── */}
+      {filteredGroups.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <Settings className="h-10 w-10 mx-auto mb-2 opacity-30" />
+          <p>No parameters match your search</p>
+        </div>
+      ) : (
+        filteredGroups.map((group) => {
+          const isCollapsed = collapsedGroups[group.title] ?? group.defaultCollapsed ?? false;
+
+          const content = (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {group.keys.map((key) => {
+                const rawValue = localConfig[key];
+                const valueType = guessValueType(rawValue);
+                const parsedValue = parseValue(rawValue);
+                const isChanged = JSON.stringify(localConfig[key]) !== JSON.stringify(config[key]);
+
+                return (
+                  <div key={key} className={cn(
+                    'space-y-1.5 p-3 rounded-lg bg-secondary/30 border',
+                    isChanged ? 'border-primary/30' : 'border-border/50'
+                  )}>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-mono font-semibold">{key}</Label>
+                      {isChanged && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 text-[10px] text-muted-foreground hover:text-foreground px-1"
+                          onClick={() => handleResetKey(key)}
+                        >
+                          <RotateCcw className="h-3 w-3 mr-0.5" /> Reset
+                        </Button>
+                      )}
+                    </div>
+
+                    {valueType === 'boolean' ? (
+                      <div className="flex items-center justify-between">
+                        <Switch
+                          checked={!!parsedValue}
+                          onCheckedChange={(checked) => handleLocalChange(key, checked)}
+                        />
+                        <span className={cn('text-xs font-mono', parsedValue ? 'text-emerald-400' : 'text-muted-foreground')}>
+                          {parsedValue ? 'Enabled' : 'Disabled'}
+                        </span>
+                      </div>
+                    ) : valueType === 'number' ? (
+                      <Input
+                        type="number"
+                        value={typeof parsedValue === 'number' ? parsedValue : Number(parsedValue)}
+                        step="any"
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (!isNaN(val)) handleLocalChange(key, val);
+                        }}
+                        className="h-8 text-xs font-mono"
+                      />
+                    ) : (
+                      <Input
+                        value={String(parsedValue)}
+                        onChange={(e) => handleLocalChange(key, e.target.value)}
+                        className="h-8 text-xs font-mono"
+                      />
+                    )}
+
+                    {isChanged && (
+                      <div className="text-[10px] text-muted-foreground">
+                        Original: <span className="font-mono">{String(config[key])}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+
+          if (group.collapsible) {
+            return (
+              <Collapsible
+                key={group.title}
+                open={!isCollapsed}
+                onOpenChange={() => toggleGroup(group.title)}
+              >
+                <Card className="bg-card/60 border-border">
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className="cursor-pointer hover:bg-secondary/20 transition-colors pb-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                          <CardTitle className="text-sm font-medium">{group.title}</CardTitle>
+                          <Badge variant="outline" className="text-[10px]">{group.keys.length}</Badge>
+                        </div>
+                        {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </div>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <CardContent>{content}</CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
+            );
+          }
+
+          return (
+            <Card key={group.title} className="bg-card/60 border-border">
+              <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
-                  {presetIcons[preset.name]}
-                  <span className="text-sm font-semibold">{preset.name}</span>
-                </div>
-                <Button size="sm" variant="outline" className="text-[10px] h-6 gap-1" onClick={() => { applyConfigPreset(preset); setHasChanges(true); toast.success(`${preset.name} preset applied`); }}>
-                  Apply
-                </Button>
-              </div>
-              <p className="text-[11px] text-muted-foreground">{preset.description}</p>
-              <div className="mt-2 space-y-0.5">
-                {Object.entries(preset.changes).slice(0, 3).map(([key, value]) => (
-                  <div key={key} className="flex items-center gap-1 text-[10px]">
-                    <span className="font-mono text-muted-foreground">{key}:</span>
-                    <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />
-                    <span className="font-mono font-semibold">{String(value)}</span>
-                  </div>
-                ))}
-                {Object.keys(preset.changes).length > 3 && (
-                  <span className="text-[10px] text-muted-foreground">+{Object.keys(preset.changes).length - 3} more</span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* ── Config History ── */}
-      <Card className="bg-card/80 border-border">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <History className="h-4 w-4" /> Recent Changes
-            </CardTitle>
-            <Badge variant="outline" className="text-[10px]">Last {Math.min(configHistory.length, 5)} changes</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {configHistory.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-4">No changes recorded</p>
-          ) : (
-            <div className="space-y-1.5">
-              {configHistory.slice(0, 5).map((entry) => (
-                <div key={entry.id} className="flex items-center gap-2 sm:gap-3 p-2 rounded bg-secondary/20 text-xs overflow-x-auto">
-                  <span className="text-muted-foreground">{new Date(entry.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
-                  <span className="font-mono font-semibold text-foreground">{entry.key}</span>
-                  <span className="text-red-400 line-through">{String(entry.oldValue)}</span>
-                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-emerald-400">{String(entry.newValue)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── Diff View ── */}
-      {showDiff && changedParams.length > 0 && (
-        <Card className="bg-card/80 border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Config Changes (vs Defaults)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1.5">
-              {changedParams.map((param) => (
-                <div key={param.key} className="flex items-center gap-3 p-2 rounded bg-secondary/20 text-xs font-mono">
-                  <span className="text-muted-foreground w-36 truncate">{param.key}</span>
-                  <span className="text-red-400 line-through">{String(param.default)}</span>
-                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-emerald-400">{String(param.value)}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Save Buttons with Apply Confirmation ── */}
-      <div className="flex items-center gap-2">
-        <Button size="sm" onClick={handleSave} disabled={!hasChanges} className="gap-1.5">
-          <Save className="h-3.5 w-3.5" /> Save Only
-        </Button>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button size="sm" disabled={!hasChanges} variant="default" className="gap-1.5">
-              <Zap className="h-3.5 w-3.5" /> Apply to Running Engine
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Apply Configuration to Running Engine?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will apply {changedParams.length} modified parameters to the running trading engine.
-                Parameters marked as &quot;restart needed&quot; will require an engine restart to take effect.
-                Live-update parameters will take effect immediately.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="space-y-1.5 py-2">
-              {changedParams.map(p => (
-                <div key={p.key} className="flex items-center gap-2 text-xs">
-                  {p.live_update ? <Zap className="h-3 w-3 text-emerald-400" /> : <RotateCcw className="h-3 w-3 text-amber-400" />}
-                  <span className="font-mono">{p.key}</span>
-                  <span className="text-red-400 line-through">{String(p.default)}</span>
-                  <ArrowRight className="h-3 w-3" />
-                  <span className="text-emerald-400">{String(p.value)}</span>
-                </div>
-              ))}
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => { handleSave(); toast.success('Configuration applied to running engine'); setHasChanges(false); }}>
-                Apply Configuration
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-        {Object.keys(validationErrors).length > 0 && (
-          <Badge variant="destructive" className="text-[10px] gap-1">
-            <AlertTriangle className="h-3 w-3" /> {Object.keys(validationErrors).length} errors
-          </Badge>
-        )}
-      </div>
-
-      {/* ── Config Sections ── */}
-      <ScrollArea className="h-[calc(100vh-580px)] min-h-[200px]">
-        <div className="space-y-4 pr-4">
-          {Object.entries(filteredCategories).length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Settings className="h-10 w-10 mx-auto mb-2 opacity-30" />
-              <p>No parameters match your search</p>
-              <p className="text-xs mt-1">Try a different search term</p>
-            </div>
-          ) : (
-          Object.entries(filteredCategories).map(([category, params]) => (
-            <Card key={category} className="bg-card/80 border-border">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Settings className="h-4 w-4 text-muted-foreground" />
-                    <CardTitle className="text-sm font-medium">{category}</CardTitle>
-                    <Badge variant="outline" className="text-[10px]">{params.length} params</Badge>
-                  </div>
-                  <Button variant="ghost" size="sm" className="text-[10px] text-muted-foreground hover:text-foreground h-6" onClick={() => handleResetCategory(category)}>
-                    <RotateCcw className="h-3 w-3 mr-1" /> Reset Category
-                  </Button>
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">{group.title}</CardTitle>
+                  <Badge variant="outline" className="text-[10px]">{group.keys.length}</Badge>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {params.map((param) => {
-                    const hasError = validationErrors[param.key];
-                    const isModified = JSON.stringify(param.value) !== JSON.stringify(param.default);
-                    return (
-                      <div key={param.key} className={cn(
-                        'space-y-2 p-3 rounded-lg bg-secondary/30 border',
-                        hasError ? 'border-red-500/30' : 'border-border/50',
-                        isModified && !hasError && 'border-primary/20'
-                      )}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Label className="text-xs font-mono font-semibold">{param.key}</Label>
-                            {param.live_update ? (
-                              <TooltipProvider><Tooltip><TooltipTrigger><Zap className="h-3 w-3 text-emerald-400" /></TooltipTrigger><TooltipContent><p className="text-xs">Changes take effect immediately</p></TooltipContent></Tooltip></TooltipProvider>
-                            ) : (
-                              <TooltipProvider><Tooltip><TooltipTrigger><RotateCcw className="h-3 w-3 text-amber-400" /></TooltipTrigger><TooltipContent><p className="text-xs">Requires engine restart</p></TooltipContent></Tooltip></TooltipProvider>
-                            )}
-                            {isModified && <Badge variant="secondary" className="text-[8px] px-1 h-3.5">modified</Badge>}
-                          </div>
-                          {isModified && (
-                            <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground hover:text-foreground" onClick={() => { resetConfigParam(param.key); setHasChanges(true); }}>
-                              <RotateCcw className="h-3 w-3 mr-1" /> Reset
-                            </Button>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">{param.description}</p>
-
-                        {param.type === 'boolean' && (
-                          <div className="flex items-center justify-between">
-                            <Switch checked={param.value as boolean} onCheckedChange={(checked) => handleUpdate(param.key, checked)} />
-                            <span className={cn('text-xs font-mono', param.value ? 'text-emerald-400' : 'text-muted-foreground')}>{param.value ? 'Enabled' : 'Disabled'}</span>
-                          </div>
-                        )}
-
-                        {param.type === 'select' && (
-                          <Select value={String(param.value)} onValueChange={(val) => handleUpdate(param.key, val)}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {param.options?.map((opt) => (<SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>))}
-                            </SelectContent>
-                          </Select>
-                        )}
-
-                        {param.type === 'number' && (
-                          <div className="space-y-2">
-                            {param.min !== undefined && param.max !== undefined && (param.max - param.min) <= 20 ? (
-                              <>
-                                <Slider value={[Number(param.value)]} min={param.min} max={param.max} step={param.step || 1} onValueChange={([val]) => handleUpdate(param.key, val)} className="py-1" />
-                                <div className="flex justify-between text-[10px] text-muted-foreground">
-                                  <span>{param.min}</span>
-                                  <span className="font-mono font-semibold text-foreground">{String(param.value)}</span>
-                                  <span>{param.max}</span>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <Input type="number" value={String(param.value)} min={param.min} max={param.max} step={param.step || 1} onChange={(e) => { const val = parseFloat(e.target.value); if (!isNaN(val)) handleUpdate(param.key, val); }} className={cn('h-8 text-xs font-mono', hasError && 'border-red-500/50')} />
-                                {param.default !== undefined && <span className="text-[10px] text-muted-foreground whitespace-nowrap">default: {String(param.default)}</span>}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {param.type === 'string' && (
-                          <Input value={String(param.value)} onChange={(e) => handleUpdate(param.key, e.target.value)} className="h-8 text-xs" />
-                        )}
-
-                        {hasError && (
-                          <div className="flex items-center gap-1 text-[10px] text-red-400">
-                            <AlertTriangle className="h-3 w-3" />{hasError}
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                          <span>Default: {String(param.default)}</span>
-                          {param.live_update ? (
-                            <span className="flex items-center gap-0.5 text-emerald-400"><CheckCircle2 className="h-2.5 w-2.5" /> Live</span>
-                          ) : (
-                            <span className="flex items-center gap-0.5 text-amber-400"><AlertTriangle className="h-2.5 w-2.5" /> Restart</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
+              <CardContent>{content}</CardContent>
             </Card>
-          ))
-          )}
-        </div>
-      </ScrollArea>
+          );
+        })
+      )}
     </div>
   );
 }

@@ -4,7 +4,6 @@
  * DDLJ Trading System — Main Dashboard Page
  * ============================================
  * Single-page application with sidebar navigation and content views.
- * Everything is rendered in one page with tab-based navigation.
  */
 
 import { useDDLJStore } from '@/lib/store';
@@ -48,24 +47,17 @@ export default function Home() {
 
   return (
     <div className={cn('flex h-dvh overflow-hidden bg-background', theme.compactMode && 'compact')}>
-      {/* ── Sidebar (desktop only, mobile uses Sheet in TopBar) ── */}
       {!sidebarOnRight && <DDLJSidebar />}
 
-      {/* ── Main Content Area ── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        {/* ── Top Bar ── */}
         <DDLJTopBar />
-
-        {/* ── Page Content ── */}
         <main className="flex-1 overflow-y-auto">
           {renderPage()}
         </main>
       </div>
 
-      {/* ── Right Sidebar (when position is right) ── */}
       {sidebarOnRight && <DDLJSidebar />}
 
-      {/* ── Spotlight Search (Cmd+K) ── */}
       <SpotlightSearch />
     </div>
   );

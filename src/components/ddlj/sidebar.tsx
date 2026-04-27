@@ -1,11 +1,9 @@
 'use client';
 
 /**
- * DDLJ Trading Dashboard — Sidebar Navigation
- * =============================================
- * Professional sidebar with icon + label navigation.
- * Desktop: collapsible sidebar (w-60 or w-16) with smooth animation
- * Mobile: Sheet drawer (slides in from left, controlled by store state)
+ * DDLJ Sidebar — Simplified Navigation
+ * =======================================
+ * Three groups: Trading, Settings, Coming Soon
  */
 
 import { useEffect } from 'react';
@@ -14,16 +12,16 @@ import {
   Play,
   History,
   Settings,
-  FlaskConical,
   KeyRound,
   Activity,
   ChevronsLeft,
   ChevronsRight,
   TrendingUp,
+  FlaskConical,
   Shield,
   Bell,
   BookOpen,
-  Search,
+  Clock,
 } from 'lucide-react';
 import { useDDLJStore, type PageId } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -45,6 +43,7 @@ interface NavItem {
   icon: React.ReactNode;
   badge?: string;
   badgeColor?: string;
+  disabled?: boolean;
 }
 
 interface NavGroup {
@@ -62,73 +61,58 @@ function SidebarContent({ onNavigate, onToggleCollapse, isCollapsed }: {
 
   const navGroups: NavGroup[] = [
     {
-      title: 'Overview',
+      title: 'Trading',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
-        { id: 'engine', label: 'Engine Control', icon: <Play className="h-4 w-4" />, badge: engineStatus.engine_running ? 'LIVE' : 'OFF', badgeColor: engineStatus.engine_running ? 'bg-emerald-500' : 'bg-zinc-500' },
-        { id: 'trades', label: 'Trades & Positions', icon: <History className="h-4 w-4" />, badge: engineStatus.open_positions_count > 0 ? String(engineStatus.open_positions_count) : undefined },
+        { id: 'engine', label: 'Engine', icon: <Play className="h-4 w-4" />, badge: engineStatus.engine_running ? 'ON' : 'OFF', badgeColor: engineStatus.engine_running ? 'bg-emerald-500' : 'bg-zinc-500' },
+        { id: 'trades', label: 'Trades', icon: <History className="h-4 w-4" /> },
       ],
     },
     {
-      title: 'Analysis',
-      items: [
-        { id: 'options', label: 'Options Chain', icon: <TrendingUp className="h-4 w-4" /> },
-        { id: 'risk', label: 'Risk Management', icon: <Shield className="h-4 w-4" /> },
-        { id: 'backtest', label: 'Backtest', icon: <FlaskConical className="h-4 w-4" /> },
-        { id: 'journal', label: 'Trade Journal', icon: <BookOpen className="h-4 w-4" /> },
-      ],
-    },
-    {
-      title: 'System',
+      title: 'Settings',
       items: [
         { id: 'config', label: 'Configuration', icon: <Settings className="h-4 w-4" /> },
-        { id: 'alerts', label: 'Alerts & Notifications', icon: <Bell className="h-4 w-4" /> },
-        { id: 'token', label: 'Kite Token', icon: <KeyRound className="h-4 w-4" />, badge: engineStatus.token.valid ? 'OK' : '!', badgeColor: engineStatus.token.valid ? 'bg-emerald-500' : 'bg-red-500' },
-        { id: 'health', label: 'System Health', icon: <Activity className="h-4 w-4" /> },
+        { id: 'token', label: 'Token', icon: <KeyRound className="h-4 w-4" />, badge: engineStatus.token.valid ? 'OK' : '!', badgeColor: engineStatus.token.valid ? 'bg-emerald-500' : 'bg-red-500' },
+        { id: 'health', label: 'Health', icon: <Activity className="h-4 w-4" /> },
+      ],
+    },
+    {
+      title: 'Coming Soon',
+      items: [
+        { id: 'backtest', label: 'Backtest', icon: <FlaskConical className="h-4 w-4" />, disabled: true },
+        { id: 'options', label: 'Options Chain', icon: <TrendingUp className="h-4 w-4" />, disabled: true },
+        { id: 'risk', label: 'Risk', icon: <Shield className="h-4 w-4" />, disabled: true },
+        { id: 'alerts', label: 'Alerts', icon: <Bell className="h-4 w-4" />, disabled: true },
+        { id: 'journal', label: 'Journal', icon: <BookOpen className="h-4 w-4" />, disabled: true },
       ],
     },
   ];
 
-  const handleNav = (id: PageId) => {
+  const handleNav = (id: PageId, disabled?: boolean) => {
+    if (disabled) return;
     setActivePage(id);
     onNavigate?.();
   };
 
   return (
     <div className="flex flex-col h-full">
-      {/* ── Logo / Brand ── */}
+      {/* ── Logo ── */}
       <div className={cn(
-        "flex items-center gap-3 border-b border-sidebar-border h-14 flex-shrink-0",
+        "flex items-center gap-3 border-b border-sidebar-border h-12 flex-shrink-0",
         collapsed ? "px-3 justify-center" : "px-4"
       )}>
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex-shrink-0">
-          <TrendingUp className="h-5 w-5" />
+        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex-shrink-0">
+          <TrendingUp className="h-4 w-4" />
         </div>
         {!collapsed && (
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-bold text-sidebar-foreground tracking-wide">DDLJ</span>
-            <span className="text-[10px] text-muted-foreground">Trading System v10.1</span>
+            <span className="text-[9px] text-muted-foreground">Trading System</span>
           </div>
         )}
       </div>
 
-      {/* ── Search hint (desktop expanded only) ── */}
-      {!collapsed && !onNavigate && (
-        <div className="px-3 py-2 flex-shrink-0">
-          <button
-            onClick={() => {
-              document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
-            }}
-            className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md bg-secondary/50 border border-border text-xs text-muted-foreground hover:bg-secondary transition-colors"
-          >
-            <Search className="h-3 w-3" />
-            <span>Search...</span>
-            <kbd className="ml-auto text-[9px] bg-secondary px-1 rounded">⌘K</kbd>
-          </button>
-        </div>
-      )}
-
-      {/* ── Navigation Groups ── */}
+      {/* ── Navigation ── */}
       <ScrollArea className="flex-1 py-1">
         <div className="flex flex-col gap-1 px-2">
           {navGroups.map((group) => (
@@ -142,32 +126,39 @@ function SidebarContent({ onNavigate, onToggleCollapse, isCollapsed }: {
               {group.items.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => handleNav(item.id)}
+                  onClick={() => handleNav(item.id, item.disabled)}
                   className={cn(
                     'flex items-center gap-3 rounded-md text-sm transition-colors relative group w-full',
-                    collapsed ? 'px-0 py-2 justify-center' : 'px-3 py-2',
-                    activePage === item.id
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
+                    collapsed ? 'px-0 py-2 justify-center' : 'px-3 py-1.5',
+                    item.disabled
+                      ? 'opacity-40 cursor-not-allowed'
+                      : activePage === item.id
+                        ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                        : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
                   )}
                 >
                   <span className="flex-shrink-0">{item.icon}</span>
                   {!collapsed && (
                     <>
-                      <span className="flex-1 text-left">{item.label}</span>
-                      {item.badge && (
+                      <span className="flex-1 text-left text-xs">{item.label}</span>
+                      {item.badge && !item.disabled && (
                         <span className={cn(
-                          'text-[10px] font-bold px-1.5 py-0.5 rounded text-white',
+                          'text-[9px] font-bold px-1.5 py-0.5 rounded text-white',
                           item.badgeColor || 'bg-primary'
                         )}>
                           {item.badge}
                         </span>
                       )}
+                      {item.disabled && (
+                        <Badge variant="outline" className="text-[8px] px-1 py-0 h-4 text-muted-foreground">
+                          Soon
+                        </Badge>
+                      )}
                     </>
                   )}
-                  {collapsed && item.badge && (
+                  {collapsed && !item.disabled && item.badge && (
                     <span className={cn(
-                      'absolute top-1 right-1 text-[8px] font-bold w-4 h-4 flex items-center justify-center rounded-full text-white',
+                      'absolute top-1 right-1 text-[7px] font-bold w-3.5 h-3.5 flex items-center justify-center rounded-full text-white',
                       item.badgeColor || 'bg-primary'
                     )}>
                       {item.badge}
@@ -185,43 +176,27 @@ function SidebarContent({ onNavigate, onToggleCollapse, isCollapsed }: {
         </div>
       </ScrollArea>
 
-      {/* ── Bottom Section ── */}
+      {/* ── Bottom ── */}
       <div className="border-t border-sidebar-border p-2 flex-shrink-0">
-        {/* ── Quick Stats ── */}
         {!collapsed && (
-          <div className="px-2 py-2 space-y-1.5 text-xs text-muted-foreground">
-            <div className="flex items-center justify-between">
-              <span>Market</span>
-              <Badge variant={engineStatus.market_status === 'open' ? 'default' : 'destructive'} className="text-[10px] px-1.5 py-0">
-                {engineStatus.market_status === 'open' ? 'OPEN' : 'CLOSED'}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>VIX</span>
-              <span className="tabular-nums font-mono">{engineStatus.live_vix.toFixed(2)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Bias</span>
-              <span className={cn('font-semibold',
-                engineStatus.current_bias === 'BULLISH' ? 'text-emerald-400' :
-                engineStatus.current_bias === 'BEARISH' ? 'text-red-400' : 'text-amber-400'
-              )}>
-                {engineStatus.current_bias}
+          <div className="px-2 py-1 flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span className="font-mono tabular-nums">
+                {new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false })} IST
               </span>
             </div>
           </div>
         )}
 
-        <Separator className="my-1 bg-sidebar-border" />
-
-        {/* ── Collapse Toggle (desktop only) ── */}
+        {/* Collapse Toggle (desktop only) */}
         {!onNavigate && onToggleCollapse && (
           <Button
             variant="ghost"
             size="sm"
             onClick={onToggleCollapse}
-            className="w-full justify-center gap-2 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-            title={collapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
+            className="w-full justify-center gap-2 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 mt-1"
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? <ChevronsRight className="h-4 w-4" /> : <><ChevronsLeft className="h-4 w-4" /><span className="text-[10px]">Collapse</span></>}
           </Button>
@@ -235,7 +210,6 @@ export function DDLJSidebar() {
   const isMobile = useIsMobile();
   const { sidebarCollapsed, toggleSidebar, mobileMenuOpen, setMobileMenuOpen } = useDDLJStore();
 
-  // Keyboard shortcut: Ctrl/Cmd+B to toggle sidebar on desktop
   useEffect(() => {
     if (isMobile) return;
     const handler = (e: KeyboardEvent) => {
@@ -248,7 +222,6 @@ export function DDLJSidebar() {
     return () => window.removeEventListener('keydown', handler);
   }, [isMobile, toggleSidebar]);
 
-  // Mobile: Controlled Sheet drawer (triggered by hamburger button in topbar)
   if (isMobile) {
     return (
       <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -262,12 +235,11 @@ export function DDLJSidebar() {
     );
   }
 
-  // Desktop: Persistent sidebar
   return (
     <aside
       className={cn(
         'hidden md:flex flex-col h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out flex-shrink-0 overflow-hidden',
-        sidebarCollapsed ? 'w-16' : 'w-60'
+        sidebarCollapsed ? 'w-14' : 'w-52'
       )}
     >
       <SidebarContent

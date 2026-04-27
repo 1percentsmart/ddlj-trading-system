@@ -3,15 +3,10 @@
 /**
  * DDLJ Settings Panel
  * ====================
- * Theme & layout settings accessible from topbar:
- * - Theme toggle (Dark/Light/System)
- * - Accent color picker
- * - Sidebar position
- * - Compact mode
- * - Number format
+ * Theme & layout settings accessible from topbar.
  */
 
-import { useDDLJStore } from '@/lib/store';
+import { useDDLJStore, type AccentColor } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,7 +31,6 @@ import {
   Settings,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { AccentColor } from '@/lib/mock-data';
 
 // Accent color → CSS variable mapping
 const accentColorMap: Record<AccentColor, { hsl: string; css: Record<string, string> }> = {
@@ -134,14 +128,14 @@ export function SettingsPanel() {
           <Settings className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
+      <PopoverContent className="w-72 p-0" align="end">
         <Card className="bg-popover border-0 shadow-none">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <Palette className="h-4 w-4" /> Display Settings
             </CardTitle>
             <CardDescription className="text-[11px]">
-              Customize theme, colors, and layout preferences
+              Customize theme and layout
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -161,13 +155,11 @@ export function SettingsPanel() {
                     className="gap-1.5 text-xs"
                     onClick={() => {
                       setThemeMode(mode.value);
-                      // Apply dark class to html
                       if (mode.value === 'dark') {
                         document.documentElement.classList.add('dark');
                       } else if (mode.value === 'light') {
                         document.documentElement.classList.remove('dark');
                       } else {
-                        // System preference
                         if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
                           document.documentElement.classList.add('dark');
                         } else {
@@ -198,7 +190,7 @@ export function SettingsPanel() {
                       toast.success(`Accent color: ${color.name}`);
                     }}
                     className={cn(
-                      'w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center',
+                      'w-7 h-7 rounded-full border-2 transition-all flex items-center justify-center',
                       color.tw,
                       theme.accent === color.value
                         ? 'border-white ring-2 ring-white/20 scale-110'
@@ -206,7 +198,7 @@ export function SettingsPanel() {
                     )}
                   >
                     {theme.accent === color.value && (
-                      <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                         <path d="M5 13l4 4L19 7" />
                       </svg>
                     )}
@@ -266,14 +258,14 @@ export function SettingsPanel() {
               </div>
               <Select value={theme.numberFormat} onValueChange={(v) => {
                 setNumberFormat(v as 'indian' | 'international');
-                toast.success(`Number format: ${v === 'indian' ? 'Indian (₹1,23,456)' : 'International (₹123,456)'}`);
+                toast.success(`Number format: ${v === 'indian' ? 'Indian' : 'International'}`);
               }}>
-                <SelectTrigger className="w-28 h-7 text-[10px]">
+                <SelectTrigger className="w-24 h-7 text-[10px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="indian">Indian (₹1,23,456)</SelectItem>
-                  <SelectItem value="international">International (₹123,456)</SelectItem>
+                  <SelectItem value="indian">Indian</SelectItem>
+                  <SelectItem value="international">International</SelectItem>
                 </SelectContent>
               </Select>
             </div>
