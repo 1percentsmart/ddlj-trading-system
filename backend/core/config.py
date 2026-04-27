@@ -216,8 +216,7 @@ CORS_ORIGINS = [
     "http://localhost:3000",       # Local Next.js dev server
     "http://localhost:8000",       # Local backend
     "https://ddlj-dashboard.vercel.app",       # Vercel production frontend
-    "https://my-project-nu-blue.vercel.app",   # Vercel alias
-    "https://my-project-izi5zsr5d-1percentsmarts-projects.vercel.app",  # Vercel deployment URL
+    "https://ddlj-dashboard-kt8pblyoz-1percentsmarts-projects.vercel.app",  # Vercel deployment URL
 ]
 # Add production frontend URL (with https:// prefix if not present)
 _frontend_url = os.getenv("FRONTEND_URL", "").strip()
