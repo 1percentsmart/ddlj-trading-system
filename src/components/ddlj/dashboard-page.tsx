@@ -1,16 +1,18 @@
 'use client';
 
 /**
- * DDLJ Dashboard — Main Overview Page
- * =====================================
- * Shows KPI cards, engine status, positions summary, recent trades,
- * equity curve, daily P&L, and signal log.
+ * DDLJ Dashboard — Main Overview Page (Enhanced v2)
+ * ================================================
+ * Shows Market Summary, Quick Actions, KPI cards, engine status,
+ * positions summary, recent trades, equity curve, daily P&L (fixed),
+ * and signal log.
  */
 
 import { useDDLJStore } from '@/lib/store';
 import { cn, formatCurrency, pnlColor, pnlBgColor, formatDuration, timeAgo, biasColor, biasBgColor } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -22,13 +24,18 @@ import {
   Target,
   BarChart3,
   Clock,
-  Wifi,
   AlertTriangle,
   ArrowUpRight,
   ArrowDownRight,
   Zap,
   Shield,
   Gauge,
+  Landmark,
+  IndianRupee,
+  Play,
+  FlaskConical,
+  Bell,
+  ChevronRight,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -42,11 +49,28 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Cell,
+  LabelList,
 } from 'recharts';
 import { mockEquityCurve, mockDailyPnl } from '@/lib/mock-data';
+import { toast } from 'sonner';
+
+// Custom tooltip for Daily P&L
+function DailyPnlTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; payload: { pnl: number; date: string } }>; label?: string }) {
+  if (!active || !payload || !payload.length) return null;
+  const val = payload[0].value;
+  const isPositive = val >= 0;
+  return (
+    <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-lg text-xs">
+      <p className="text-muted-foreground mb-1">{label}</p>
+      <p className={cn('font-mono font-semibold tabular-nums text-sm', isPositive ? 'text-emerald-400' : 'text-red-400')}>
+        {isPositive ? '+' : ''}₹{Math.abs(val).toLocaleString('en-IN')}
+      </p>
+    </div>
+  );
+}
 
 export function DashboardPage() {
-  const { engineStatus, positions, trades, signalLog } = useDDLJStore();
+  const { engineStatus, positions, trades, signalLog, setActivePage, updateEngineStatus } = useDDLJStore();
 
   const winRate = trades.length > 0
     ? ((trades.filter(t => t.net > 0).length / trades.length) * 100).toFixed(1)
@@ -56,25 +80,104 @@ export function DashboardPage() {
     ? ((engineStatus.total_pnl / engineStatus.starting_capital) * 100).toFixed(2)
     : '0.00';
 
+  // Market summary data — now 3 items including VIX
+  const marketSummary = [
+    { name: 'BankNifty', value: 56350.80, change: 215.60, changePct: 0.38, icon: Landmark },
+    { name: 'Nifty 50', value: 24320.45, change: 128.30, changePct: 0.53, icon: IndianRupee },
+    { name: 'India VIX', value: engineStatus.live_vix, change: -0.82, changePct: -4.75, icon: Gauge },
+  ];
+
+  // Compute daily PnL min/max for better Y-axis
+  const pnlValues = mockDailyPnl.map(d => d.pnl);
+  const pnlMin = Math.min(...pnlValues);
+  const pnlMax = Math.max(...pnlValues);
+  const pnlDomainMin = Math.floor(pnlMin / 2000) * 2000 - 1000;
+  const pnlDomainMax = Math.ceil(pnlMax / 2000) * 2000 + 1000;
+
   return (
     <div className="space-y-3 sm:space-y-4 p-3 sm:p-4">
+      {/* ── Market Summary Mini Section ── */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        {marketSummary.map((mkt) => {
+          const Icon = mkt.icon;
+          const isVix = mkt.name === 'India VIX';
+          const isPositive = mkt.change >= 0;
+          return (
+            <Card key={mkt.name} className="bg-card/80 border-border">
+              <CardContent className="p-2.5 sm:p-3 flex flex-col gap-1">
+                <div className="flex items-center gap-1.5">
+                  <Icon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  <span className="text-[10px] sm:text-xs font-medium text-muted-foreground truncate">{mkt.name}</span>
+                </div>
+                <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <span className="font-mono text-xs sm:text-sm font-semibold tabular-nums">
+                    {isVix ? mkt.value.toFixed(2) : `₹${mkt.value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                  </span>
+                  <span className={cn(
+                    'text-[9px] sm:text-[10px] font-mono tabular-nums',
+                    isVix
+                      ? (mkt.change <= 0 ? 'text-emerald-400' : 'text-red-400')
+                      : (isPositive ? 'text-emerald-400' : 'text-red-400')
+                  )}>
+                    {isPositive ? '+' : ''}{mkt.change.toFixed(2)} ({isPositive ? '+' : ''}{mkt.changePct}%)
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* ── Quick Actions Row ── */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          size="sm"
+          variant={engineStatus.engine_running ? 'destructive' : 'default'}
+          className="gap-1.5 text-xs h-8"
+          onClick={() => {
+            updateEngineStatus({ engine_running: !engineStatus.engine_running });
+            toast.success(engineStatus.engine_running ? 'Engine stopped' : 'Engine started');
+          }}
+        >
+          {engineStatus.engine_running ? (
+            <><Zap className="h-3.5 w-3.5" /> Stop Engine</>
+          ) : (
+            <><Play className="h-3.5 w-3.5" /> Start Engine</>
+          )}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 text-xs h-8"
+          onClick={() => setActivePage('backtest')}
+        >
+          <FlaskConical className="h-3.5 w-3.5" /> Run Backtest
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 text-xs h-8"
+          onClick={() => setActivePage('alerts')}
+        >
+          <Bell className="h-3.5 w-3.5" /> Configure Alerts
+        </Button>
+      </div>
+
       {/* ── KPI Cards Row ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-        {/* Capital Card */}
         <Card className="bg-card/80 border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground">Current Capital</CardTitle>
             <DollarSign className="h-4 w-4 text-emerald-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold font-mono tabular-nums">{formatCurrency(engineStatus.capital)}</div>
+            <div className="text-xl sm:text-2xl font-bold font-mono tabular-nums">{formatCurrency(engineStatus.capital)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Started: {formatCurrency(engineStatus.starting_capital)}
             </p>
           </CardContent>
         </Card>
 
-        {/* Daily P&L Card */}
         <Card className="bg-card/80 border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground">Day P&L</CardTitle>
@@ -85,7 +188,7 @@ export function DashboardPage() {
             )}
           </CardHeader>
           <CardContent>
-            <div className={cn('text-2xl font-bold font-mono tabular-nums', pnlColor(engineStatus.daily_pnl))}>
+            <div className={cn('text-xl sm:text-2xl font-bold font-mono tabular-nums', pnlColor(engineStatus.daily_pnl))}>
               {formatCurrency(engineStatus.daily_pnl)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -94,14 +197,13 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Total P&L Card */}
         <Card className="bg-card/80 border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground">Total P&L</CardTitle>
             <BarChart3 className="h-4 w-4 text-emerald-400" />
           </CardHeader>
           <CardContent>
-            <div className={cn('text-2xl font-bold font-mono tabular-nums', pnlColor(engineStatus.total_pnl))}>
+            <div className={cn('text-xl sm:text-2xl font-bold font-mono tabular-nums', pnlColor(engineStatus.total_pnl))}>
               {formatCurrency(engineStatus.total_pnl)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -110,14 +212,13 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Win Rate Card */}
         <Card className="bg-card/80 border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground">Win Rate</CardTitle>
             <Target className="h-4 w-4 text-amber-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold font-mono tabular-nums">{winRate}%</div>
+            <div className="text-xl sm:text-2xl font-bold font-mono tabular-nums">{winRate}%</div>
             <Progress value={parseFloat(winRate)} className="mt-2 h-1.5" />
           </CardContent>
         </Card>
@@ -125,7 +226,6 @@ export function DashboardPage() {
 
       {/* ── Engine Status + Bias + VIX Row ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
-        {/* Engine Status Card */}
         <Card className="bg-card/80 border-border">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Engine Status</CardTitle>
@@ -175,7 +275,6 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Bias Card */}
         <Card className={cn('bg-card/80 border', biasBgColor(engineStatus.current_bias))}>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Market Bias</CardTitle>
@@ -207,8 +306,7 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* VIX + Risk Card */}
-        <Card className="bg-card/80 border-border">
+        <Card className="bg-card/80 border-border sm:col-span-2 lg:col-span-1">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">India VIX & Risk</CardTitle>
           </CardHeader>
@@ -257,58 +355,100 @@ export function DashboardPage() {
         <Card className="bg-card/80 border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Equity Curve</CardTitle>
-            <CardDescription className="text-xs">Capital growth over current month</CardDescription>
+            <CardDescription className="text-xs">Capital growth over current month — {mockEquityCurve.length} data points</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={mockEquityCurve}>
+                <AreaChart data={mockEquityCurve} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
                       <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
-                  <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}K`} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}K`} tickLine={false} axisLine={false} width={55} />
                   <Tooltip
                     contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)' }}
                     formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Capital']}
+                    labelFormatter={(label) => `Date: ${label}`}
                   />
-                  <ReferenceLine y={engineStatus.starting_capital} stroke="var(--muted-foreground)" strokeDasharray="5 5" />
-                  <Area type="monotone" dataKey="capital" stroke="#22c55e" fill="url(#equityGradient)" strokeWidth={2} />
+                  <ReferenceLine y={engineStatus.starting_capital} stroke="var(--muted-foreground)" strokeDasharray="5 5" strokeOpacity={0.5} />
+                  <Area type="monotone" dataKey="capital" stroke="#22c55e" fill="url(#equityGradient)" strokeWidth={2.5} dot={false} activeDot={{ r: 4, fill: '#22c55e', stroke: 'var(--card)', strokeWidth: 2 }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        {/* Daily P&L */}
+        {/* Daily P&L - FIXED */}
         <Card className="bg-card/80 border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Daily P&L</CardTitle>
-            <CardDescription className="text-xs">Last 7 trading days</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-medium">Daily P&L</CardTitle>
+                <CardDescription className="text-xs">Last 7 trading days</CardDescription>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500" /> Profit</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-500" /> Loss</span>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockDailyPnl}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
-                  <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}K`} />
-                  <Tooltip
-                    contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)' }}
-                    formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'P&L']}
+                <BarChart data={mockDailyPnl} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+                    tickLine={false}
+                    axisLine={false}
                   />
-                  <ReferenceLine y={0} stroke="var(--muted-foreground)" />
-                  <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
+                  <YAxis
+                    domain={[pnlDomainMin, pnlDomainMax]}
+                    tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+                    tickFormatter={(v: number) => {
+                      if (v === 0) return '0';
+                      return `${v >= 0 ? '' : '-'}₹${Math.abs(v / 1000).toFixed(0)}K`;
+                    }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={55}
+                  />
+                  <Tooltip content={<DailyPnlTooltip />} cursor={{ fill: 'var(--muted)', opacity: 0.08 }} />
+                  <ReferenceLine y={0} stroke="var(--muted-foreground)" strokeOpacity={0.4} />
+                  <Bar dataKey="pnl" radius={[4, 4, 0, 0]} barSize={32} maxBarSize={40}>
                     {mockDailyPnl.map((entry, index) => (
-                      <Cell key={index} fill={entry.pnl >= 0 ? '#22c55e' : '#ef4444'} />
+                      <Cell
+                        key={index}
+                        fill={entry.pnl >= 0 ? '#22c55e' : '#ef4444'}
+                        fillOpacity={0.85}
+                      />
                     ))}
+                    <LabelList
+                      dataKey="pnl"
+                      position="top"
+                      formatter={(value: number) => {
+                        const abs = Math.abs(value);
+                        return `${value >= 0 ? '+' : '-'}${abs >= 1000 ? `${(abs / 1000).toFixed(1)}K` : abs}`;
+                      }}
+                      style={{ fontSize: 9, fill: 'var(--muted-foreground)', fontFamily: 'monospace' }}
+                      offset={4}
+                    />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+            <div className="flex items-center justify-between mt-2 text-[10px] sm:text-xs text-muted-foreground gap-1">
+              <span>Week: <span className={cn('font-mono font-semibold', pnlColor(mockDailyPnl.reduce((s, d) => s + d.pnl, 0)))}>
+                {formatCurrency(mockDailyPnl.reduce((s, d) => s + d.pnl, 0))}
+              </span></span>
+              <span>Best: <span className="text-emerald-400 font-mono">+₹{Math.max(...mockDailyPnl.map(d => d.pnl)).toLocaleString('en-IN')}</span></span>
+              <span>Worst: <span className="text-red-400 font-mono">₹{Math.min(...mockDailyPnl.map(d => d.pnl)).toLocaleString('en-IN')}</span></span>
             </div>
           </CardContent>
         </Card>
@@ -316,48 +456,46 @@ export function DashboardPage() {
 
       {/* ── Bottom Row: Open Positions + Signal Log ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
-        {/* Open Positions */}
+        {/* Open Positions — Compact */}
         <Card className="bg-card/80 border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Open Positions ({positions.length})</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium">Open Positions ({positions.length})</CardTitle>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1" onClick={() => setActivePage('trades')}>
+                View All <ChevronRight className="h-3 w-3" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {positions.length === 0 ? (
-              <div className="text-center text-muted-foreground text-sm py-8">
+              <div className="text-center text-muted-foreground text-sm py-6">
                 No open positions
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {positions.map((pos) => (
-                  <div key={pos.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border border-border">
-                    <div className="flex items-center gap-3">
+                  <div key={pos.id} className="flex items-center justify-between p-2 rounded-md bg-secondary/40 border border-border/50 hover:bg-secondary/60 transition-colors">
+                    <div className="flex items-center gap-2 min-w-0">
                       <div className={cn(
-                        'w-2 h-2 rounded-full',
+                        'w-1.5 h-1.5 rounded-full flex-shrink-0',
                         pos.direction === 'LONG' ? 'bg-emerald-400' : 'bg-red-400'
                       )} />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{pos.symbol}</span>
-                          <Badge variant={pos.direction === 'LONG' ? 'default' : 'destructive'} className="text-[10px]">
-                            {pos.direction}
-                          </Badge>
-                          {pos.option_type && (
-                            <Badge variant="outline" className="text-[10px]">
-                              {pos.option_strike} {pos.option_type}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          Entry: ₹{pos.entry.toLocaleString()} | SL: ₹{pos.sl.toLocaleString()} | TGT: ₹{pos.target.toLocaleString()}
-                        </div>
-                      </div>
+                      <span className="font-medium text-xs truncate">{pos.symbol}</span>
+                      <Badge variant={pos.direction === 'LONG' ? 'default' : 'destructive'} className="text-[8px] px-1 py-0 h-3.5">
+                        {pos.direction}
+                      </Badge>
+                      {pos.option_type && (
+                        <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 font-mono hidden sm:inline-flex">
+                          {pos.option_strike} {pos.option_type}
+                        </Badge>
+                      )}
                     </div>
-                    <div className="text-right">
-                      <div className={cn('font-mono font-semibold text-sm tabular-nums', pnlColor(pos.unrealized_pnl || 0))}>
-                        {formatCurrency(pos.unrealized_pnl || 0)}
+                    <div className="flex items-center gap-3">
+                      <div className="hidden sm:block text-[10px] text-muted-foreground font-mono">
+                        SL ₹{pos.sl.toLocaleString()} | TGT ₹{pos.target.toLocaleString()}
                       </div>
-                      <div className="text-[10px] text-muted-foreground">
-                        RR {pos.rr.toFixed(1)}x | {pos.held}
+                      <div className={cn('font-mono font-semibold text-xs tabular-nums', pnlColor(pos.unrealized_pnl || 0))}>
+                        {formatCurrency(pos.unrealized_pnl || 0)}
                       </div>
                     </div>
                   </div>
@@ -370,13 +508,16 @@ export function DashboardPage() {
         {/* Signal Log */}
         <Card className="bg-card/80 border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Signal Log</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium">Signal Log</CardTitle>
+              <Badge variant="outline" className="text-[10px]">{signalLog.length} events</Badge>
+            </div>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-64">
-              <div className="space-y-1.5">
+            <ScrollArea className="h-56">
+              <div className="space-y-1">
                 {signalLog.map((sig, i) => (
-                  <div key={i} className="flex items-start gap-2 text-xs py-1.5 border-b border-border/50 last:border-0">
+                  <div key={i} className="flex items-start gap-2 text-xs py-1.5 border-b border-border/30 last:border-0">
                     <div className={cn(
                       'w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0',
                       sig.severity === 'success' ? 'bg-emerald-400' :
@@ -384,13 +525,13 @@ export function DashboardPage() {
                       sig.severity === 'error' ? 'bg-red-400' : 'bg-blue-400'
                     )} />
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 font-mono">
                           {sig.type}
                         </Badge>
                         <span className="text-muted-foreground text-[10px]">{timeAgo(sig.time)}</span>
                       </div>
-                      <p className="text-muted-foreground mt-0.5 truncate">{sig.message}</p>
+                      <p className="text-muted-foreground mt-0.5 truncate text-[11px]">{sig.message}</p>
                     </div>
                   </div>
                 ))}
@@ -402,5 +543,3 @@ export function DashboardPage() {
     </div>
   );
 }
-
-

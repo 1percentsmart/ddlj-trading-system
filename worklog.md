@@ -117,3 +117,31 @@ Stage Summary:
 - ddlj-strategy-documentation.pdf: Comprehensive module-by-module documentation with kid-friendly explanations
 - ddlj-strategy-guide.pdf: Practical day-by-day operator's manual with checklists and step-by-step instructions
 - Both PDFs saved to /home/z/my-project/download/
+
+---
+Task ID: 4-8
+Agent: Main Agent
+Task: Fix critical bugs and deeply enhance all modules
+
+Work Log:
+- Fixed hydration error in TopBar Clock: Changed to useState(null) + useEffect mount pattern, suppressHydrationWarning on clock container
+- Fixed sidebar collapse/expand on desktop: Rewrote sidebar component with proper toggle callback, added flex-shrink-0 on aside, proper collapsed state layout
+- Fixed duplicate hamburger menu: Fixed useIsMobile hook to return false (not undefined) by default, preventing SSR/client mismatch
+- Fixed light/dark mode persistence: Added Zustand persist middleware with partialize for theme + sidebarCollapsed, using 'ddljj-theme' localStorage key
+- Enhanced Dashboard page: Added Market Summary section (BN/NF spot + VIX), Quick Actions row, fixed Daily PnL chart (custom tooltip, value labels, proper domain), compact positions
+- Enhanced Backtest page (MAJOR): New Backtest dialog with full form (config name, index, TF, option type, date range, capital, EMA params, risk params, advanced settings), saved results with expand/collapse, rename/delete, compare mode, monthly returns heatmap, equity curve, trade distribution, animated progress
+- Enhanced Engine page: Signal log filter buttons (All/Entry/Exit/Bias/System), live counters (candles/signals/frequency), Pause Trading toggle, engine uptime with start time, max trade count +/-, emergency actions
+- Enhanced Trades page: Date range/symbol/direction filters, Export CSV (actual file download), cumulative P&L chart, streak tracking, expandable trade detail rows, trade analytics summary
+- Enhanced Options page: P&L calculator (strikes, lots, breakeven, spot price table), My Positions overlay, PCR indicator, Max Pain indicator, OI Analysis tab, expiry selector
+- Enhanced Risk page: Circular risk score gauge (SVG), VIX spike what-if slider, enhanced portfolio heat map, risk param quick edit with save, correlation matrix visualization
+- Enhanced Alerts page: Priority summary bar, search & filter (by type/priority/enabled), test alert button, bulk enable/disable, history search
+- Enhanced Journal page: Trading rules checklist (4 items), screenshot upload UI (drag & drop), discipline streak counter, rules compliance progress, enhanced weekly review
+- Enhanced Token page: Circular countdown (SVG), notification bell on expiry, auto-redirect flow description, login history table
+- Enhanced Health page: 50 log entries with service/level filtering, system metrics (CPU/Memory/Disk/Latency), uptime graph (24h), restart service buttons with confirmation
+- Build verified: compiles with zero errors
+
+Stage Summary:
+- All critical bugs fixed (hydration, sidebar, hamburger, theme persistence)
+- All 11 modules deeply enhanced with professional trading features
+- Build passes clean
+- All pages responsive

@@ -4,7 +4,7 @@
  * DDLJ Trading Dashboard — Sidebar Navigation
  * =============================================
  * Professional sidebar with icon + label navigation.
- * Desktop: collapsible sidebar (w-60 or w-16)
+ * Desktop: collapsible sidebar (w-60 or w-16) with smooth animation
  * Mobile: Sheet drawer (slides in from left, controlled by store state)
  */
 
@@ -51,8 +51,13 @@ interface NavGroup {
   items: NavItem[];
 }
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { activePage, setActivePage, sidebarCollapsed, engineStatus } = useDDLJStore();
+function SidebarContent({ onNavigate, onToggleCollapse, isCollapsed }: {
+  onNavigate?: () => void;
+  onToggleCollapse?: () => void;
+  isCollapsed?: boolean;
+}) {
+  const { activePage, setActivePage, engineStatus } = useDDLJStore();
+  const collapsed = isCollapsed ?? false;
 
   const navGroups: NavGroup[] = [
     {
@@ -91,12 +96,15 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex flex-col h-full">
       {/* ── Logo / Brand ── */}
-      <div className="flex items-center gap-3 px-4 h-14 border-b border-sidebar-border">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400">
+      <div className={cn(
+        "flex items-center gap-3 border-b border-sidebar-border h-14 flex-shrink-0",
+        collapsed ? "px-3 justify-center" : "px-4"
+      )}>
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex-shrink-0">
           <TrendingUp className="h-5 w-5" />
         </div>
-        {(!sidebarCollapsed || onNavigate) && (
-          <div className="flex flex-col">
+        {!collapsed && (
+          <div className="flex flex-col min-w-0">
             <span className="text-sm font-bold text-sidebar-foreground tracking-wide">DDLJ</span>
             <span className="text-[10px] text-muted-foreground">Trading System v10.1</span>
           </div>
@@ -104,8 +112,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       {/* ── Search hint (desktop expanded only) ── */}
-      {!sidebarCollapsed && !onNavigate && (
-        <div className="px-3 py-2">
+      {!collapsed && !onNavigate && (
+        <div className="px-3 py-2 flex-shrink-0">
           <button
             onClick={() => {
               document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
@@ -124,25 +132,26 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <div className="flex flex-col gap-1 px-2">
           {navGroups.map((group) => (
             <div key={group.title}>
-              {(!sidebarCollapsed || onNavigate) && (
+              {!collapsed && (
                 <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                   {group.title}
                 </div>
               )}
-              {sidebarCollapsed && !onNavigate && <Separator className="my-1 bg-sidebar-border" />}
+              {collapsed && <Separator className="my-1 bg-sidebar-border" />}
               {group.items.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => handleNav(item.id)}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors relative group w-full',
+                    'flex items-center gap-3 rounded-md text-sm transition-colors relative group w-full',
+                    collapsed ? 'px-0 py-2 justify-center' : 'px-3 py-2',
                     activePage === item.id
                       ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
                       : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
                   )}
                 >
                   <span className="flex-shrink-0">{item.icon}</span>
-                  {(!sidebarCollapsed || onNavigate) && (
+                  {!collapsed && (
                     <>
                       <span className="flex-1 text-left">{item.label}</span>
                       {item.badge && (
@@ -155,7 +164,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                       )}
                     </>
                   )}
-                  {sidebarCollapsed && !onNavigate && item.badge && (
+                  {collapsed && item.badge && (
                     <span className={cn(
                       'absolute top-1 right-1 text-[8px] font-bold w-4 h-4 flex items-center justify-center rounded-full text-white',
                       item.badgeColor || 'bg-primary'
@@ -163,8 +172,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                       {item.badge}
                     </span>
                   )}
-                  {sidebarCollapsed && !onNavigate && (
-                    <span className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-lg">
+                  {collapsed && (
+                    <span className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-lg border border-border">
                       {item.label}
                     </span>
                   )}
@@ -176,9 +185,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </ScrollArea>
 
       {/* ── Bottom Section ── */}
-      <div className="border-t border-sidebar-border p-2">
+      <div className="border-t border-sidebar-border p-2 flex-shrink-0">
         {/* ── Quick Stats ── */}
-        {(!sidebarCollapsed || onNavigate) && (
+        {!collapsed && (
           <div className="px-2 py-2 space-y-1.5 text-xs text-muted-foreground">
             <div className="flex items-center justify-between">
               <span>Market</span>
@@ -192,7 +201,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             </div>
             <div className="flex items-center justify-between">
               <span>Bias</span>
-              <span className={cn('font-semibold', 
+              <span className={cn('font-semibold',
                 engineStatus.current_bias === 'BULLISH' ? 'text-emerald-400' :
                 engineStatus.current_bias === 'BEARISH' ? 'text-red-400' : 'text-amber-400'
               )}>
@@ -205,14 +214,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <Separator className="my-1 bg-sidebar-border" />
 
         {/* ── Collapse Toggle (desktop only) ── */}
-        {!onNavigate && (
+        {!onNavigate && onToggleCollapse && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={useDDLJStore.getState().toggleSidebar}
+            onClick={onToggleCollapse}
             className="w-full justify-center text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
           >
-            {sidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+            {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
           </Button>
         )}
       </div>
@@ -222,7 +231,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function DDLJSidebar() {
   const isMobile = useIsMobile();
-  const { sidebarCollapsed, mobileMenuOpen, setMobileMenuOpen } = useDDLJStore();
+  const { sidebarCollapsed, toggleSidebar, mobileMenuOpen, setMobileMenuOpen } = useDDLJStore();
 
   // Mobile: Controlled Sheet drawer (triggered by hamburger button in topbar)
   if (isMobile) {
@@ -242,11 +251,14 @@ export function DDLJSidebar() {
   return (
     <aside
       className={cn(
-        'hidden md:flex flex-col h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300',
+        'hidden md:flex flex-col h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out flex-shrink-0 overflow-hidden',
         sidebarCollapsed ? 'w-16' : 'w-60'
       )}
     >
-      <SidebarContent />
+      <SidebarContent
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebar}
+      />
     </aside>
   );
 }

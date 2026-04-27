@@ -17,20 +17,23 @@ import { useEffect, useState } from 'react';
 
 export function DDLJTopBar() {
   const { engineStatus, isConnected, setMobileMenuOpen } = useDDLJStore();
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [mounted, setMounted] = useState(false);
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
 
   useEffect(() => {
+    setMounted(true);
+    setCurrentTime(new Date());
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const istTime = currentTime.toLocaleTimeString('en-IN', {
+  const istTime = currentTime?.toLocaleTimeString('en-IN', {
     timeZone: 'Asia/Kolkata',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
-  });
+  }) ?? '--:--:--';
 
   return (
     <header className="h-12 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-2 sm:px-4 gap-2">
@@ -151,10 +154,10 @@ export function DDLJTopBar() {
 
         <div className="w-px h-4 bg-border hidden md:block" />
 
-        {/* IST Clock — hidden on small screens */}
-        <div className="hidden md:flex items-center gap-1 text-muted-foreground">
+        {/* IST Clock — hidden on small screens, suppress hydration mismatch */}
+        <div className="hidden md:flex items-center gap-1 text-muted-foreground" suppressHydrationWarning>
           <Clock className="h-3.5 w-3.5" />
-          <span className="font-mono tabular-nums text-xs">{istTime} IST</span>
+          <span className="font-mono tabular-nums text-xs">{mounted ? `${istTime} IST` : ''}</span>
         </div>
 
         <div className="w-px h-4 bg-border" />

@@ -3,13 +3,7 @@
 /**
  * DDLJ Configuration Page (Enhanced)
  * ====================================
- * All strategy parameters with:
- * - Import/Export config as JSON
- * - Config presets (Conservative, Moderate, Aggressive)
- * - Validation with inline errors
- * - "Apply & Restart" vs "Save Only"
- * - Config diff view
- * - Reset individual category
+ * Apply confirmation dialog, config history/version tracking, undo button.
  */
 
 import { useDDLJStore } from '@/lib/store';
@@ -26,6 +20,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import {
   Settings,
   RotateCcw,
@@ -42,10 +37,20 @@ import {
   Shield,
   Swords,
   Scale,
+  History,
+  Undo2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useRef } from 'react';
 import type { ConfigPreset } from '@/lib/mock-data';
+
+interface ConfigHistoryEntry {
+  id: string;
+  timestamp: string;
+  key: string;
+  oldValue: string | number | boolean;
+  newValue: string | number | boolean;
+}
 
 export function ConfigPage() {
   const { config, updateConfigParam, resetConfigParam, resetAllConfig, applyConfigPreset, configPresets } = useDDLJStore();
@@ -54,8 +59,14 @@ export function ConfigPage() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [showDiff, setShowDiff] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [configHistory, setConfigHistory] = useState<ConfigHistoryEntry[]>([
+    { id: 'H001', timestamp: new Date(Date.now() - 3600000).toISOString(), key: 'DAILY_RISK_PCT', oldValue: 2.0, newValue: 3.0 },
+    { id: 'H002', timestamp: new Date(Date.now() - 7200000).toISOString(), key: 'EMA_FAST', oldValue: 12, newValue: 9 },
+    { id: 'H003', timestamp: new Date(Date.now() - 86400000).toISOString(), key: 'MAX_OPEN_POSITIONS', oldValue: 3, newValue: 2 },
+    { id: 'H004', timestamp: new Date(Date.now() - 172800000).toISOString(), key: 'TRAILING_STOP_ENABLED', oldValue: false, newValue: true },
+    { id: 'H005', timestamp: new Date(Date.now() - 259200000).toISOString(), key: 'VIX_HIGH_THRESHOLD', oldValue: 20, newValue: 25 },
+  ]);
 
-  // Group config by category
   const categories = config.reduce<Record<string, typeof config>>((acc, param) => {
     if (!acc[param.category]) acc[param.category] = [];
     acc[param.category].push(param);
@@ -74,7 +85,6 @@ export function ConfigPage() {
 
   const changedParams = config.filter(p => JSON.stringify(p.value) !== JSON.stringify(p.default));
 
-  // Validation
   const validateParam = (key: string, value: string | number | boolean): string | null => {
     const param = config.find(p => p.key === key);
     if (!param) return null;
@@ -89,12 +99,23 @@ export function ConfigPage() {
 
   const handleUpdate = (key: string, value: string | number | boolean) => {
     const error = validateParam(key, value);
+    const param = config.find(p => p.key === key);
     setValidationErrors((prev) => {
       const next = { ...prev };
       if (error) next[key] = error;
       else delete next[key];
       return next;
     });
+    // Track history
+    if (param) {
+      setConfigHistory(prev => [{
+        id: `H${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        key,
+        oldValue: param.value,
+        newValue: value,
+      }, ...prev].slice(0, 20));
+    }
     updateConfigParam(key, value);
     setHasChanges(true);
   };
@@ -108,15 +129,16 @@ export function ConfigPage() {
     setHasChanges(false);
   };
 
-  const handleApplyAndRestart = () => {
-    if (Object.keys(validationErrors).length > 0) {
-      toast.error('Fix validation errors before applying');
+  const handleUndoLastChange = () => {
+    if (configHistory.length === 0) {
+      toast.info('No changes to undo');
       return;
     }
-    toast.success('Configuration applied — engine restarting...', {
-      description: 'Changes will take effect after restart completes',
-    });
-    setHasChanges(false);
+    const lastChange = configHistory[0];
+    updateConfigParam(lastChange.key, lastChange.oldValue);
+    setConfigHistory(prev => prev.slice(1));
+    setHasChanges(true);
+    toast.success(`Undone: ${lastChange.key} reverted to ${String(lastChange.oldValue)}`);
   };
 
   const handleResetAll = () => {
@@ -133,7 +155,6 @@ export function ConfigPage() {
     setHasChanges(true);
   };
 
-  // Export config as JSON
   const handleExport = () => {
     const configObj = config.reduce<Record<string, string | number | boolean>>((acc, p) => {
       acc[p.key] = p.value;
@@ -149,10 +170,7 @@ export function ConfigPage() {
     toast.success('Config exported as JSON');
   };
 
-  // Import config from JSON
-  const handleImport = () => {
-    fileInputRef.current?.click();
-  };
+  const handleImport = () => { fileInputRef.current?.click(); };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -175,7 +193,6 @@ export function ConfigPage() {
     e.target.value = '';
   };
 
-  // Copy config to clipboard
   const handleCopyConfig = () => {
     const configObj = config.reduce<Record<string, string | number | boolean>>((acc, p) => {
       acc[p.key] = p.value;
@@ -210,6 +227,9 @@ export function ConfigPage() {
                   {changedParams.length} modified
                 </Badge>
               )}
+              <Button variant="outline" size="sm" onClick={handleUndoLastChange} disabled={configHistory.length === 0} className="gap-1.5 text-xs">
+                <Undo2 className="h-3.5 w-3.5" /> Undo
+              </Button>
               <Button variant="outline" size="sm" onClick={handleImport} className="gap-1.5 text-xs">
                 <Upload className="h-3.5 w-3.5" /> Import
               </Button>
@@ -219,13 +239,7 @@ export function ConfigPage() {
               <Button variant="outline" size="sm" onClick={handleCopyConfig} className="gap-1.5 text-xs">
                 <Copy className="h-3.5 w-3.5" /> Copy
               </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                className="hidden"
-                onChange={handleFileChange}
-              />
+              <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleFileChange} />
               <Button variant="outline" size="sm" onClick={handleResetAll} className="gap-1.5 text-xs">
                 <RotateCcw className="h-3.5 w-3.5" /> Reset All
               </Button>
@@ -240,12 +254,7 @@ export function ConfigPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-md"
             />
-            <Button
-              variant={showDiff ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setShowDiff(!showDiff)}
-              className="gap-1.5 text-xs"
-            >
+            <Button variant={showDiff ? 'default' : 'outline'} size="sm" onClick={() => setShowDiff(!showDiff)} className="gap-1.5 text-xs">
               <FileJson className="h-3.5 w-3.5" /> Diff View
             </Button>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -266,16 +275,7 @@ export function ConfigPage() {
                   {presetIcons[preset.name]}
                   <span className="text-sm font-semibold">{preset.name}</span>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-[10px] h-6 gap-1"
-                  onClick={() => {
-                    applyConfigPreset(preset);
-                    setHasChanges(true);
-                    toast.success(`${preset.name} preset applied`);
-                  }}
-                >
+                <Button size="sm" variant="outline" className="text-[10px] h-6 gap-1" onClick={() => { applyConfigPreset(preset); setHasChanges(true); toast.success(`${preset.name} preset applied`); }}>
                   Apply
                 </Button>
               </div>
@@ -296,6 +296,35 @@ export function ConfigPage() {
           </Card>
         ))}
       </div>
+
+      {/* ── Config History ── */}
+      <Card className="bg-card/80 border-border">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <History className="h-4 w-4" /> Recent Changes
+            </CardTitle>
+            <Badge variant="outline" className="text-[10px]">Last {Math.min(configHistory.length, 5)} changes</Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {configHistory.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">No changes recorded</p>
+          ) : (
+            <div className="space-y-1.5">
+              {configHistory.slice(0, 5).map((entry) => (
+                <div key={entry.id} className="flex items-center gap-3 p-2 rounded bg-secondary/20 text-xs">
+                  <span className="text-muted-foreground">{new Date(entry.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="font-mono font-semibold text-foreground">{entry.key}</span>
+                  <span className="text-red-400 line-through">{String(entry.oldValue)}</span>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-emerald-400">{String(entry.newValue)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ── Diff View ── */}
       {showDiff && changedParams.length > 0 && (
@@ -318,14 +347,45 @@ export function ConfigPage() {
         </Card>
       )}
 
-      {/* ── Save Buttons ── */}
+      {/* ── Save Buttons with Apply Confirmation ── */}
       <div className="flex items-center gap-2">
         <Button size="sm" onClick={handleSave} disabled={!hasChanges} className="gap-1.5">
           <Save className="h-3.5 w-3.5" /> Save Only
         </Button>
-        <Button size="sm" onClick={handleApplyAndRestart} disabled={!hasChanges} variant="default" className="gap-1.5">
-          <Zap className="h-3.5 w-3.5" /> Apply & Restart
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="sm" disabled={!hasChanges} variant="default" className="gap-1.5">
+              <Zap className="h-3.5 w-3.5" /> Apply to Running Engine
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Apply Configuration to Running Engine?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will apply {changedParams.length} modified parameters to the running trading engine.
+                Parameters marked as &quot;restart needed&quot; will require an engine restart to take effect.
+                Live-update parameters will take effect immediately.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-1.5 py-2">
+              {changedParams.map(p => (
+                <div key={p.key} className="flex items-center gap-2 text-xs">
+                  {p.live_update ? <Zap className="h-3 w-3 text-emerald-400" /> : <RotateCcw className="h-3 w-3 text-amber-400" />}
+                  <span className="font-mono">{p.key}</span>
+                  <span className="text-red-400 line-through">{String(p.default)}</span>
+                  <ArrowRight className="h-3 w-3" />
+                  <span className="text-emerald-400">{String(p.value)}</span>
+                </div>
+              ))}
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { handleSave(); toast.success('Configuration applied to running engine'); setHasChanges(false); }}>
+                Apply Configuration
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         {Object.keys(validationErrors).length > 0 && (
           <Badge variant="destructive" className="text-[10px] gap-1">
             <AlertTriangle className="h-3 w-3" /> {Object.keys(validationErrors).length} errors
@@ -334,7 +394,7 @@ export function ConfigPage() {
       </div>
 
       {/* ── Config Sections ── */}
-      <ScrollArea className="h-[calc(100vh-440px)]">
+      <ScrollArea className="h-[calc(100vh-580px)]">
         <div className="space-y-4 pr-4">
           {Object.entries(filteredCategories).map(([category, params]) => (
             <Card key={category} className="bg-card/80 border-border">
@@ -345,12 +405,7 @@ export function ConfigPage() {
                     <CardTitle className="text-sm font-medium">{category}</CardTitle>
                     <Badge variant="outline" className="text-[10px]">{params.length} params</Badge>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-[10px] text-muted-foreground hover:text-foreground h-6"
-                    onClick={() => handleResetCategory(category)}
-                  >
+                  <Button variant="ghost" size="sm" className="text-[10px] text-muted-foreground hover:text-foreground h-6" onClick={() => handleResetCategory(category)}>
                     <RotateCcw className="h-3 w-3 mr-1" /> Reset Category
                   </Button>
                 </div>
@@ -370,72 +425,32 @@ export function ConfigPage() {
                           <div className="flex items-center gap-2">
                             <Label className="text-xs font-mono font-semibold">{param.key}</Label>
                             {param.live_update ? (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger>
-                                    <Zap className="h-3 w-3 text-emerald-400" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p className="text-xs">Changes take effect immediately</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                              <TooltipProvider><Tooltip><TooltipTrigger><Zap className="h-3 w-3 text-emerald-400" /></TooltipTrigger><TooltipContent><p className="text-xs">Changes take effect immediately</p></TooltipContent></Tooltip></TooltipProvider>
                             ) : (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger>
-                                    <RotateCcw className="h-3 w-3 text-amber-400" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p className="text-xs">Requires engine restart</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                              <TooltipProvider><Tooltip><TooltipTrigger><RotateCcw className="h-3 w-3 text-amber-400" /></TooltipTrigger><TooltipContent><p className="text-xs">Requires engine restart</p></TooltipContent></Tooltip></TooltipProvider>
                             )}
-                            {isModified && (
-                              <Badge variant="secondary" className="text-[8px] px-1 h-3.5">modified</Badge>
-                            )}
+                            {isModified && <Badge variant="secondary" className="text-[8px] px-1 h-3.5">modified</Badge>}
                           </div>
                           {isModified && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 text-[10px] text-muted-foreground hover:text-foreground"
-                              onClick={() => { resetConfigParam(param.key); setHasChanges(true); }}
-                            >
+                            <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground hover:text-foreground" onClick={() => { resetConfigParam(param.key); setHasChanges(true); }}>
                               <RotateCcw className="h-3 w-3 mr-1" /> Reset
                             </Button>
                           )}
                         </div>
                         <p className="text-[11px] text-muted-foreground leading-relaxed">{param.description}</p>
 
-                        {/* ── Input by Type ── */}
                         {param.type === 'boolean' && (
                           <div className="flex items-center justify-between">
-                            <Switch
-                              checked={param.value as boolean}
-                              onCheckedChange={(checked) => handleUpdate(param.key, checked)}
-                            />
-                            <span className={cn('text-xs font-mono', param.value ? 'text-emerald-400' : 'text-muted-foreground')}>
-                              {param.value ? 'Enabled' : 'Disabled'}
-                            </span>
+                            <Switch checked={param.value as boolean} onCheckedChange={(checked) => handleUpdate(param.key, checked)} />
+                            <span className={cn('text-xs font-mono', param.value ? 'text-emerald-400' : 'text-muted-foreground')}>{param.value ? 'Enabled' : 'Disabled'}</span>
                           </div>
                         )}
 
                         {param.type === 'select' && (
-                          <Select
-                            value={String(param.value)}
-                            onValueChange={(val) => handleUpdate(param.key, val)}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
+                          <Select value={String(param.value)} onValueChange={(val) => handleUpdate(param.key, val)}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              {param.options?.map((opt) => (
-                                <SelectItem key={opt} value={opt} className="text-xs">
-                                  {opt}
-                                </SelectItem>
-                              ))}
+                              {param.options?.map((opt) => (<SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>))}
                             </SelectContent>
                           </Select>
                         )}
@@ -444,14 +459,7 @@ export function ConfigPage() {
                           <div className="space-y-2">
                             {param.min !== undefined && param.max !== undefined && (param.max - param.min) <= 20 ? (
                               <>
-                                <Slider
-                                  value={[Number(param.value)]}
-                                  min={param.min}
-                                  max={param.max}
-                                  step={param.step || 1}
-                                  onValueChange={([val]) => handleUpdate(param.key, val)}
-                                  className="py-1"
-                                />
+                                <Slider value={[Number(param.value)]} min={param.min} max={param.max} step={param.step || 1} onValueChange={([val]) => handleUpdate(param.key, val)} className="py-1" />
                                 <div className="flex justify-between text-[10px] text-muted-foreground">
                                   <span>{param.min}</span>
                                   <span className="font-mono font-semibold text-foreground">{String(param.value)}</span>
@@ -460,55 +468,29 @@ export function ConfigPage() {
                               </>
                             ) : (
                               <div className="flex items-center gap-2">
-                                <Input
-                                  type="number"
-                                  value={String(param.value)}
-                                  min={param.min}
-                                  max={param.max}
-                                  step={param.step || 1}
-                                  onChange={(e) => {
-                                    const val = parseFloat(e.target.value);
-                                    if (!isNaN(val)) handleUpdate(param.key, val);
-                                  }}
-                                  className={cn('h-8 text-xs font-mono', hasError && 'border-red-500/50')}
-                                />
-                                {param.default !== undefined && (
-                                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                                    default: {String(param.default)}
-                                  </span>
-                                )}
+                                <Input type="number" value={String(param.value)} min={param.min} max={param.max} step={param.step || 1} onChange={(e) => { const val = parseFloat(e.target.value); if (!isNaN(val)) handleUpdate(param.key, val); }} className={cn('h-8 text-xs font-mono', hasError && 'border-red-500/50')} />
+                                {param.default !== undefined && <span className="text-[10px] text-muted-foreground whitespace-nowrap">default: {String(param.default)}</span>}
                               </div>
                             )}
                           </div>
                         )}
 
                         {param.type === 'string' && (
-                          <Input
-                            value={String(param.value)}
-                            onChange={(e) => handleUpdate(param.key, e.target.value)}
-                            className="h-8 text-xs"
-                          />
+                          <Input value={String(param.value)} onChange={(e) => handleUpdate(param.key, e.target.value)} className="h-8 text-xs" />
                         )}
 
-                        {/* Validation Error */}
                         {hasError && (
                           <div className="flex items-center gap-1 text-[10px] text-red-400">
-                            <AlertTriangle className="h-3 w-3" />
-                            {hasError}
+                            <AlertTriangle className="h-3 w-3" />{hasError}
                           </div>
                         )}
 
-                        {/* Default Value Indicator */}
                         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                           <span>Default: {String(param.default)}</span>
                           {param.live_update ? (
-                            <span className="flex items-center gap-0.5 text-emerald-400">
-                              <CheckCircle2 className="h-2.5 w-2.5" /> Live
-                            </span>
+                            <span className="flex items-center gap-0.5 text-emerald-400"><CheckCircle2 className="h-2.5 w-2.5" /> Live</span>
                           ) : (
-                            <span className="flex items-center gap-0.5 text-amber-400">
-                              <AlertTriangle className="h-2.5 w-2.5" /> Restart
-                            </span>
+                            <span className="flex items-center gap-0.5 text-amber-400"><AlertTriangle className="h-2.5 w-2.5" /> Restart</span>
                           )}
                         </div>
                       </div>

@@ -8,6 +8,7 @@
  */
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type {
   EngineStatus,
   Trade,
@@ -136,7 +137,9 @@ interface DDLJStore {
   setNumberFormat: (format: 'indian' | 'international') => void;
 }
 
-export const useDDLJStore = create<DDLJStore>((set) => ({
+export const useDDLJStore = create<DDLJStore>()(
+  persist(
+    (set) => ({
   // ── Navigation ──
   activePage: 'dashboard',
   setActivePage: (page) => set({ activePage: page }),
@@ -243,4 +246,13 @@ export const useDDLJStore = create<DDLJStore>((set) => ({
     set((s) => ({ theme: { ...s.theme, compactMode } })),
   setNumberFormat: (numberFormat) =>
     set((s) => ({ theme: { ...s.theme, numberFormat } })),
-}));
+}),
+    {
+      name: 'ddljj-theme',
+      partialize: (state) => ({
+        theme: state.theme,
+        sidebarCollapsed: state.sidebarCollapsed,
+      }),
+    }
+  )
+);
