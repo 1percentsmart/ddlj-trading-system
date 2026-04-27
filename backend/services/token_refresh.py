@@ -125,7 +125,7 @@ class TokenRefreshService:
         # Use core.config for token file path (handles Railway /app vs local dev)
         _default_token_file = os.getenv(
             "KITE_TOKEN_FILE",
-            os.path.join(os.path.dirname(__file__), "..", "kite_access_token.txt"),
+            os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "kite_access_token.txt")),
         )
         self.token_file = token_file or _default_token_file
         self.api_key = api_key or os.getenv("KITE_API_KEY", "")

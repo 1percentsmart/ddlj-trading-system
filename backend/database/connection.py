@@ -127,23 +127,86 @@ def get_engine() -> AsyncEngine:
             # IMPORTANT: We also sanitize the URL to handle special characters
             # in the password (e.g., @, [, ], etc.) which would break URL parsing.
             # Example: password "[IndianShit@123]" → "%5BIndianShit%40123%5D"
+            #
+            # SUPABASE IPv6 FIX: Supabase direct connections (db.xxx.supabase.co)
+            # only resolve to IPv6 addresses. Many cloud environments (Railway, etc.)
+            # have DNS resolution issues with IPv6-only hosts, causing
+            # [Errno -2] Name or service not known. The fix is to use the
+            # Supabase Connection Pooler (aws-0-region.pooler.supabase.com)
+            # which resolves to IPv4 and works everywhere.
             url = DATABASE_URL
+            _original_host = ""
+            _safe_password = ""
+
+            # ── Sanitize URL: remove brackets from credentials ──
+            # WHY: Supabase sometimes shows passwords in [brackets] for clarity,
+            #      but brackets in URLs conflict with IPv6 notation and crash
+            #      urlparse. We strip them before parsing.
+            #      Example: postgres:[Pass@123]@host → postgres:Pass@123@host
+            if url.startswith(("postgresql://", "postgres://")):
+                import re
+                # Remove [brackets] around the password part only
+                # Pattern: :[something]@ → :something@
+                url = re.sub(r':\[([^\]]+)\]@', r':\1@', url)
+
             if url.startswith("postgresql://") or url.startswith("postgres://"):
                 try:
                     parsed = urlparse(url)
                     # Rebuild the URL with properly encoded credentials
                     safe_user = quote_plus(parsed.username or "")
                     safe_password = quote_plus(parsed.password or "")
-                    host = parsed.hostname or ""
+                    _original_host = parsed.hostname or ""
+                    host = _original_host
                     port = parsed.port or 5432
                     database = parsed.path.lstrip("/") or "postgres"
                     url = f"postgresql+asyncpg://{safe_user}:{safe_password}@{host}:{port}/{database}"
+                    _safe_password = safe_password  # Store for pooler fallback
                 except Exception:
+                    _original_host = ""
+                    _safe_password = ""
                     # Fallback: simple prefix replacement if URL parsing fails
                     if url.startswith("postgresql://"):
                         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
                     else:
                         url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+            else:
+                _original_host = ""
+                _safe_password = ""
+
+            # ── Check if the database host is resolvable ──
+            # WHY: Supabase direct connection hosts (db.XXX.supabase.co) are
+            # IPv6-only. If DNS can't resolve them (common on Railway), we
+            # auto-convert to the Supabase pooler URL which uses IPv4.
+            if _original_host.endswith(".supabase.co") and _original_host.startswith("db."):
+                import socket
+                try:
+                    socket.getaddrinfo(_original_host, 5432)
+                except (socket.gaierror, OSError):
+                    # DNS resolution failed — likely IPv6-only host
+                    # Auto-convert to Supabase Connection Pooler URL
+                    project_ref = _original_host.replace("db.", "").replace(".supabase.co", "")
+                    pooler_host = f"aws-0-ap-south-1.pooler.supabase.com"
+                    try:
+                        socket.getaddrinfo(pooler_host, 6543)
+                        # Pooler is resolvable — rebuild URL with pooler host
+                        # Pooler uses: user=postgres.PROJECT_REF, port=6543
+                        pooler_user = quote_plus(f"postgres.{project_ref}")
+                        pooler_password = _safe_password
+                        if not pooler_password:
+                            parsed = urlparse(DATABASE_URL)
+                            pooler_password = quote_plus(parsed.password or "")
+                        url = f"postgresql+asyncpg://{pooler_user}:{pooler_password}@{pooler_host}:6543/postgres"
+                        log.warning(
+                            "Database: Direct connection host %s not resolvable (IPv6-only). "
+                            "Auto-switched to Supabase pooler: %s",
+                            _original_host, pooler_host,
+                        )
+                    except (socket.gaierror, OSError):
+                        log.error(
+                            "Database: Neither direct (%s) nor pooler (%s) hosts are resolvable. "
+                            "Check your network configuration.",
+                            _original_host, pooler_host,
+                        )
 
             _engine = create_async_engine(
                 url,
