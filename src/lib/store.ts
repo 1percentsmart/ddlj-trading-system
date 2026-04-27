@@ -16,6 +16,14 @@ import type {
   BacktestResult,
   HealthCheck,
   SignalLog,
+  OptionsChainData,
+  RiskMetrics,
+  RiskAlert,
+  AlertConfig,
+  AlertHistoryEntry,
+  TelegramConfig,
+  JournalEntry,
+  ThemePreferences,
 } from './mock-data';
 import {
   mockEngineStatus,
@@ -25,6 +33,14 @@ import {
   mockBacktestResults,
   mockHealthChecks,
   mockSignalLog,
+  mockOptionsChain,
+  mockRiskMetrics,
+  mockRiskAlerts,
+  mockAlertConfigs,
+  mockAlertHistory,
+  mockTelegramConfig,
+  mockJournalEntries,
+  defaultThemePreferences,
 } from './mock-data';
 
 // ── Navigation ───────────────────────────────────────────────────
@@ -35,7 +51,11 @@ export type PageId =
   | 'config'
   | 'backtest'
   | 'token'
-  | 'health';
+  | 'health'
+  | 'options'
+  | 'risk'
+  | 'alerts'
+  | 'journal';
 
 // ── Store State ──────────────────────────────────────────────────
 interface DDLJStore {
@@ -79,6 +99,29 @@ interface DDLJStore {
   // Connection
   isConnected: boolean;
   setConnected: (connected: boolean) => void;
+
+  // Options Chain
+  optionsChain: OptionsChainData;
+  selectedOptionsIndex: 'BANKNIFTY' | 'NIFTY';
+  setSelectedOptionsIndex: (index: 'BANKNIFTY' | 'NIFTY') => void;
+
+  // Risk
+  riskMetrics: RiskMetrics;
+  riskAlerts: RiskAlert[];
+
+  // Alerts
+  alertConfigs: AlertConfig[];
+  alertHistory: AlertHistoryEntry[];
+  telegramConfig: TelegramConfig;
+  updateTelegramConfig: (config: Partial<TelegramConfig>) => void;
+
+  // Journal
+  journalEntries: JournalEntry[];
+  addJournalEntry: (entry: JournalEntry) => void;
+
+  // Theme
+  theme: ThemePreferences;
+  updateTheme: (theme: Partial<ThemePreferences>) => void;
 }
 
 export const useDDLJStore = create<DDLJStore>((set) => ({
@@ -139,4 +182,30 @@ export const useDDLJStore = create<DDLJStore>((set) => ({
   // ── Connection ──
   isConnected: true,
   setConnected: (connected) => set({ isConnected: connected }),
+
+  // ── Options ──
+  optionsChain: mockOptionsChain,
+  selectedOptionsIndex: 'BANKNIFTY',
+  setSelectedOptionsIndex: (index) => set({ selectedOptionsIndex: index }),
+
+  // ── Risk ──
+  riskMetrics: mockRiskMetrics,
+  riskAlerts: mockRiskAlerts,
+
+  // ── Alerts ──
+  alertConfigs: mockAlertConfigs,
+  alertHistory: mockAlertHistory,
+  telegramConfig: mockTelegramConfig,
+  updateTelegramConfig: (partial) =>
+    set((s) => ({ telegramConfig: { ...s.telegramConfig, ...partial } })),
+
+  // ── Journal ──
+  journalEntries: mockJournalEntries,
+  addJournalEntry: (entry) =>
+    set((s) => ({ journalEntries: [entry, ...s.journalEntries] })),
+
+  // ── Theme ──
+  theme: defaultThemePreferences,
+  updateTheme: (partial) =>
+    set((s) => ({ theme: { ...s.theme, ...partial } })),
 }));

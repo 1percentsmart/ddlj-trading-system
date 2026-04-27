@@ -8,7 +8,7 @@
  */
 
 import { useDDLJStore } from '@/lib/store';
-import { formatCurrency, pnlColor, pnlBgColor, formatDuration, timeAgo, biasColor, biasBgColor } from '@/lib/utils';
+import { cn, formatCurrency, pnlColor, pnlBgColor, formatDuration, timeAgo, biasColor, biasBgColor } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -402,6 +402,4 @@ export function DashboardPage() {
   );
 }
 
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(' ');
-}
+

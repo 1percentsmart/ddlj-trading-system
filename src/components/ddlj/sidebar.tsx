@@ -19,6 +19,11 @@ import {
   ChevronsRight,
   TrendingUp,
   Zap,
+  Shield,
+  Bell,
+  BookOpen,
+  GreekTemple,
+  Search,
 } from 'lucide-react';
 import { useDDLJStore, type PageId } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -35,17 +40,41 @@ interface NavItem {
   badgeColor?: string;
 }
 
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
 export function DDLJSidebar() {
   const { activePage, setActivePage, sidebarCollapsed, toggleSidebar, engineStatus } = useDDLJStore();
 
-  const navItems: NavItem[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
-    { id: 'engine', label: 'Engine Control', icon: <Play className="h-4 w-4" />, badge: engineStatus.engine_running ? 'LIVE' : 'OFF', badgeColor: engineStatus.engine_running ? 'bg-emerald-500' : 'bg-zinc-500' },
-    { id: 'trades', label: 'Trades & Positions', icon: <History className="h-4 w-4" />, badge: engineStatus.open_positions_count > 0 ? String(engineStatus.open_positions_count) : undefined },
-    { id: 'config', label: 'Configuration', icon: <Settings className="h-4 w-4" /> },
-    { id: 'backtest', label: 'Backtest', icon: <FlaskConical className="h-4 w-4" /> },
-    { id: 'token', label: 'Kite Token', icon: <KeyRound className="h-4 w-4" />, badge: engineStatus.token.valid ? 'OK' : '!', badgeColor: engineStatus.token.valid ? 'bg-emerald-500' : 'bg-red-500' },
-    { id: 'health', label: 'System Health', icon: <Activity className="h-4 w-4" /> },
+  const navGroups: NavGroup[] = [
+    {
+      title: 'Overview',
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
+        { id: 'engine', label: 'Engine Control', icon: <Play className="h-4 w-4" />, badge: engineStatus.engine_running ? 'LIVE' : 'OFF', badgeColor: engineStatus.engine_running ? 'bg-emerald-500' : 'bg-zinc-500' },
+        { id: 'trades', label: 'Trades & Positions', icon: <History className="h-4 w-4" />, badge: engineStatus.open_positions_count > 0 ? String(engineStatus.open_positions_count) : undefined },
+      ],
+    },
+    {
+      title: 'Analysis',
+      items: [
+        { id: 'options', label: 'Options Chain', icon: <TrendingUp className="h-4 w-4" /> },
+        { id: 'risk', label: 'Risk Management', icon: <Shield className="h-4 w-4" /> },
+        { id: 'backtest', label: 'Backtest', icon: <FlaskConical className="h-4 w-4" /> },
+        { id: 'journal', label: 'Trade Journal', icon: <BookOpen className="h-4 w-4" /> },
+      ],
+    },
+    {
+      title: 'System',
+      items: [
+        { id: 'config', label: 'Configuration', icon: <Settings className="h-4 w-4" /> },
+        { id: 'alerts', label: 'Alerts & Notifications', icon: <Bell className="h-4 w-4" /> },
+        { id: 'token', label: 'Kite Token', icon: <KeyRound className="h-4 w-4" />, badge: engineStatus.token.valid ? 'OK' : '!', badgeColor: engineStatus.token.valid ? 'bg-emerald-500' : 'bg-red-500' },
+        { id: 'health', label: 'System Health', icon: <Activity className="h-4 w-4" /> },
+      ],
+    },
   ];
 
   return (
@@ -68,50 +97,77 @@ export function DDLJSidebar() {
         )}
       </div>
 
-      {/* ── Navigation Items ── */}
-      <ScrollArea className="flex-1 py-2">
-        <nav className="flex flex-col gap-1 px-2">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActivePage(item.id)}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors relative group',
-                activePage === item.id
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
-              )}
-            >
-              <span className="flex-shrink-0">{item.icon}</span>
+      {/* ── Search hint ── */}
+      {!sidebarCollapsed && (
+        <div className="px-3 py-2">
+          <button
+            onClick={() => {
+              // Dispatch Cmd+K programmatically
+              document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+            }}
+            className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md bg-secondary/50 border border-border text-xs text-muted-foreground hover:bg-secondary transition-colors"
+          >
+            <Search className="h-3 w-3" />
+            <span>Search...</span>
+            <kbd className="ml-auto text-[9px] bg-secondary px-1 rounded">⌘K</kbd>
+          </button>
+        </div>
+      )}
+
+      {/* ── Navigation Groups ── */}
+      <ScrollArea className="flex-1 py-1">
+        <div className="flex flex-col gap-1 px-2">
+          {navGroups.map((group) => (
+            <div key={group.title}>
               {!sidebarCollapsed && (
-                <>
-                  <span className="flex-1 text-left">{item.label}</span>
-                  {item.badge && (
+                <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  {group.title}
+                </div>
+              )}
+              {sidebarCollapsed && <Separator className="my-1 bg-sidebar-border" />}
+              {group.items.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setActivePage(item.id)}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors relative group w-full',
+                    activePage === item.id
+                      ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
+                  )}
+                >
+                  <span className="flex-shrink-0">{item.icon}</span>
+                  {!sidebarCollapsed && (
+                    <>
+                      <span className="flex-1 text-left">{item.label}</span>
+                      {item.badge && (
+                        <span className={cn(
+                          'text-[10px] font-bold px-1.5 py-0.5 rounded text-white',
+                          item.badgeColor || 'bg-primary'
+                        )}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </>
+                  )}
+                  {sidebarCollapsed && item.badge && (
                     <span className={cn(
-                      'text-[10px] font-bold px-1.5 py-0.5 rounded text-white',
+                      'absolute top-1 right-1 text-[8px] font-bold w-4 h-4 flex items-center justify-center rounded-full text-white',
                       item.badgeColor || 'bg-primary'
                     )}>
                       {item.badge}
                     </span>
                   )}
-                </>
-              )}
-              {sidebarCollapsed && item.badge && (
-                <span className={cn(
-                  'absolute top-1 right-1 text-[8px] font-bold w-4 h-4 flex items-center justify-center rounded-full text-white',
-                  item.badgeColor || 'bg-primary'
-                )}>
-                  {item.badge}
-                </span>
-              )}
-              {sidebarCollapsed && (
-                <span className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-lg">
-                  {item.label}
-                </span>
-              )}
-            </button>
+                  {sidebarCollapsed && (
+                    <span className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-lg">
+                      {item.label}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           ))}
-        </nav>
+        </div>
       </ScrollArea>
 
       {/* ── Bottom Section ── */}

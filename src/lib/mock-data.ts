@@ -524,3 +524,496 @@ export const mockSignalLog: SignalLog[] = [
   { time: new Date(Date.now() - 2400000).toISOString(), type: 'SYSTEM', message: 'Session recovered from previous run — 0 open positions restored', severity: 'warning' },
   { time: new Date(Date.now() - 3600000).toISOString(), type: 'SYSTEM', message: 'Market opened — engine auto-started', severity: 'info' },
 ];
+
+// ── Options Chain Data ───────────────────────────────────────────
+export interface OptionStrike {
+  strike: number;
+  isATM: boolean;
+  ce: {
+    ltp: number;
+    volume: number;
+    oi: number;
+    iv: number;
+    delta: number;
+    gamma: number;
+    theta: number;
+    vega: number;
+    itm: boolean;
+  };
+  pe: {
+    ltp: number;
+    volume: number;
+    oi: number;
+    iv: number;
+    delta: number;
+    gamma: number;
+    theta: number;
+    vega: number;
+    itm: boolean;
+  };
+}
+
+export interface OptionsChainData {
+  symbol: string;
+  spot_price: number;
+  atm_strike: number;
+  expiry: string;
+  strikes: OptionStrike[];
+  greeks_summary: {
+    total_delta: number;
+    total_gamma: number;
+    total_theta: number;
+    total_vega: number;
+  };
+  iv_skew: { strike: number; ce_iv: number; pe_iv: number }[];
+  payoff: { price: number; pnl: number }[];
+}
+
+const bnStrikes = [55400, 55600, 55800, 56000, 56200, 56400, 56600, 56800, 57000, 57200, 57400];
+const atmIdx = 5; // 56400 is ATM
+
+export const mockOptionsChain: OptionsChainData = {
+  symbol: 'BANKNIFTY',
+  spot_price: 56350,
+  atm_strike: 56400,
+  expiry: '2026-04-30',
+  strikes: bnStrikes.map((strike, idx) => ({
+    strike,
+    isATM: idx === atmIdx,
+    ce: {
+      ltp: Math.max(10, Math.round((56350 - strike + 150 + Math.random() * 100) * 100) / 100),
+      volume: Math.round(12000 + Math.random() * 50000),
+      oi: Math.round(50000 + Math.random() * 200000),
+      iv: Math.round((14 + Math.abs(idx - atmIdx) * 0.8 + Math.random() * 2) * 100) / 100,
+      delta: Math.round((0.5 + (atmIdx - idx) * 0.08) * 100) / 100,
+      gamma: Math.round((0.003 + Math.random() * 0.002) * 10000) / 10000,
+      theta: Math.round((-3.5 - Math.random() * 2) * 100) / 100,
+      vega: Math.round((8 + Math.random() * 4) * 100) / 100,
+      itm: strike < 56350,
+    },
+    pe: {
+      ltp: Math.max(10, Math.round((strike - 56350 + 150 + Math.random() * 100) * 100) / 100),
+      volume: Math.round(10000 + Math.random() * 45000),
+      oi: Math.round(45000 + Math.random() * 180000),
+      iv: Math.round((15 + Math.abs(idx - atmIdx) * 0.7 + Math.random() * 2) * 100) / 100,
+      delta: Math.round((-0.5 + (atmIdx - idx) * 0.08) * 100) / 100,
+      gamma: Math.round((0.003 + Math.random() * 0.002) * 10000) / 10000,
+      theta: Math.round((-3.2 - Math.random() * 1.8) * 100) / 100,
+      vega: Math.round((7.5 + Math.random() * 3.5) * 100) / 100,
+      itm: strike > 56350,
+    },
+  })),
+  greeks_summary: {
+    total_delta: 0.15,
+    total_gamma: 0.045,
+    total_theta: -12.8,
+    total_vega: 35.2,
+  },
+  iv_skew: bnStrikes.map((strike, idx) => ({
+    strike,
+    ce_iv: Math.round((14 + Math.abs(idx - atmIdx) * 0.8 + Math.random()) * 100) / 100,
+    pe_iv: Math.round((15 + Math.abs(idx - atmIdx) * 0.7 + Math.random()) * 100) / 100,
+  })),
+  payoff: Array.from({ length: 21 }, (_, i) => {
+    const price = 55400 + i * 200;
+    const pnl = (price - 56400) * 15 - 320 * 15;
+    return { price, pnl: Math.round(pnl) };
+  }),
+};
+
+const nfStrikes = [23800, 23900, 24000, 24100, 24200, 24300, 24400, 24500, 24600, 24700, 24800];
+const nfAtmIdx = 5; // 24300 is ATM
+
+export const mockNiftyOptionsChain: OptionsChainData = {
+  symbol: 'NIFTY',
+  spot_price: 24320,
+  atm_strike: 24300,
+  expiry: '2026-04-30',
+  strikes: nfStrikes.map((strike, idx) => ({
+    strike,
+    isATM: idx === nfAtmIdx,
+    ce: {
+      ltp: Math.max(5, Math.round((24320 - strike + 80 + Math.random() * 60) * 100) / 100),
+      volume: Math.round(20000 + Math.random() * 80000),
+      oi: Math.round(80000 + Math.random() * 400000),
+      iv: Math.round((12 + Math.abs(idx - nfAtmIdx) * 0.6 + Math.random() * 1.5) * 100) / 100,
+      delta: Math.round((0.5 + (nfAtmIdx - idx) * 0.07) * 100) / 100,
+      gamma: Math.round((0.002 + Math.random() * 0.001) * 10000) / 10000,
+      theta: Math.round((-2.8 - Math.random() * 1.5) * 100) / 100,
+      vega: Math.round((6 + Math.random() * 3) * 100) / 100,
+      itm: strike < 24320,
+    },
+    pe: {
+      ltp: Math.max(5, Math.round((strike - 24320 + 80 + Math.random() * 60) * 100) / 100),
+      volume: Math.round(18000 + Math.random() * 70000),
+      oi: Math.round(75000 + Math.random() * 350000),
+      iv: Math.round((13 + Math.abs(idx - nfAtmIdx) * 0.5 + Math.random() * 1.5) * 100) / 100,
+      delta: Math.round((-0.5 + (nfAtmIdx - idx) * 0.07) * 100) / 100,
+      gamma: Math.round((0.002 + Math.random() * 0.001) * 10000) / 10000,
+      theta: Math.round((-2.5 - Math.random() * 1.2) * 100) / 100,
+      vega: Math.round((5.5 + Math.random() * 2.5) * 100) / 100,
+      itm: strike > 24320,
+    },
+  })),
+  greeks_summary: {
+    total_delta: -0.22,
+    total_gamma: 0.032,
+    total_theta: -8.5,
+    total_vega: 22.8,
+  },
+  iv_skew: nfStrikes.map((strike, idx) => ({
+    strike,
+    ce_iv: Math.round((12 + Math.abs(idx - nfAtmIdx) * 0.6 + Math.random()) * 100) / 100,
+    pe_iv: Math.round((13 + Math.abs(idx - nfAtmIdx) * 0.5 + Math.random()) * 100) / 100,
+  })),
+  payoff: Array.from({ length: 21 }, (_, i) => {
+    const price = 23800 + i * 100;
+    const pnl = (24300 - price) * 25 - 135 * 25;
+    return { price, pnl: Math.round(pnl) };
+  }),
+};
+
+// ── Risk Metrics ──────────────────────────────────────────────────
+export interface RiskMetrics {
+  total_exposure: number;
+  margin_used: number;
+  buying_power: number;
+  daily_risk_budget_pct: number;
+  daily_risk_used_pct: number;
+  max_drawdown_pct: number;
+  current_drawdown_pct: number;
+  circuit_breakers: {
+    daily_loss_limit: { limit: number; used: number; triggered: boolean };
+    max_drawdown: { limit: number; current: number; triggered: boolean };
+    capital_floor: { limit: number; current: number; triggered: boolean };
+  };
+  greeks_exposure: {
+    delta: number;
+    gamma: number;
+    theta: number;
+    vega: number;
+  };
+  vix_regime: {
+    current: string;
+    vix: number;
+    history: { time: string; vix: number; regime: string }[];
+  };
+  drawdown_timeline: { date: string; drawdown_pct: number }[];
+  correlation_matrix: { symbol1: string; symbol2: string; correlation: number }[];
+}
+
+export const mockRiskMetrics: RiskMetrics = {
+  total_exposure: 845000,
+  margin_used: 168000,
+  buying_power: 77800,
+  daily_risk_budget_pct: 3.0,
+  daily_risk_used_pct: 1.6,
+  max_drawdown_pct: 4.8,
+  current_drawdown_pct: 1.2,
+  circuit_breakers: {
+    daily_loss_limit: { limit: 6000, used: 960, triggered: false },
+    max_drawdown: { limit: 0.20, current: 0.048, triggered: false },
+    capital_floor: { limit: 0.80, current: 1.229, triggered: false },
+  },
+  greeks_exposure: {
+    delta: 0.15,
+    gamma: 0.045,
+    theta: -12.8,
+    vega: 35.2,
+  },
+  vix_regime: {
+    current: 'NORMAL',
+    vix: 16.42,
+    history: [
+      { time: '09:15', vix: 17.1, regime: 'NORMAL' },
+      { time: '09:45', vix: 16.8, regime: 'NORMAL' },
+      { time: '10:15', vix: 16.5, regime: 'NORMAL' },
+      { time: '10:45', vix: 16.2, regime: 'NORMAL' },
+      { time: '11:15', vix: 16.9, regime: 'NORMAL' },
+      { time: '11:45', vix: 17.3, regime: 'NORMAL' },
+      { time: '12:15', vix: 16.7, regime: 'NORMAL' },
+      { time: '13:15', vix: 16.1, regime: 'NORMAL' },
+      { time: '13:45', vix: 16.4, regime: 'NORMAL' },
+      { time: '14:15', vix: 16.0, regime: 'NORMAL' },
+      { time: '14:45', vix: 16.42, regime: 'NORMAL' },
+    ],
+  },
+  drawdown_timeline: [
+    { date: 'Apr 1', drawdown_pct: 0 },
+    { date: 'Apr 2', drawdown_pct: -0.5 },
+    { date: 'Apr 3', drawdown_pct: -1.2 },
+    { date: 'Apr 4', drawdown_pct: 0.8 },
+    { date: 'Apr 7', drawdown_pct: 2.1 },
+    { date: 'Apr 8', drawdown_pct: 1.5 },
+    { date: 'Apr 9', drawdown_pct: 3.2 },
+    { date: 'Apr 10', drawdown_pct: 4.8 },
+    { date: 'Apr 11', drawdown_pct: 3.5 },
+    { date: 'Apr 14', drawdown_pct: 2.1 },
+    { date: 'Apr 15', drawdown_pct: 1.0 },
+    { date: 'Apr 16', drawdown_pct: 1.8 },
+    { date: 'Apr 17', drawdown_pct: 0.5 },
+    { date: 'Apr 18', drawdown_pct: 2.2 },
+    { date: 'Apr 21', drawdown_pct: 0.8 },
+    { date: 'Apr 22', drawdown_pct: 0.3 },
+    { date: 'Apr 23', drawdown_pct: 0.1 },
+    { date: 'Apr 24', drawdown_pct: 1.5 },
+    { date: 'Apr 25', drawdown_pct: 0.6 },
+    { date: 'Apr 26', drawdown_pct: 1.2 },
+    { date: 'Apr 27', drawdown_pct: 0.4 },
+  ],
+  correlation_matrix: [
+    { symbol1: 'BANKNIFTY', symbol2: 'BANKNIFTY', correlation: 1.0 },
+    { symbol1: 'BANKNIFTY', symbol2: 'NIFTY', correlation: 0.87 },
+    { symbol1: 'NIFTY', symbol2: 'BANKNIFTY', correlation: 0.87 },
+    { symbol1: 'NIFTY', symbol2: 'NIFTY', correlation: 1.0 },
+  ],
+};
+
+// ── Risk Alerts ──────────────────────────────────────────────────
+export interface RiskAlert {
+  id: string;
+  type: 'risk' | 'trade' | 'vix' | 'system';
+  severity: 'critical' | 'warning' | 'info';
+  message: string;
+  time: string;
+  acknowledged: boolean;
+}
+
+export const mockRiskAlerts: RiskAlert[] = [
+  { id: 'RA001', type: 'risk', severity: 'warning', message: 'Daily risk budget 53% used — 1.6% of 3.0%', time: new Date(Date.now() - 5 * 60000).toISOString(), acknowledged: false },
+  { id: 'RA002', type: 'vix', severity: 'info', message: 'VIX regime: NORMAL (16.42)', time: new Date(Date.now() - 15 * 60000).toISOString(), acknowledged: true },
+  { id: 'RA003', type: 'trade', severity: 'warning', message: 'BANKNIFTY position approaching stop loss — 45 points away', time: new Date(Date.now() - 25 * 60000).toISOString(), acknowledged: false },
+  { id: 'RA004', type: 'system', severity: 'info', message: 'Session recovered — 2 open positions restored', time: new Date(Date.now() - 60 * 60000).toISOString(), acknowledged: true },
+  { id: 'RA005', type: 'risk', severity: 'critical', message: 'Drawdown circuit breaker at 24% of limit', time: new Date(Date.now() - 90 * 60000).toISOString(), acknowledged: true },
+];
+
+// ── Alerts & Notifications ────────────────────────────────────────
+export interface AlertConfig {
+  id: string;
+  name: string;
+  type: 'price' | 'vix' | 'trade' | 'risk';
+  condition: string;
+  threshold: string;
+  channels: ('telegram' | 'in_app')[];
+  enabled: boolean;
+}
+
+export const mockAlertConfigs: AlertConfig[] = [
+  { id: 'AC001', name: 'Daily Loss Alert', type: 'risk', condition: 'daily_loss > threshold', threshold: '₹5,000', channels: ['telegram', 'in_app'], enabled: true },
+  { id: 'AC002', name: 'VIX Spike Alert', type: 'vix', condition: 'vix > threshold', threshold: '25', channels: ['in_app'], enabled: true },
+  { id: 'AC003', name: 'Trade Entry Alert', type: 'trade', condition: 'on_trade_entry', threshold: 'Any', channels: ['telegram'], enabled: true },
+  { id: 'AC004', name: 'Trade Exit Alert', type: 'trade', condition: 'on_trade_exit', threshold: 'Any', channels: ['telegram', 'in_app'], enabled: true },
+  { id: 'AC005', name: 'Drawdown Alert', type: 'risk', condition: 'drawdown > threshold', threshold: '5%', channels: ['telegram', 'in_app'], enabled: true },
+  { id: 'AC006', name: 'BankNifty Price Alert', type: 'price', condition: 'BANKNIFTY > threshold', threshold: '57000', channels: ['in_app'], enabled: false },
+];
+
+export interface AlertHistoryEntry {
+  id: string;
+  alert_name: string;
+  type: 'price' | 'vix' | 'trade' | 'risk';
+  message: string;
+  time: string;
+  channel: 'telegram' | 'in_app';
+  acknowledged: boolean;
+}
+
+export const mockAlertHistory: AlertHistoryEntry[] = [
+  { id: 'AH001', alert_name: 'Trade Entry Alert', type: 'trade', message: 'BUY BANKNIFTY CE 56300 @ ₹320', time: new Date(Date.now() - 45 * 60000).toISOString(), channel: 'telegram', acknowledged: true },
+  { id: 'AH002', alert_name: 'Daily Loss Alert', type: 'risk', message: 'Daily P&L at -₹960 (1.6% of 3% budget)', time: new Date(Date.now() - 5 * 60000).toISOString(), channel: 'in_app', acknowledged: false },
+  { id: 'AH003', alert_name: 'VIX Spike Alert', type: 'vix', message: 'VIX at 16.42 (below threshold 25)', time: new Date(Date.now() - 15 * 60000).toISOString(), channel: 'in_app', acknowledged: true },
+  { id: 'AH004', alert_name: 'Trade Exit Alert', type: 'trade', message: 'EXIT NIFTY PE 24300 @ ₹210.5 (+₹3,552)', time: new Date(Date.now() - 120 * 60000).toISOString(), channel: 'telegram', acknowledged: true },
+  { id: 'AH005', alert_name: 'Drawdown Alert', type: 'risk', message: 'Current drawdown at 4.8% (below 5% threshold)', time: new Date(Date.now() - 30 * 60000).toISOString(), channel: 'in_app', acknowledged: false },
+];
+
+export interface TelegramConfig {
+  bot_token: string;
+  chat_id: string;
+  enabled: boolean;
+  last_test: string | null;
+  last_test_success: boolean;
+}
+
+export const mockTelegramConfig: TelegramConfig = {
+  bot_token: '7234*****:AAF5 ********************************',
+  chat_id: '-1001*********',
+  enabled: true,
+  last_test: new Date(Date.now() - 3600000).toISOString(),
+  last_test_success: true,
+};
+
+// ── Journal Entries ───────────────────────────────────────────────
+export type EmotionalState = 'confident' | 'anxious' | 'fomo' | 'patient' | 'disciplined' | 'revenge' | 'calm' | 'excited';
+
+export interface JournalEntry {
+  id: string;
+  trade_id: string;
+  symbol: string;
+  direction: 'LONG' | 'SHORT';
+  entry_time: string;
+  exit_time: string | null;
+  pre_trade_rationale: string;
+  post_trade_review: string | null;
+  emotional_state: EmotionalState;
+  tags: string[];
+  pnl: number | null;
+  screenshot_url: string | null;
+}
+
+export const mockJournalEntries: JournalEntry[] = [
+  {
+    id: 'J001',
+    trade_id: 'T001',
+    symbol: 'BANKNIFTY',
+    direction: 'LONG',
+    entry_time: '2026-04-25T10:15:00+05:30',
+    exit_time: '2026-04-25T11:45:00+05:30',
+    pre_trade_rationale: 'Strong bullish bias on 60m chart. 15m EMA crossover confirmed. VIX in normal range. Entering ITM CE for directional play.',
+    post_trade_review: 'Excellent execution. Followed the plan perfectly. Bias strength was 0.78 which gave confidence. Could have held for more but target hit.',
+    emotional_state: 'confident',
+    tags: ['ema-crossover', 'trend-following', 'plan-followed'],
+    pnl: 6438,
+    screenshot_url: null,
+  },
+  {
+    id: 'J002',
+    trade_id: 'T002',
+    symbol: 'NIFTY',
+    direction: 'SHORT',
+    entry_time: '2026-04-25T13:00:00+05:30',
+    exit_time: '2026-04-25T14:30:00+05:30',
+    pre_trade_rationale: 'Bearish bias on hourly. RSI showing overbought conditions. Entering PE for counter-trend scalp.',
+    post_trade_review: 'Good trade. Was patient waiting for the setup. Risk management was spot on.',
+    emotional_state: 'patient',
+    tags: ['counter-trend', 'rsi-filter', 'patience'],
+    pnl: 3552,
+    screenshot_url: null,
+  },
+  {
+    id: 'J003',
+    trade_id: 'T003',
+    symbol: 'BANKNIFTY',
+    direction: 'LONG',
+    entry_time: '2026-04-24T10:30:00+05:30',
+    exit_time: '2026-04-24T12:15:00+05:30',
+    pre_trade_rationale: 'Trying to catch the bounce after yesterday\'s strong move. Bias still bullish.',
+    post_trade_review: 'Should have waited for better confirmation. Entered on hope rather than signal. SL hit because I was too eager.',
+    emotional_state: 'fomo',
+    tags: ['fomo-entry', 'no-confirmation', 'lesson-learned'],
+    pnl: -2535,
+    screenshot_url: null,
+  },
+  {
+    id: 'J004',
+    trade_id: 'T004',
+    symbol: 'BANKNIFTY',
+    direction: 'SHORT',
+    entry_time: '2026-04-23T14:00:00+05:30',
+    exit_time: '2026-04-23T15:00:00+05:30',
+    pre_trade_rationale: 'Late afternoon short setup. Bias turned bearish. Quick scalp opportunity.',
+    post_trade_review: 'Disciplined execution. Did not overstay. Hit target and exited cleanly.',
+    emotional_state: 'disciplined',
+    tags: ['afternoon-trade', 'discipline', 'target-hit'],
+    pnl: 4255,
+    screenshot_url: null,
+  },
+  {
+    id: 'J005',
+    trade_id: 'T007',
+    symbol: 'NIFTY',
+    direction: 'SHORT',
+    entry_time: '2026-04-18T13:15:00+05:30',
+    exit_time: '2026-04-18T14:45:00+05:30',
+    pre_trade_rationale: 'Entered short after previous loss. Market needs to go down. I\'ll make it back.',
+    post_trade_review: 'Revenge trade. Did not follow system. Entered without proper signal. Big mistake.',
+    emotional_state: 'revenge',
+    tags: ['revenge-trade', 'no-signal', 'emotional'],
+    pnl: -2685,
+    screenshot_url: null,
+  },
+];
+
+export const mockJournalAnalytics = {
+  by_emotion: {
+    confident: { count: 12, win_rate: 75, avg_pnl: 4200 },
+    patient: { count: 8, win_rate: 62.5, avg_pnl: 2800 },
+    disciplined: { count: 15, win_rate: 73.3, avg_pnl: 3600 },
+    calm: { count: 6, win_rate: 66.7, avg_pnl: 2200 },
+    anxious: { count: 4, win_rate: 25, avg_pnl: -1500 },
+    fomo: { count: 5, win_rate: 20, avg_pnl: -2100 },
+    revenge: { count: 3, win_rate: 0, avg_pnl: -3200 },
+    excited: { count: 2, win_rate: 50, avg_pnl: 800 },
+  } as Record<EmotionalState, { count: number; win_rate: number; avg_pnl: number }>,
+  best_pattern: 'EMA crossover with bullish bias + VIX < 18',
+  worst_pattern: 'Revenge trading after consecutive losses',
+};
+
+// ── Theme Preferences ─────────────────────────────────────────────
+export type AccentColor = 'emerald' | 'blue' | 'purple' | 'amber' | 'red';
+
+export interface ThemePreferences {
+  mode: 'dark' | 'light' | 'system';
+  accent: AccentColor;
+  sidebarPosition: 'left' | 'right';
+  compactMode: boolean;
+  numberFormat: 'indian' | 'international';
+}
+
+export const defaultThemePreferences: ThemePreferences = {
+  mode: 'dark',
+  accent: 'emerald',
+  sidebarPosition: 'left',
+  compactMode: false,
+  numberFormat: 'indian',
+};
+
+// ── Config Presets ────────────────────────────────────────────────
+export interface ConfigPreset {
+  name: string;
+  description: string;
+  changes: Record<string, string | number | boolean>;
+}
+
+export const mockConfigPresets: ConfigPreset[] = [
+  {
+    name: 'Conservative',
+    description: 'Low risk, fewer trades, tight stops',
+    changes: {
+      DAILY_RISK_PCT: 1.5,
+      RISK_PER_POSITION_PCT: 1.0,
+      MAX_OPEN_POSITIONS: 1,
+      DRAWDOWN_CIRCUIT_BREAKER: 0.60,
+      CAPITAL_FLOOR_PCT: 0.30,
+      NUM_LOTS: 1,
+      ATR_SL_MULT: 2.0,
+      ATR_TARGET_MULT: 3.0,
+    },
+  },
+  {
+    name: 'Moderate',
+    description: 'Balanced risk-reward, default settings',
+    changes: {
+      DAILY_RISK_PCT: 3.0,
+      RISK_PER_POSITION_PCT: 2.0,
+      MAX_OPEN_POSITIONS: 2,
+      DRAWDOWN_CIRCUIT_BREAKER: 0.80,
+      CAPITAL_FLOOR_PCT: 0.20,
+      NUM_LOTS: 1,
+      ATR_SL_MULT: 1.5,
+      ATR_TARGET_MULT: 2.5,
+    },
+  },
+  {
+    name: 'Aggressive',
+    description: 'Higher risk tolerance, more positions',
+    changes: {
+      DAILY_RISK_PCT: 5.0,
+      RISK_PER_POSITION_PCT: 3.0,
+      MAX_OPEN_POSITIONS: 3,
+      DRAWDOWN_CIRCUIT_BREAKER: 0.90,
+      CAPITAL_FLOOR_PCT: 0.10,
+      NUM_LOTS: 2,
+      ATR_SL_MULT: 1.0,
+      ATR_TARGET_MULT: 2.0,
+    },
+  },
+];

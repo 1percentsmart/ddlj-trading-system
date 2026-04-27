@@ -7,7 +7,7 @@
  */
 
 import { useDDLJStore } from '@/lib/store';
-import { formatCurrency, pnlColor, formatDateTime, formatTime } from '@/lib/utils';
+import { cn, formatCurrency, pnlColor, formatDateTime, formatTime } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  ReferenceLine,
 } from 'recharts';
 
 export function TradesPage() {
@@ -322,6 +323,4 @@ export function TradesPage() {
   );
 }
 
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(' ');
-}
+

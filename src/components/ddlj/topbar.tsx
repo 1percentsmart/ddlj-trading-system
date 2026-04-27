@@ -3,17 +3,19 @@
 /**
  * DDLJ Trading Dashboard — Top Navigation Bar
  * =============================================
- * Shows: account summary, connection status, P&L, market status, clock
+ * Shows: account summary, connection status, P&L, market status, clock, settings
  */
 
 import { useDDLJStore } from '@/lib/store';
-import { formatCurrency, pnlColor, formatDuration } from '@/lib/utils';
+import { cn, formatCurrency, pnlColor, formatDuration } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Wifi, WifiOff, Clock, Zap } from 'lucide-react';
+import { SettingsPanel } from '@/components/ddlj/settings-panel';
+import { Wifi, WifiOff, Clock, Zap, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 
 export function DDLJTopBar() {
-  const { engineStatus, isConnected } = useDDLJStore();
+  const { engineStatus, isConnected, setSpotlightOpen } = useDDLJStore();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -79,6 +81,22 @@ export function DDLJTopBar() {
 
         <div className="w-px h-4 bg-border" />
 
+        {/* Spotlight Search */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 gap-2 text-xs text-muted-foreground"
+          onClick={() => setSpotlightOpen(true)}
+        >
+          <Search className="h-3 w-3" />
+          <span className="hidden sm:inline">Search</span>
+          <kbd className="hidden sm:inline pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+            ⌘K
+          </kbd>
+        </Button>
+
+        <div className="w-px h-4 bg-border" />
+
         {/* Market Status */}
         <Badge
           variant={engineStatus.market_status === 'open' ? 'default' : 'destructive'}
@@ -96,11 +114,12 @@ export function DDLJTopBar() {
           <Clock className="h-3.5 w-3.5" />
           <span className="font-mono tabular-nums text-xs">{istTime} IST</span>
         </div>
+
+        <div className="w-px h-4 bg-border" />
+
+        {/* Settings */}
+        <SettingsPanel />
       </div>
     </header>
   );
-}
-
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(' ');
 }

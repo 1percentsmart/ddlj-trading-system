@@ -17,6 +17,11 @@ import { ConfigPage } from '@/components/ddlj/config-page';
 import { BacktestPage } from '@/components/ddlj/backtest-page';
 import { TokenPage } from '@/components/ddlj/token-page';
 import { HealthPage } from '@/components/ddlj/health-page';
+import { OptionsPage } from '@/components/ddlj/options-page';
+import { RiskPage } from '@/components/ddlj/risk-page';
+import { AlertsPage } from '@/components/ddlj/alerts-page';
+import { JournalPage } from '@/components/ddlj/journal-page';
+import { SpotlightSearch } from '@/components/ddlj/spotlight-search';
 
 export default function Home() {
   const { activePage } = useDDLJStore();
@@ -30,6 +35,10 @@ export default function Home() {
       case 'backtest': return <BacktestPage />;
       case 'token': return <TokenPage />;
       case 'health': return <HealthPage />;
+      case 'options': return <OptionsPage />;
+      case 'risk': return <RiskPage />;
+      case 'alerts': return <AlertsPage />;
+      case 'journal': return <JournalPage />;
       default: return <DashboardPage />;
     }
   };
@@ -49,6 +58,9 @@ export default function Home() {
           {renderPage()}
         </main>
       </div>
+
+      {/* ── Spotlight Search (Cmd+K) ── */}
+      <SpotlightSearch />
     </div>
   );
 }
