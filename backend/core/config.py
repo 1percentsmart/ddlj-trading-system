@@ -215,6 +215,8 @@ AUTH_SECRET_KEY = os.getenv("AUTH_SECRET_KEY", "")
 CORS_ORIGINS = [
     "http://localhost:3000",       # Local Next.js dev server
     "http://localhost:8000",       # Local backend
+    "https://my-project-nu-blue.vercel.app",  # Vercel production frontend
+    "https://my-project-izi5zsr5d-1percentsmarts-projects.vercel.app",  # Vercel alt URL
 ]
 # Add production frontend URL (with https:// prefix if not present)
 _frontend_url = os.getenv("FRONTEND_URL", "").strip()
