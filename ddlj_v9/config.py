@@ -88,6 +88,28 @@ MAX_DAILY_TRADES = 4
 #          trade (3% of 50,000). This might be too tight for options.
 RISK_PER_POSITION_PCT = None  # OFF — no per-position risk limit
 
+# --- Drawdown Circuit Breaker Percentage ---
+# DEFAULT:   0.80 (20% drawdown from peak)
+# SUGGESTED: 0.80 (standard), 0.85 (conservative), 0.70 (aggressive)
+# WHY: When your capital falls below this fraction of your peak capital,
+#      the strategy reduces position sizes to protect remaining capital.
+#      Think of it as a "slow down" signal when things go wrong.
+#      At 0.80: If peak was 60K and you drop to 48K (20% DD), sizes shrink.
+# EXAMPLE: DRAWDOWN_CIRCUIT_BREAKER = 0.85 means the strategy slows down
+#          after a 15% drawdown (more protective). 0.70 means it keeps
+#          trading at full size until a 30% drawdown (riskier).
+DRAWDOWN_CIRCUIT_BREAKER = 0.80
+
+# --- Capital Floor Percentage ---
+# DEFAULT:   0.20 (20% of starting capital)
+# SUGGESTED: 0.20 (standard), 0.30 (conservative), 0.10 (aggressive)
+# WHY: The minimum capital level before the strategy STOPS trading entirely.
+#      Below this, you've lost so much that continuing is dangerous.
+#      At 0.20 with 50K start: stops trading if capital falls below 10K.
+# EXAMPLE: CAPITAL_FLOOR_PCT = 0.30 means stop at 15K (30% of 50K).
+#          More conservative — saves more capital but exits earlier.
+CAPITAL_FLOOR_PCT = 0.20
+
 # --- Peak Capital Tracking ---
 # DEFAULT:   True
 # SUGGESTED: True (always keep on)
@@ -265,6 +287,76 @@ EMA_BUFFER_ATR = 0.1
 
 
 # ============================================================================
+# 5b. POSITION MANAGEMENT — HOW OPEN TRADES ARE MANAGED
+# ============================================================================
+# These control what happens AFTER you enter a trade: when to trail stops,
+# when to move to breakeven, and when to exit for non-SL/TGT reasons.
+# ============================================================================
+
+# --- Breakeven Trigger (in multiples of risk) ---
+# DEFAULT:   1.0
+# SUGGESTED: 1.0 (standard), 0.5 (quick BE), 1.5 (let it run more)
+# WHY: When a trade moves in your favor by this many times your initial risk,
+#      we move the stop loss to breakeven (entry price + small buffer).
+#      This locks in a "free trade" — you can't lose on this position anymore.
+# EXAMPLE: BE_TRIGGER_RISK_MULT = 1.0 with risk of 200 points means:
+#          When profit reaches 200 points, SL moves to entry price + 1.
+#          If you set 0.5, you move to BE at 100 points profit (faster but
+#          might get stopped out before the real move starts).
+BE_TRIGGER_RISK_MULT = 1.0
+
+# --- Trailing Stop Enabled ---
+# DEFAULT:   True
+# SUGGESTED: True (always), False (use fixed stop only)
+# WHY: When True, the stop loss is trailed (moved in your favor) as the
+#      trade progresses. This locks in more profit as the trade moves.
+#      When False, the stop loss stays at its original level.
+# EXAMPLE: TRAILING_STOP_ENABLED = False means once you enter, your SL
+#          never moves. Simpler but less profit on winning trades.
+TRAILING_STOP_ENABLED = True
+
+# --- Trailing Stop Frequency (every N candles) ---
+# DEFAULT:   3
+# SUGGESTED: 3 (balanced), 2 (responsive), 5 (relaxed)
+# WHY: How often (in candles) to check if the trailing stop should be moved.
+#      Every 3 candles means we update the trail roughly every 45 minutes
+#      on a 15m timeframe.
+# EXAMPLE: TRAIL_EVERY_N_CANDLES = 1 means trail every candle (very active,
+#          may whipsaw). 5 means check less often (simpler, less noise).
+TRAIL_EVERY_N_CANDLES = 3
+
+# --- Bias Flip Exit: Minimum Candles Held ---
+# DEFAULT:   6
+# SUGGESTED: 6 (standard), 10 (patient), 3 (quick exit)
+# WHY: If the market direction flips (e.g., BULLISH → BEARISH), we exit
+#      the position — BUT only if we've held it for at least this many
+#      candles. This prevents premature exits on brief bias wiggles.
+# EXAMPLE: BIAS_FLIP_MIN_HELD = 3 means exit very quickly on a bias flip.
+#          10 means give the trade more time before believing the flip.
+BIAS_FLIP_MIN_HELD = 6
+
+# --- Near Target Threshold (in ATR) ---
+# DEFAULT:   0.01 (1% of ATR — very close to target)
+# SUGGESTED: 0.01 (standard), 0.02 (wider), 0.005 (tighter)
+# WHY: If price gets within this fraction of ATR from the target AND the
+#      candle is profitable, we close the position to lock in gains.
+#      For BankNifty ATR=265, 0.01*265 ≈ 2.65 points from target.
+# EXAMPLE: NEAR_TARGET_ATR = 0.02 means close within 5.3 points of target
+#          (wider capture zone, more exits at "near target").
+NEAR_TARGET_ATR = 0.01
+
+# --- Time Exit: Maximum Hours in Trade ---
+# DEFAULT:   6.0 (one trading day worth of hours)
+# SUGGESTED: 6.0 (standard), 4.0 (intraday scalper), 8.0 (patient)
+# WHY: Maximum time (in hours) to hold a position before force-closing.
+#      Indian market has 6.25 trading hours (9:15 to 3:30). If a trade
+#      hasn't hit SL or target in 6 hours, it's probably not working.
+# EXAMPLE: MAX_TRADE_HOURS = 4.0 means close trades after 4 hours even
+#          if SL/TGT not hit. Good for quick scalps on 5m timeframe.
+MAX_TRADE_HOURS = 6.0
+
+
+# ============================================================================
 # 6. OPTIONS PRICING — BLACK-SCHOLES MODEL
 # ============================================================================
 
@@ -379,6 +471,27 @@ PAPER_TRADING_ENABLED = True
 #          Kite allows ~3 requests/second, so 3 seconds is safe.
 POLL_INTERVAL_SECONDS = 5
 
+# --- Warmup Days (Historical Data Preload) ---
+# DEFAULT:   30
+# SUGGESTED: 30 (standard), 15 (faster startup), 60 (more data)
+# WHY: When the paper trader starts, it needs enough historical candles
+#      to "warm up" the indicators (EMA needs ~20 candles, ATR needs ~15).
+#      30 days ensures we have plenty of data even with missing trading days.
+#      Without warmup, the first 1-2 hours produce no signals (dangerous!).
+# EXAMPLE: WARMUP_DAYS = 7 might not have enough candles for 60m bias TF.
+#          60 days is safer but takes longer to download at startup.
+WARMUP_DAYS = 30
+
+# --- Real-time VIX Refresh (seconds) ---
+# DEFAULT:   300 (5 minutes)
+# SUGGESTED: 300 (standard), 120 (responsive), 600 (less API calls)
+# WHY: For live trading, we periodically fetch the current India VIX value
+#      from the API instead of relying on the static JSON file. This gives
+#      much more accurate IV estimation for options pricing.
+# EXAMPLE: VIX_REFRESH_SECONDS = 120 means we update VIX every 2 minutes.
+#          600 = every 10 minutes (less API usage but slightly stale IV).
+VIX_REFRESH_SECONDS = 300
+
 # --- Use WebSocket for Real-Time Data ---
 # DEFAULT:   False (use REST polling — more reliable)
 # SUGGESTED: False (recommended), True (for advanced users)
@@ -490,6 +603,11 @@ CACHE_DIR = "kite_cache_v10"
 # │ ENTRY_TIMEFRAME     │ 15m          │ 15m          │ 5m           │
 # │ BIAS_TIMEFRAME      │ 60m          │ 60m          │ 15m          │
 # │ MAX_CAP_PER_POS_PCT │ 0.30         │ 0.40         │ 0.50         │
+# │ DD_CIRCUIT_BREAKER  │ 0.85         │ 0.80         │ 0.70         │
+# │ CAPITAL_FLOOR_PCT   │ 0.30         │ 0.20         │ 0.10         │
+# │ BE_TRIGGER_RISK_MULT│ 0.5          │ 1.0          │ 1.5          │
+# │ TRAILING_STOP       │ True         │ True         │ True         │
+# │ MAX_TRADE_HOURS     │ 4.0          │ 6.0          │ 8.0          │
 # └─────────────────────┴──────────────┴──────────────┴──────────────┘
 #
 # The "Balanced" profile gave the best risk-adjusted returns in our 6-month

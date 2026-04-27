@@ -17,6 +17,7 @@ Author: DDLJ Strategy Team
 Version: 9.0 (Paper Trading Production)
 """
 
+import calendar
 from datetime import date, time as dtime, timedelta
 from typing import Tuple
 from collections import defaultdict
@@ -37,6 +38,9 @@ from .config import (
     FORCE_CLOSE_HOUR,
     FORCE_CLOSE_MINUTE,
     PEAK_CAPITAL_TRACKING,  # BUG FIX #4: Track peak capital
+    DRAWDOWN_CIRCUIT_BREAKER,  # BUG FIX #13: Config parameter
+    CAPITAL_FLOOR_PCT,         # BUG FIX #14: Config parameter
+    MAX_TRADE_HOURS,           # BUG FIX #6: Config parameter
 )
 
 # Time boundaries
@@ -120,23 +124,46 @@ def run_backtest_enhanced(
     prev_date = None
     prev_month = None
 
+    # BUG FIX #6: Calculate max candles based on trading hours
+    # OLD: 24 * (15 // entry_tf_minutes) → gives 0 for 60m TF!
+    # NEW: (max_trade_hours * 60) / entry_tf_minutes → correct for all TFs
+    try:
+        _max_trade_hours = MAX_TRADE_HOURS
+    except NameError:
+        _max_trade_hours = 6.0
+    max_candles = max(1, int(_max_trade_hours * 60 / entry_tf_minutes))
+
     # BUG FIX #5: Import timedelta at top level instead of __import__('datetime')
     # Previously: expiry = d + __import__('datetime').timedelta(days=days_until_thursday)
     # Now: use timedelta imported at the top of this file.
 
     def estimate_dte(dt):
         """
-        Estimate days to the nearest weekly expiry (Thursday).
+        Estimate days to the nearest MONTHLY options expiry.
 
         BUG FIX #5: Uses proper timedelta import instead of __import__.
+        BUG FIX #7: Uses MONTHLY expiry (last Thursday) instead of weekly.
+
+        WHY: Indian index options expire on the last Thursday of each month.
+        The old code used the next Thursday, which gave wrong DTE for
+        options mid-month (e.g., April 6 would give DTE=3 instead of 24).
         """
         d = dt.date() if hasattr(dt, 'date') else dt
 
-        days_until_thursday = (3 - d.weekday()) % 7
-        if days_until_thursday == 0:
-            expiry = d
-        else:
-            expiry = d + timedelta(days=days_until_thursday)  # BUG FIX #5
+        # Find last Thursday of current month
+        last_day = calendar.monthrange(d.year, d.month)[1]
+        expiry = date(d.year, d.month, last_day)
+        while expiry.weekday() != 3:
+            expiry -= timedelta(days=1)
+
+        # If expiry has passed, use next month
+        if d > expiry:
+            if d.month == 12:
+                expiry = date(d.year + 1, 1, 31)
+            else:
+                expiry = date(d.year, d.month + 1, calendar.monthrange(d.year, d.month + 1)[1])
+            while expiry.weekday() != 3:
+                expiry -= timedelta(days=1)
 
         dte = (expiry - d).days
         return max(0, dte)
@@ -209,7 +236,7 @@ def run_backtest_enhanced(
                     action, price = "EOD", c_ent.close
                 elif bias.direction == "BEARISH" and pos.held > 6:
                     action, price = "BIAS_FLIP", c_ent.close
-                elif pos.held >= 24 * (15 // entry_tf_minutes):
+                elif pos.held >= max_candles:  # BUG FIX #6: proper time exit
                     action, price = "TIME", c_ent.close
                 else:
                     if not pos._be_done:
@@ -234,7 +261,7 @@ def run_backtest_enhanced(
                     action, price = "EOD", c_ent.close
                 elif bias.direction == "BULLISH" and pos.held > 6:
                     action, price = "BIAS_FLIP", c_ent.close
-                elif pos.held >= 24 * (15 // entry_tf_minutes):
+                elif pos.held >= max_candles:  # BUG FIX #6: proper time exit
                     action, price = "TIME", c_ent.close
                 else:
                     if not pos._be_done:
@@ -354,19 +381,25 @@ def run_backtest_enhanced(
         if ct < NO_TRADE_END or ct >= ENTRY_CUTOFF:
             continue
 
-        # 4. Capital floor check
-        if current_capital < starting_capital * 0.20:
+        # BUG FIX #14: Capital floor uses config (was hardcoded 0.20)
+        try:
+            _cap_floor = CAPITAL_FLOOR_PCT
+        except NameError:
+            _cap_floor = 0.20
+        if current_capital < starting_capital * _cap_floor:
             continue
 
-        # 5. BUG FIX #4: Drawdown circuit breaker uses PEAK capital
-        # Previously: dd_ratio = current_capital / starting_capital
-        # Now: dd_ratio = current_capital / peak_capital
+        # BUG FIX #13: Drawdown circuit breaker uses config (was hardcoded 0.80)
+        try:
+            _dd_breaker = DRAWDOWN_CIRCUIT_BREAKER
+        except NameError:
+            _dd_breaker = 0.80
         effective_capital = current_capital
         if PEAK_CAPITAL_TRACKING:
             dd_ratio = current_capital / peak_capital if peak_capital > 0 else 1
         else:
             dd_ratio = current_capital / starting_capital if starting_capital > 0 else 1
-        if dd_ratio < 0.80:
+        if dd_ratio < _dd_breaker:
             effective_capital = current_capital * dd_ratio
 
         # 6. Generate signal

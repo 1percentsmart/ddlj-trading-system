@@ -7,7 +7,23 @@ A production-grade options trading system that connects to real market data
 via Zerodha's Kite API, runs the DDLJ strategy in real-time, and simulates
 order placement — everything is real EXCEPT order execution.
 
-WHAT'S NEW IN v9 (vs v8.4):
+WHAT'S NEW IN v9.1 (vs v9.0):
+  - BUG FIX #6:  Time Exit calculation (60m TF caused instant exit)
+  - BUG FIX #7:  DTE estimation (weekly vs monthly expiry)
+  - BUG FIX #8:  Missing warmup preload (no signals for hours at startup)
+  - BUG FIX #9:  Bias candle only pushed with entry candle
+  - BUG FIX #10: NEAR_TGT hardcoded 3 points (now scaled by ATR)
+  - BUG FIX #11: Bias change notification missed NEUTRAL->BULLISH
+  - BUG FIX #12: RISK_PER_POSITION_PCT not implemented
+  - BUG FIX #13: Drawdown circuit breaker hardcoded (now configurable)
+  - BUG FIX #14: Capital floor hardcoded (now configurable)
+  - BUG FIX #15: Position management hardcoded values (now configurable)
+  - BUG FIX #16: Real-time VIX refresh from API
+  - New configurable params: DD breaker, capital floor, BE trigger,
+    trailing stop, trail frequency, bias flip min held, near target,
+    max trade hours, warmup days, VIX refresh interval
+
+WHAT'S NEW IN v9.0 (vs v8.4):
   - Live paper trading mode with real-time data
   - All v8.4 critical bugs fixed (5 bugs)
   - User-configurable parameters at runtime
@@ -39,6 +55,6 @@ Author: DDLJ Strategy Team
 Version: 9.0.0 (Production — Paper Trading Ready)
 """
 
-__version__ = "9.0.0"
+__version__ = "9.1.0"
 __author__ = "DDLJ Strategy Team"
-__description__ = "DDLJ v9 — Live Paper Trading Engine for Indian Index Options"
+__description__ = "DDLJ v9.1 — Live Paper Trading Engine for Indian Index Options (All Bugs Fixed)"

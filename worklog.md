@@ -68,3 +68,38 @@ Stage Summary:
 - DDLJ v9 complete with all bug fixes and paper trading engine
 - Backtest validation: working correctly
 - All files at /home/z/my-project/ddlj_v9/
+---
+Task ID: 1
+Agent: Main Agent
+Task: Deep analysis of DDLJ trading project, bug fixes, and paper trading preparation
+
+Work Log:
+- Explored complete project directory structure (17 Python files in ddlj_v9/)
+- Read and analyzed ALL source files in detail
+- Connected to Kite API successfully (token valid, user: Sameer Gani Shaikh)
+- Tested live data fetching (BankNifty at 56,254, VIX at 18.9)
+- Tested full strategy pipeline (bias + signal + options engines working)
+- Identified 11 bugs and issues (6 critical, 5 moderate)
+- Fixed all 11 bugs in paper_trader.py, backtester.py, config.py
+- Added 10 new user-configurable parameters to config.py
+- Added warmup preload for paper trader startup
+- Added real-time VIX refresh from API
+- Professional comments with DEFAULT/SUGGESTED/WHY/EXAMPLE format throughout
+- All tests passed — v9.1 ready for paper trading
+
+Stage Summary:
+- BUG FIX #6: Time Exit — 60m TF caused instant exit (15//60=0). Now: (6h*60)/tf_min
+- BUG FIX #7: DTE — was weekly Thursday, now monthly (last Thursday of month)
+- BUG FIX #8: Warmup preload — buffers now preloaded with 30 days of data
+- BUG FIX #9: Bias candle — now pushed independently from entry candle
+- BUG FIX #10: NEAR_TGT — was hardcoded 3 points, now scaled by ATR
+- BUG FIX #11: Bias notification — now fires on NEUTRAL→BULLISH changes too
+- BUG FIX #12: RISK_PER_POSITION_PCT — now implemented and checked before entry
+- BUG FIX #13: DD circuit breaker — was hardcoded 0.80, now uses config
+- BUG FIX #14: Capital floor — was hardcoded 0.20, now uses config
+- BUG FIX #15: Position management — all values now from config (BE trigger, trail, etc.)
+- BUG FIX #16: Real-time VIX refresh — now periodically fetches from API
+- New params: DRAWDOWN_CIRCUIT_BREAKER, CAPITAL_FLOOR_PCT, BE_TRIGGER_RISK_MULT,
+  TRAILING_STOP_ENABLED, TRAIL_EVERY_N_CANDLES, BIAS_FLIP_MIN_HELD,
+  NEAR_TARGET_ATR, MAX_TRADE_HOURS, WARMUP_DAYS, VIX_REFRESH_SECONDS
+- Version upgraded from 9.0.0 to 9.1.0
