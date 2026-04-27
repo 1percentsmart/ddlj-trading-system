@@ -308,7 +308,7 @@ def run_backtest_enhanced_with_batch_reset(
 
             # BATCH RESET: Reset capital when entering a new 2-month batch
             if prev_month_key is not None and cur_batch_key != prev_month_key:
-                log.info("  BATCH RESET: %s → %s, Capital: Rs %,.0f → Rs %,.0f",
+                log.info("  BATCH RESET: %s -> %s, Capital: Rs %.0f -> Rs %.0f",
                          prev_month_key, cur_batch_key, current_capital, starting_capital)
                 current_capital = starting_capital
                 if options_engine:
@@ -463,15 +463,34 @@ def run_backtest_enhanced_with_batch_reset(
             open_positions.remove(pos)
 
         # New entry check
+        # v8.5 BUG FIX: Account for unrealized losses on open positions
         day_start = daily_start_capital.get(today, current_capital)
-        day_loss = daily_pnl.get(today, 0)
+        day_loss_realized = daily_pnl.get(today, 0)
+
+        # Estimate unrealized loss on open positions (worst-case)
+        unrealized_loss = 0
+        for pos in open_positions:
+            if pos._opt_entry:
+                unrealized_loss = min(unrealized_loss, -pos._opt_entry["fill_price"] * pos._opt_entry["lots"] * pos._opt_entry["lot_size"])
+
+        total_day_risk = day_loss_realized + unrealized_loss
         daily_risk_limit = day_start * DAILY_RISK_PCT_VAL / 100
-        if day_loss < -daily_risk_limit:
+        if total_day_risk < -daily_risk_limit:
             continue
         if len(open_positions) >= MAX_OPEN_POSITIONS_VAL:
             continue
         if ct < NO_TRADE_END or ct >= ENTRY_CUTOFF:
             continue
+
+        # v8.5 BUG FIX: Capital floor check
+        if current_capital < starting_capital * 0.20:
+            continue
+
+        # v8.5 BUG FIX: Drawdown circuit breaker
+        dd_ratio = current_capital / starting_capital if starting_capital > 0 else 1
+        effective_capital = current_capital
+        if dd_ratio < 0.80:
+            effective_capital = current_capital * dd_ratio
 
         sig = signal_engine.evaluate(buf_entry, bias)
 
@@ -483,12 +502,21 @@ def run_backtest_enhanced_with_batch_reset(
 
             opt_entry = None
             if options_engine:
-                options_engine.capital = current_capital
+                options_engine.capital = effective_capital  # v8.5: use effective capital
                 dte = estimate_dte(c_ent.ts)
                 opt_entry = options_engine.model_entry(
                     sig.entry, sig.direction, sig.atr_val, dte, c_ent.ts, ct
                 )
                 actual_qty = opt_entry["lots"] * opt_entry["lot_size"]
+
+                # v8.5 BUG FIX: Negative capital prevention
+                worst_case_new_loss = opt_entry["fill_price"] * opt_entry["lots"] * opt_entry["lot_size"]
+                existing_worst_loss = sum(
+                    p._opt_entry["fill_price"] * p._opt_entry["lots"] * p._opt_entry["lot_size"]
+                    for p in open_positions if p._opt_entry
+                )
+                if worst_case_new_loss + existing_worst_loss > current_capital:
+                    continue  # Skip — would risk more than available capital
             else:
                 actual_qty = 1
 
@@ -748,7 +776,7 @@ def main():
     bn_15m = parsed.get("BN_INDEX_15m", []) + parsed.get("BN_FUT_15m", [])
     bn_60m = parsed.get("BN_INDEX_60m", []) + parsed.get("BN_FUT_60m", [])
     nf_5m = parsed.get("NF_INDEX_5m", []) + parsed.get("NF_FUT_5m", [])
-    nf_15m = parsed.get("NF_INDEX_15m", []) + parsed.get("NF_INDEX_15m", [])
+    nf_15m = parsed.get("NF_INDEX_15m", []) + parsed.get("NF_FUT_15m", [])
     nf_60m = parsed.get("NF_INDEX_60m", []) + parsed.get("NF_FUT_60m", [])
 
     # Deduplicate candles by timestamp

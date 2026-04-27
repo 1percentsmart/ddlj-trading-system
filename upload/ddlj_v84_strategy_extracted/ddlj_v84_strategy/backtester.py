@@ -497,11 +497,24 @@ def run_backtest_enhanced(
         # ════════════════════════════════════════════════════════════════
 
         # 1. Daily risk limit: If we've lost too much today, stop trading
+        # BUG FIX (v8.5): Account for unrealized losses on open positions.
+        # Previously, only realized losses were checked, allowing effective
+        # daily risk to reach 12-20% with 2 open positions.
         day_start = daily_start_capital.get(today, current_capital)
-        day_loss = daily_pnl.get(today, 0)
+        day_loss_realized = daily_pnl.get(today, 0)
+
+        # Estimate unrealized loss on open positions (worst-case: all hit SL)
+        unrealized_loss = 0
+        for pos in open_positions:
+            if pos.direction == "LONG":
+                unrealized_loss = min(unrealized_loss, (pos.sl - pos.entry) * pos.qty if options_engine is None else -pos._opt_entry["fill_price"] * pos._opt_entry["lots"] * pos._opt_entry["lot_size"])
+            else:
+                unrealized_loss = min(unrealized_loss, (pos.entry - pos.sl) * pos.qty if options_engine is None else -pos._opt_entry["fill_price"] * pos._opt_entry["lots"] * pos._opt_entry["lot_size"])
+
+        total_day_risk = day_loss_realized + unrealized_loss
         daily_risk_limit = day_start * daily_risk_pct / 100
-        if day_loss < -daily_risk_limit:
-            continue  # Skip — daily risk limit reached
+        if total_day_risk < -daily_risk_limit:
+            continue  # Skip — daily risk limit reached (including unrealized)
 
         # 2. Max positions: Don't open more than allowed
         if len(open_positions) >= max_open_positions:
@@ -513,29 +526,56 @@ def run_backtest_enhanced(
         if ct < NO_TRADE_END or ct >= ENTRY_CUTOFF:
             continue
 
-        # 4. Generate signal
+        # 4. Capital floor check (v8.5 BUG FIX)
+        # Prevent opening new positions if capital has dropped below 20% of start.
+        # This prevents the "compounding death spiral" where losing positions
+        # get larger relative to shrinking capital.
+        if current_capital < starting_capital * 0.20:
+            continue
+
+        # 5. Drawdown circuit breaker (v8.5 BUG FIX)
+        # Reduce effective capital for position sizing during drawdowns.
+        # If current capital is below 80% of start, use smaller position sizing.
+        dd_ratio = current_capital / starting_capital if starting_capital > 0 else 1
+        effective_capital = current_capital
+        if dd_ratio < 0.80:
+            # Scale down position sizing proportionally to drawdown
+            effective_capital = current_capital * dd_ratio  # Double scaling effect
+
+        # 6. Generate signal
         sig = signal_engine.evaluate(buf_entry, bias)
 
         if sig.signal in ("LONG", "SHORT"):
-            # 5. Daily trade count limit
+            # 7. Daily trade count limit
             if daily_count.get(today, 0) >= max_open_positions:
                 continue
 
             daily_count[today] = daily_count.get(today, 0) + 1
 
-            # 6. Model the options entry if using options engine
+            # 8. Model the options entry if using options engine
             opt_entry = None
             if options_engine:
-                options_engine.capital = current_capital
+                options_engine.capital = effective_capital  # v8.5: use effective capital
                 dte = estimate_dte(c_ent.ts)
                 opt_entry = options_engine.model_entry(
                     sig.entry, sig.direction, sig.atr_val, dte, c_ent.ts, ct
                 )
                 actual_qty = opt_entry["lots"] * opt_entry["lot_size"]
+
+                # v8.5 BUG FIX: Negative capital prevention
+                # Check if worst-case loss on this position + existing positions
+                # would exceed available capital.
+                worst_case_new_loss = opt_entry["fill_price"] * opt_entry["lots"] * opt_entry["lot_size"]
+                existing_worst_loss = sum(
+                    p._opt_entry["fill_price"] * p._opt_entry["lots"] * p._opt_entry["lot_size"]
+                    for p in open_positions if p._opt_entry
+                )
+                if worst_case_new_loss + existing_worst_loss > current_capital:
+                    continue  # Skip — would risk more than available capital
             else:
                 actual_qty = qty
 
-            # 7. Create the new position object
+            # 9. Create the new position object
             # WHY use a generic object instead of a dataclass? The position
             # has internal state (_be_done, _opt_entry) that changes during
             # the trade's lifetime. A simple namespace object is cleaner here.
