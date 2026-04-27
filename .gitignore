@@ -53,3 +53,19 @@ sessions/
 node_modules/
 .next/
 out/
+
+# ── Build artifacts ──
+tsconfig.tsbuildinfo
+
+# ── Agent / Skills / Internal ──
+agent-ctx/
+skills/
+examples/
+
+# ── Uploads & Downloads ──
+download/
+upload/
+
+# ── Database files ──
+backend/data/
+prisma/
