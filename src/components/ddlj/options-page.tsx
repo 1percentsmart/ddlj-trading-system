@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, BarChart3, Target, GreekTemple } from 'lucide-react';
+import { TrendingUp, BarChart3, Target, Sigma } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Cell, AreaChart, Area,
@@ -25,18 +25,18 @@ export function OptionsPage() {
   const chainData: OptionsChainData = selectedIndex === 'BANKNIFTY' ? mockOptionsChain : mockNiftyOptionsChain;
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-3 sm:space-y-4 p-3 sm:p-4">
       {/* Header */}
       <Card className="bg-card/80 border-border">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
               <CardTitle className="text-lg">Options Chain</CardTitle>
               <CardDescription>Live options chain with Greeks, IV skew, and payoff analysis</CardDescription>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <Select value={selectedIndex} onValueChange={(v) => setSelectedIndex(v as 'BANKNIFTY' | 'NIFTY')}>
-                <SelectTrigger className="w-40 h-9 text-xs">
+                <SelectTrigger className="w-32 sm:w-40 h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -162,11 +162,11 @@ export function OptionsPage() {
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chainData.iv_skew}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="strike" tick={{ fontSize: 10, fill: '#888' }} tickFormatter={(v) => `${(v / 1000).toFixed(1)}K`} />
-                    <YAxis tick={{ fontSize: 10, fill: '#888' }} tickFormatter={(v) => `${v}%`} />
-                    <Tooltip contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }} />
-                    <ReferenceLine x={chainData.atm_strike} stroke="rgba(255,255,255,0.3)" strokeDasharray="5 5" label={{ value: 'ATM', position: 'top', fill: '#888', fontSize: 10 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="strike" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `${(v / 1000).toFixed(1)}K`} />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `${v}%`} />
+                    <Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)' }} />
+                    <ReferenceLine x={chainData.atm_strike} stroke="var(--muted-foreground)" strokeDasharray="5 5" label={{ value: 'ATM', position: 'top', fill: 'var(--muted-foreground)', fontSize: 10 }} />
                     <Line type="monotone" dataKey="ce_iv" stroke="#22c55e" strokeWidth={2} name="CE IV" dot={false} />
                     <Line type="monotone" dataKey="pe_iv" stroke="#ef4444" strokeWidth={2} name="PE IV" dot={false} />
                   </LineChart>
@@ -194,12 +194,12 @@ export function OptionsPage() {
                         <stop offset="95%" stopColor="#ef4444" stopOpacity={0.3} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="price" tick={{ fontSize: 10, fill: '#888' }} tickFormatter={(v) => `₹${(v / 1000).toFixed(1)}K`} />
-                    <YAxis tick={{ fontSize: 10, fill: '#888' }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}K`} />
-                    <Tooltip contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }} formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'P&L']} />
-                    <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
-                    <ReferenceLine x={chainData.spot_price} stroke="rgba(255,255,255,0.3)" strokeDasharray="5 5" label={{ value: 'Spot', position: 'top', fill: '#888', fontSize: 10 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="price" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `₹${(v / 1000).toFixed(1)}K`} />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}K`} />
+                    <Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)' }} formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'P&L']} />
+                    <ReferenceLine y={0} stroke="var(--muted-foreground)" />
+                    <ReferenceLine x={chainData.spot_price} stroke="var(--muted-foreground)" strokeDasharray="5 5" label={{ value: 'Spot', position: 'top', fill: 'var(--muted-foreground)', fontSize: 10 }} />
                     <Area type="monotone" dataKey="pnl" stroke="#22c55e" fill="url(#payoffGradient)" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>

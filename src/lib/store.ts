@@ -24,6 +24,8 @@ import type {
   TelegramConfig,
   JournalEntry,
   ThemePreferences,
+  AccentColor,
+  ConfigPreset,
 } from './mock-data';
 import {
   mockEngineStatus,
@@ -41,6 +43,7 @@ import {
   mockTelegramConfig,
   mockJournalEntries,
   defaultThemePreferences,
+  mockConfigPresets,
 } from './mock-data';
 
 // ── Navigation ───────────────────────────────────────────────────
@@ -83,6 +86,8 @@ interface DDLJStore {
   updateConfigParam: (key: string, value: string | number | boolean) => void;
   resetConfigParam: (key: string) => void;
   resetAllConfig: () => void;
+  configPresets: ConfigPreset[];
+  applyConfigPreset: (preset: ConfigPreset) => void;
 
   // Backtest
   backtestResults: BacktestResult[];
@@ -122,6 +127,11 @@ interface DDLJStore {
   // Theme
   theme: ThemePreferences;
   updateTheme: (theme: Partial<ThemePreferences>) => void;
+  setThemeMode: (mode: 'dark' | 'light' | 'system') => void;
+  setAccentColor: (accent: AccentColor) => void;
+  setSidebarPosition: (position: 'left' | 'right') => void;
+  setCompactMode: (compact: boolean) => void;
+  setNumberFormat: (format: 'indian' | 'international') => void;
 }
 
 export const useDDLJStore = create<DDLJStore>((set) => ({
@@ -165,6 +175,17 @@ export const useDDLJStore = create<DDLJStore>((set) => ({
     set((s) => ({
       config: s.config.map((p) => ({ ...p, value: p.default })),
     })),
+  configPresets: mockConfigPresets,
+  applyConfigPreset: (preset) =>
+    set((s) => {
+      const newConfig = s.config.map((p) => {
+        if (p.key in preset.changes) {
+          return { ...p, value: preset.changes[p.key] };
+        }
+        return p;
+      });
+      return { config: newConfig };
+    }),
 
   // ── Backtest ──
   backtestResults: mockBacktestResults,
@@ -208,4 +229,14 @@ export const useDDLJStore = create<DDLJStore>((set) => ({
   theme: defaultThemePreferences,
   updateTheme: (partial) =>
     set((s) => ({ theme: { ...s.theme, ...partial } })),
+  setThemeMode: (mode) =>
+    set((s) => ({ theme: { ...s.theme, mode } })),
+  setAccentColor: (accent) =>
+    set((s) => ({ theme: { ...s.theme, accent } })),
+  setSidebarPosition: (sidebarPosition) =>
+    set((s) => ({ theme: { ...s.theme, sidebarPosition } })),
+  setCompactMode: (compactMode) =>
+    set((s) => ({ theme: { ...s.theme, compactMode } })),
+  setNumberFormat: (numberFormat) =>
+    set((s) => ({ theme: { ...s.theme, numberFormat } })),
 }));

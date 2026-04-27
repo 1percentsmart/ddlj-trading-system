@@ -44,12 +44,12 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {/* ── Sidebar ── */}
+    <div className="flex h-dvh overflow-hidden bg-background">
+      {/* ── Sidebar (desktop only, mobile uses Sheet in TopBar) ── */}
       <DDLJSidebar />
 
       {/* ── Main Content Area ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* ── Top Bar ── */}
         <DDLJTopBar />
 

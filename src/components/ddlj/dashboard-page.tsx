@@ -56,9 +56,9 @@ export function DashboardPage() {
     : '0.00';
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-3 sm:space-y-4 p-3 sm:p-4">
       {/* ── KPI Cards Row ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {/* Capital Card */}
         <Card className="bg-card/80 border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -123,7 +123,7 @@ export function DashboardPage() {
       </div>
 
       {/* ── Engine Status + Bias + VIX Row ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
         {/* Engine Status Card */}
         <Card className="bg-card/80 border-border">
           <CardHeader className="pb-3">
@@ -251,7 +251,7 @@ export function DashboardPage() {
       </div>
 
       {/* ── Charts Row ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
         {/* Equity Curve */}
         <Card className="bg-card/80 border-border">
           <CardHeader className="pb-2">
@@ -268,14 +268,14 @@ export function DashboardPage() {
                       <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#888' }} />
-                  <YAxis tick={{ fontSize: 10, fill: '#888' }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}K`} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}K`} />
                   <Tooltip
-                    contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }}
+                    contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)' }}
                     formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Capital']}
                   />
-                  <ReferenceLine y={engineStatus.starting_capital} stroke="rgba(255,255,255,0.2)" strokeDasharray="5 5" />
+                  <ReferenceLine y={engineStatus.starting_capital} stroke="var(--muted-foreground)" strokeDasharray="5 5" />
                   <Area type="monotone" dataKey="capital" stroke="#22c55e" fill="url(#equityGradient)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -293,14 +293,14 @@ export function DashboardPage() {
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={mockDailyPnl}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#888' }} />
-                  <YAxis tick={{ fontSize: 10, fill: '#888' }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}K`} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}K`} />
                   <Tooltip
-                    contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }}
+                    contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)' }}
                     formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'P&L']}
                   />
-                  <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
+                  <ReferenceLine y={0} stroke="var(--muted-foreground)" />
                   <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                     {mockDailyPnl.map((entry, index) => (
                       <rect key={index} fill={entry.pnl >= 0 ? '#22c55e' : '#ef4444'} />
@@ -314,7 +314,7 @@ export function DashboardPage() {
       </div>
 
       {/* ── Bottom Row: Open Positions + Signal Log ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
         {/* Open Positions */}
         <Card className="bg-card/80 border-border">
           <CardHeader className="pb-2">

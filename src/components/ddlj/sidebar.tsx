@@ -3,8 +3,9 @@
 /**
  * DDLJ Trading Dashboard — Sidebar Navigation
  * =============================================
- * Professional dark sidebar with icon + label navigation.
- * Collapsible to icon-only mode.
+ * Professional sidebar with icon + label navigation.
+ * Desktop: collapsible sidebar (w-60 or w-16)
+ * Mobile: Sheet drawer (slides in from left)
  */
 
 import {
@@ -18,12 +19,11 @@ import {
   ChevronsLeft,
   ChevronsRight,
   TrendingUp,
-  Zap,
   Shield,
   Bell,
   BookOpen,
-  GreekTemple,
   Search,
+  Menu,
 } from 'lucide-react';
 import { useDDLJStore, type PageId } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -31,6 +31,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface NavItem {
   id: PageId;
@@ -45,8 +53,8 @@ interface NavGroup {
   items: NavItem[];
 }
 
-export function DDLJSidebar() {
-  const { activePage, setActivePage, sidebarCollapsed, toggleSidebar, engineStatus } = useDDLJStore();
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+  const { activePage, setActivePage, sidebarCollapsed, engineStatus } = useDDLJStore();
 
   const navGroups: NavGroup[] = [
     {
@@ -77,19 +85,19 @@ export function DDLJSidebar() {
     },
   ];
 
+  const handleNav = (id: PageId) => {
+    setActivePage(id);
+    onNavigate?.();
+  };
+
   return (
-    <aside
-      className={cn(
-        'flex flex-col h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300',
-        sidebarCollapsed ? 'w-16' : 'w-60'
-      )}
-    >
+    <div className="flex flex-col h-full">
       {/* ── Logo / Brand ── */}
       <div className="flex items-center gap-3 px-4 h-14 border-b border-sidebar-border">
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400">
           <TrendingUp className="h-5 w-5" />
         </div>
-        {!sidebarCollapsed && (
+        {(!sidebarCollapsed || onNavigate) && (
           <div className="flex flex-col">
             <span className="text-sm font-bold text-sidebar-foreground tracking-wide">DDLJ</span>
             <span className="text-[10px] text-muted-foreground">Trading System v10.1</span>
@@ -97,12 +105,11 @@ export function DDLJSidebar() {
         )}
       </div>
 
-      {/* ── Search hint ── */}
-      {!sidebarCollapsed && (
+      {/* ── Search hint (desktop expanded only) ── */}
+      {!sidebarCollapsed && !onNavigate && (
         <div className="px-3 py-2">
           <button
             onClick={() => {
-              // Dispatch Cmd+K programmatically
               document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
             }}
             className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md bg-secondary/50 border border-border text-xs text-muted-foreground hover:bg-secondary transition-colors"
@@ -119,16 +126,16 @@ export function DDLJSidebar() {
         <div className="flex flex-col gap-1 px-2">
           {navGroups.map((group) => (
             <div key={group.title}>
-              {!sidebarCollapsed && (
+              {(!sidebarCollapsed || onNavigate) && (
                 <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                   {group.title}
                 </div>
               )}
-              {sidebarCollapsed && <Separator className="my-1 bg-sidebar-border" />}
+              {sidebarCollapsed && !onNavigate && <Separator className="my-1 bg-sidebar-border" />}
               {group.items.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => setActivePage(item.id)}
+                  onClick={() => handleNav(item.id)}
                   className={cn(
                     'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors relative group w-full',
                     activePage === item.id
@@ -137,7 +144,7 @@ export function DDLJSidebar() {
                   )}
                 >
                   <span className="flex-shrink-0">{item.icon}</span>
-                  {!sidebarCollapsed && (
+                  {(!sidebarCollapsed || onNavigate) && (
                     <>
                       <span className="flex-1 text-left">{item.label}</span>
                       {item.badge && (
@@ -150,7 +157,7 @@ export function DDLJSidebar() {
                       )}
                     </>
                   )}
-                  {sidebarCollapsed && item.badge && (
+                  {sidebarCollapsed && !onNavigate && item.badge && (
                     <span className={cn(
                       'absolute top-1 right-1 text-[8px] font-bold w-4 h-4 flex items-center justify-center rounded-full text-white',
                       item.badgeColor || 'bg-primary'
@@ -158,7 +165,7 @@ export function DDLJSidebar() {
                       {item.badge}
                     </span>
                   )}
-                  {sidebarCollapsed && (
+                  {sidebarCollapsed && !onNavigate && (
                     <span className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-lg">
                       {item.label}
                     </span>
@@ -173,7 +180,7 @@ export function DDLJSidebar() {
       {/* ── Bottom Section ── */}
       <div className="border-t border-sidebar-border p-2">
         {/* ── Quick Stats ── */}
-        {!sidebarCollapsed && (
+        {(!sidebarCollapsed || onNavigate) && (
           <div className="px-2 py-2 space-y-1.5 text-xs text-muted-foreground">
             <div className="flex items-center justify-between">
               <span>Market</span>
@@ -199,16 +206,55 @@ export function DDLJSidebar() {
 
         <Separator className="my-1 bg-sidebar-border" />
 
-        {/* ── Collapse Toggle ── */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={toggleSidebar}
-          className="w-full justify-center text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-        >
-          {sidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
-        </Button>
+        {/* ── Collapse Toggle (desktop only) ── */}
+        {!onNavigate && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={useDDLJStore.getState().toggleSidebar}
+            className="w-full justify-center text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+          >
+            {sidebarCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+          </Button>
+        )}
       </div>
+    </div>
+  );
+}
+
+export function DDLJSidebar() {
+  const isMobile = useIsMobile();
+  const { sidebarCollapsed } = useDDLJStore();
+
+  // Mobile: Sheet drawer
+  if (isMobile) {
+    return (
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button variant="ghost" size="icon" className="md:hidden h-8 w-8">
+            <Menu className="h-5 w-5" />
+            <span className="sr-only">Open navigation</span>
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-64 p-0 bg-sidebar border-sidebar-border">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Navigation</SheetTitle>
+          </SheetHeader>
+          <SidebarContent />
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  // Desktop: Persistent sidebar
+  return (
+    <aside
+      className={cn(
+        'hidden md:flex flex-col h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300',
+        sidebarCollapsed ? 'w-16' : 'w-60'
+      )}
+    >
+      <SidebarContent />
     </aside>
   );
 }

@@ -30,7 +30,7 @@ export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
   const maxReconnectDelay = 30000;
-  const reconnectTimer = useRef<ReturnType<typeof setTimeout>>();
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
 
   const { setConnected, updateEngineStatus, addSignal, addTrade, addPosition, removePosition } = useDDLJStore();
@@ -84,7 +84,13 @@ export function useWebSocket() {
       ws.onclose = () => {
         setConnectionState('disconnected');
         setConnected(false);
-        scheduleReconnect();
+        // Schedule reconnect inline to avoid circular dependency
+        const delay = Math.min(
+          1000 * Math.pow(2, reconnectAttempts.current),
+          maxReconnectDelay
+        );
+        reconnectAttempts.current += 1;
+        reconnectTimer.current = setTimeout(() => connect(), delay);
       };
 
       ws.onerror = () => {
@@ -95,23 +101,15 @@ export function useWebSocket() {
     } catch {
       setConnectionState('disconnected');
       setConnected(false);
-      scheduleReconnect();
+      // Schedule reconnect inline
+      const delay = Math.min(
+        1000 * Math.pow(2, reconnectAttempts.current),
+        maxReconnectDelay
+      );
+      reconnectAttempts.current += 1;
+      reconnectTimer.current = setTimeout(() => connect(), delay);
     }
   }, [handleMessage, setConnected]);
-
-  const scheduleReconnect = useCallback(() => {
-    if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-
-    const delay = Math.min(
-      1000 * Math.pow(2, reconnectAttempts.current),
-      maxReconnectDelay
-    );
-    reconnectAttempts.current += 1;
-
-    reconnectTimer.current = setTimeout(() => {
-      connect();
-    }, delay);
-  }, [connect]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
