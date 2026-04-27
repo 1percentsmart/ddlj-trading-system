@@ -465,12 +465,15 @@ KITE_API_KEY = "cjzjv3v9y3lox6mh"
 
 # --- API Secret ---
 # WHY: Your API secret from Zerodha. NEVER share this publicly.
-KITE_API_SECRET = ""  # Fill in your own secret
+KITE_API_SECRET = "tkg39m07fqan0h1yzirpyilmvovf9gr8"
 
 # --- Token File Path ---
 # WHY: Where to store the access token after login.
 #      The token is valid for one day and auto-refreshes.
-KITE_TOKEN_FILE = "kite_access_token.txt"
+# FIX #6: Changed from relative path to absolute path. Previously
+#      "kite_access_token.txt" was relative to CWD, meaning the token
+#      would be lost if the script was run from a different directory.
+KITE_TOKEN_FILE = "/home/z/my-project/kite_access_token.txt"
 
 
 # ============================================================================

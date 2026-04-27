@@ -74,7 +74,7 @@ class KiteDataFetcher:
         ... )
     """
 
-    CACHE_DIR = Path("/home/z/my-project/kite_cache")
+    CACHE_DIR = Path("/home/z/my-project/kite_cache_v10")
 
     def __init__(self, api_key: str, access_token: str, rate_limit_delay: float = 0.35):
         """

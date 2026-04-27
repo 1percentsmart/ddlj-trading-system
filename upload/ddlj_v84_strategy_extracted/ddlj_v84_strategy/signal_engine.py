@@ -255,9 +255,15 @@ class EMACrossSignal:
             # Current candle is bullish and above EMA, previous was bearish
             # (pullback), and the body is large (conviction to resume).
             # Requires 1.5× the normal body size for extra confirmation.
+            #
+            # FIX #5: Added check that prev.close < ce (the previous candle
+            # should have been at or near the EMA — a REAL pullback to EMA,
+            # not just any bearish candle above EMA). Without this check,
+            # a bearish candle far above EMA followed by a bullish candle
+            # would trigger a false "continuation" signal.
             if cur.is_bullish and cur.close > ce + self.ema_buffer * ca:
                 if cur.body_size >= self.min_body_atr * ca * 1.5:
-                    if prev.is_bearish:
+                    if prev.is_bearish and prev.close < ce:
                         return self._make_long(cur, ce, ca, candles)
 
             return Signal("NO_SIGNAL", "no long setup")
@@ -270,9 +276,12 @@ class EMACrossSignal:
                     return self._make_short(cur, ce, ca, candles)
 
         # Pattern 2: Bearish continuation after pullback
+        # FIX #5: Same fix as LONG — previous candle should have been above
+        # EMA (a real pullback toward EMA from below), not just any bullish
+        # candle below EMA.
         if cur.is_bearish and cur.close < ce - self.ema_buffer * ca:
             if cur.body_size >= self.min_body_atr * ca * 1.5:
-                if prev.is_bullish:
+                if prev.is_bullish and prev.close > ce:
                     return self._make_short(cur, ce, ca, candles)
 
         return Signal("NO_SIGNAL", "no short setup")

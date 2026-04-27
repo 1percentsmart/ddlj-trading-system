@@ -65,7 +65,7 @@ log = logging.getLogger("v84prod")
 # INDIA VIX DATA LOADER
 # ═══════════════════════════════════════════════════════════════════════════
 
-def load_vix_data(vix_path="/home/z/my-project/download/india_vix_data.json"):
+def load_vix_data(vix_path=None):
     """
     Load India VIX daily close data from a JSON file for real IV estimation.
 
@@ -82,7 +82,9 @@ def load_vix_data(vix_path="/home/z/my-project/download/india_vix_data.json"):
 
     Args:
         vix_path (str, optional): Path to the India VIX JSON data file.
-            Default: "/home/z/my-project/download/india_vix_data.json"
+            Default: None — auto-detects in this order:
+              1. /home/z/my-project/download/india_vix_data.json
+              2. {package_dir}/data/india_vix_data.json
             The file should contain an array of objects with "date" and
             "close" keys.
 
@@ -95,7 +97,17 @@ def load_vix_data(vix_path="/home/z/my-project/download/india_vix_data.json"):
         >>> vix["2026-01-15"]
         14.35  # India VIX was 14.35 on Jan 15, 2026
     """
-    if not os.path.exists(vix_path):
+    if vix_path is None:
+        # Auto-detect VIX data file — search in priority order
+        search_paths = [
+            "/home/z/my-project/download/india_vix_data.json",
+            os.path.join(os.path.dirname(__file__), "data", "india_vix_data.json"),
+        ]
+        for p in search_paths:
+            if os.path.exists(p):
+                vix_path = p
+                break
+    if vix_path is None or not os.path.exists(vix_path):
         log.warning("India VIX data not found at %s, will use fallback IV estimation", vix_path)
         return {}
     try:

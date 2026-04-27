@@ -63,6 +63,9 @@ from .signal_engine import EMACrossSignal
 from .options_engine import OptionsMimicryEngine
 from .backtester import run_backtest_enhanced
 from .analysis import analyze
+from .token_manager import get_kite_session
+from .data_fetcher import KiteDataFetcher
+from .config import KITE_API_KEY, VIX_TOKEN
 
 log = logging.getLogger("v84prod")
 logging.basicConfig(
@@ -86,6 +89,48 @@ MONTHLY_BATCHES = [
 ]
 
 
+def _fetch_data_if_needed(tokens, interval, from_date, to_date):
+    """
+    Load data from cache. If cache is empty, fetch from Kite API.
+
+    FIX #2: Previously, run_backtest.py only loaded from cache and silently
+    returned empty data if no cache existed. This function integrates the
+    KiteDataFetcher to automatically fetch data from the API when needed.
+
+    Args:
+        tokens (list[int]): Instrument tokens to search for.
+        interval (str): Kite API interval string.
+        from_date (date): Start date.
+        to_date (date): End date.
+
+    Returns:
+        list[dict]: Merged and deduplicated raw candle data.
+    """
+    # Try loading from cache first
+    cached = load_cached_data(tokens, interval)
+    if cached:
+        return cached
+
+    # No cached data — fetch from Kite API
+    log.warning("No cached data for tokens=%s interval=%s. Fetching from API...", tokens, interval)
+    try:
+        kite = get_kite_session()
+        access_token = kite.access_token
+        fetcher = KiteDataFetcher(KITE_API_KEY, access_token)
+
+        # Fetch data for the primary token (first in list)
+        all_data = []
+        for token in tokens:
+            data = fetcher.fetch_candles_chunked(token, from_date, to_date, interval)
+            all_data.extend(data)
+
+        log.info("Fetched %d candles from API for %s %s", len(all_data), tokens, interval)
+        return all_data
+    except Exception as e:
+        log.error("Failed to fetch data from API: %s", e)
+        return []
+
+
 def main():
     """
     Run the complete DDLJ v8.4 backtest.
@@ -106,18 +151,38 @@ def main():
     log.info("Starting capital: Rs %s", f"{STARTING_CAPITAL:,}")
     log.info("Daily risk: %s%%, Max positions: %s", DAILY_RISK_PCT, MAX_OPEN_POSITIONS)
 
-    # ── Step 1: Load Data ──
+    # ── Step 1: Resolve dynamic tokens ──
+    # FIX #7: Previously, futures tokens were hardcoded in config.py and
+    # became stale when contracts rolled over monthly. Now we resolve the
+    # current month's futures tokens dynamically from the Kite API.
+    bn_fut_token = BN_FUT_TOKEN  # Default from config
+    nf_fut_token = NF_FUT_TOKEN  # Default from config
+    try:
+        kite = get_kite_session()
+        fetcher = KiteDataFetcher(KITE_API_KEY, kite.access_token)
+        resolved_bn = fetcher.resolve_future_token("BANKNIFTY")
+        resolved_nf = fetcher.resolve_future_token("NIFTY")
+        if resolved_bn:
+            bn_fut_token = resolved_bn
+            log.info("Resolved BN futures token: %d (was %d)", resolved_bn, BN_FUT_TOKEN)
+        if resolved_nf:
+            nf_fut_token = resolved_nf
+            log.info("Resolved NF futures token: %d (was %d)", resolved_nf, NF_FUT_TOKEN)
+    except Exception as e:
+        log.warning("Could not resolve futures tokens dynamically: %s. Using config defaults.", e)
+
+    # ── Step 2: Load Data (with auto-fetch from API if cache missing) ──
     log.info("Loading data...")
 
-    # BankNifty data — using INDEX token (correct, not RELIANCE!)
-    bn_5m_raw = load_cached_data([BN_INDEX_TOKEN, BN_FUT_TOKEN], "5minute")
-    bn_15m_raw = load_cached_data([BN_INDEX_TOKEN, BN_FUT_TOKEN], "15minute")
-    bn_60m_raw = load_cached_data([BN_INDEX_TOKEN, BN_FUT_TOKEN], "60minute")
+    # BankNifty data — using INDEX token + dynamically resolved futures token
+    bn_5m_raw = _fetch_data_if_needed([BN_INDEX_TOKEN, bn_fut_token], "5minute", TEST_START, TEST_END)
+    bn_15m_raw = _fetch_data_if_needed([BN_INDEX_TOKEN, bn_fut_token], "15minute", TEST_START, TEST_END)
+    bn_60m_raw = _fetch_data_if_needed([BN_INDEX_TOKEN, bn_fut_token], "60minute", TEST_START, TEST_END)
 
     # Nifty data
-    nf_5m_raw = load_cached_data([NF_INDEX_TOKEN, NF_FUT_TOKEN], "5minute")
-    nf_15m_raw = load_cached_data([NF_INDEX_TOKEN, NF_FUT_TOKEN], "15minute")
-    nf_60m_raw = load_cached_data([NF_INDEX_TOKEN, NF_FUT_TOKEN], "60minute")
+    nf_5m_raw = _fetch_data_if_needed([NF_INDEX_TOKEN, nf_fut_token], "5minute", TEST_START, TEST_END)
+    nf_15m_raw = _fetch_data_if_needed([NF_INDEX_TOKEN, nf_fut_token], "15minute", TEST_START, TEST_END)
+    nf_60m_raw = _fetch_data_if_needed([NF_INDEX_TOKEN, nf_fut_token], "60minute", TEST_START, TEST_END)
 
     log.info("BN data: %d (5m), %d (15m), %d (60m)",
              len(bn_5m_raw), len(bn_15m_raw), len(bn_60m_raw))

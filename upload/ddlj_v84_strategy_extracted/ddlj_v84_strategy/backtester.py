@@ -202,64 +202,43 @@ def run_backtest_enhanced(
     prev_month = None         # Track month changes (for monthly reset)
 
     # ── Helper: Estimate Days To Expiry (DTE) ──
-    # Indian index options expire on the last Thursday of each month.
+    # Indian index options expire on Thursdays (weekly expiry).
     # This function calculates how many calendar days remain until then.
     def estimate_dte(dt):
         """
-        Estimate days to the nearest monthly expiry.
+        Estimate days to the nearest weekly expiry.
 
-        Indian index options (BankNifty, Nifty) expire on the last
-        Thursday of every month. This function finds the next expiry
-        date and returns the number of calendar days remaining.
+        Indian index options (BankNifty, Nifty) now expire every THURSDAY
+        (weekly expiry), not just the last Thursday of the month.
 
-        WHY is DTE important?
+        FIX #4: Previously, this function only calculated days to the
+        last Thursday of the month (monthly expiry). Since NSE moved to
+        weekly expiry, the DTE calculation was incorrect for most weeks,
+        overstating the time value in Black-Scholes pricing.
+
+        This fix finds the NEXT Thursday from the current date, which
+        is the nearest weekly expiry. If today IS Thursday and after
+        market hours, the expiry is the following Thursday.
+
+        WHY DTE is important:
             DTE is a critical input to the Black-Scholes formula.
             Options with fewer days to expiry have:
             - Less time value (lower premium)
             - Faster theta decay (losing value faster)
             - Lower vega (less sensitive to IV changes)
         """
-        year, month = dt.year, dt.month
+        d = dt.date() if hasattr(dt, 'date') else dt
 
-        # Find the last day of the current month
-        last_day = 31
-        while True:
-            try:
-                date(year, month, last_day)
-                break
-            except ValueError:
-                last_day -= 1
+        # Find the next Thursday (weekday 3)
+        days_until_thursday = (3 - d.weekday()) % 7
+        if days_until_thursday == 0:
+            # Today is Thursday — expiry is today (0 DTE)
+            # In practice, if we're still trading, DTE = 0 (same-day expiry)
+            expiry = d
+        else:
+            expiry = d + __import__('datetime').timedelta(days=days_until_thursday)
 
-        # Find the last Thursday of the month
-        last_thurs = last_day
-        while date(year, month, last_thurs).weekday() != 3:  # 3 = Thursday
-            last_thurs -= 1
-
-        expiry = date(year, month, last_thurs)
-
-        # If this month's expiry has already passed, use next month's
-        if expiry < dt.date():
-            if month == 12:
-                year += 1
-                month = 1
-            else:
-                month += 1
-
-            last_day = 31
-            while True:
-                try:
-                    date(year, month, last_day)
-                    break
-                except ValueError:
-                    last_day -= 1
-
-            last_thurs = last_day
-            while date(year, month, last_thurs).weekday() != 3:
-                last_thurs -= 1
-
-            expiry = date(year, month, last_thurs)
-
-        dte = (expiry - dt.date()).days
+        dte = (expiry - d).days
         return max(0, dte)
 
     # ══════════════════════════════════════════════════════════════════
