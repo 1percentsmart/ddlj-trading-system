@@ -449,9 +449,22 @@ app.state.health_monitor = health_monitor
 # ── CORS (Cross-Origin Resource Sharing) ──
 # This allows the frontend (on Vercel) to call the backend (on Railway).
 valid_origins = [o for o in CORS_ORIGINS if o]  # Filter out empty strings
+
+def _is_allowed_origin(origin: str) -> bool:
+    """Check if origin is allowed: exact match or *.vercel.app subdomain."""
+    if origin in valid_origins:
+        return True
+    # Allow any Vercel deployment URL (e.g., https://my-project-nu-blue.vercel.app)
+    if ".vercel.app" in origin and origin.startswith("https://"):
+        return True
+    # Allow Railway internal URLs
+    if ".railway.app" in origin and origin.startswith("https://"):
+        return True
+    return False
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=valid_origins,
+    allow_origins=_is_allowed_origin,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
