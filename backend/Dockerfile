@@ -43,13 +43,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the entire backend directory
 COPY . .
 
-# ── Create non-root user for security ──
+# ── Create non-root user and set up directories ──
 RUN useradd --create-home --shell /bin/bash ddlj && \
+    mkdir -p /app/kite_cache_v10 /app/sessions /app/logs /app/data && \
     chown -R ddlj:ddlj /app
-
-# Create directories for data persistence
-RUN mkdir -p /app/kite_cache_v10 /app/sessions /app/logs && \
-    chown -R ddlj:ddlj /app/kite_cache_v10 /app/sessions /app/logs
 
 # Set project root for path resolution
 ENV PROJECT_ROOT=/app

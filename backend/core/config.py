@@ -246,14 +246,14 @@ def validate_config():
 
     # ── Critical: Kite API credentials ──
     if not KITE_API_KEY:
-        raise RuntimeError(
+        warnings.append(
             "KITE_API_KEY is not set. "
-            "Set it in .env (local) or Environment Variables (Railway)."
+            "Set it in .env (local) or Environment Variables (Railway) to enable trading."
         )
     if not KITE_API_SECRET:
-        raise RuntimeError(
+        warnings.append(
             "KITE_API_SECRET is not set. "
-            "Set it in .env (local) or Environment Variables (Railway)."
+            "Set it in .env (local) or Environment Variables (Railway) to enable trading."
         )
 
     # ── Warning: Database not configured ──

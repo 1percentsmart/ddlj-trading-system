@@ -63,9 +63,11 @@ log = logging.getLogger("ddlj_backend.session_recovery")
 # CONSTANTS
 # ============================================================================
 
+# Use /app/sessions on Railway (PROJECT_ROOT=/app) or local backend/sessions
+_PROJECT_ROOT = os.getenv("PROJECT_ROOT", str(Path(__file__).resolve().parent.parent.parent))
 SESSION_STATE_FILE = os.getenv(
     "SESSION_STATE_FILE",
-    str(Path(__file__).resolve().parent.parent.parent / "sessions" / "session_state.json"),
+    str(Path(_PROJECT_ROOT) / "sessions" / "session_state.json"),
 )
 """Path to the session state JSON file."""
 
@@ -140,9 +142,21 @@ class SessionRecovery:
         # ── Ensure session directory exists ──
         # WHY: The sessions directory might not exist on first run,
         # and trying to write to a non-existent directory causes FileNotFound.
+        # On Railway, the non-root user may not have permission to create
+        # top-level directories, so we fall back to /tmp if needed.
         state_dir = os.path.dirname(self.state_file)
         if state_dir:
-            os.makedirs(state_dir, exist_ok=True)
+            try:
+                os.makedirs(state_dir, exist_ok=True)
+            except PermissionError:
+                # Fall back to /tmp/ddlj_sessions on restricted environments
+                fallback_dir = os.path.join(os.environ.get("TMPDIR", "/tmp"), "ddlj_sessions")
+                os.makedirs(fallback_dir, exist_ok=True)
+                self.state_file = os.path.join(fallback_dir, "session_state.json")
+                log.warning(
+                    "SessionRecovery: Permission denied for %s, using fallback: %s",
+                    state_dir, self.state_file,
+                )
 
         log.info(
             "SessionRecovery: Initialized — state file: %s, auto-save: %s (%ds)",
