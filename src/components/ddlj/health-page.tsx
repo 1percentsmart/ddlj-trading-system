@@ -62,7 +62,7 @@ interface SystemMetrics {
   uptimeHistory: { time: string; uptime: number }[];
 }
 
-// Generate 50 mock log entries
+// Generate 50 mock log entries — deterministic to avoid hydration mismatch
 const generateMockLogs = (): LogEntry[] => {
   const services = ['Engine', 'Telegram', 'Token', 'Market', 'Session', 'WebSocket', 'Database', 'Risk', 'Health', 'Scheduler'];
   const messages: Record<string, string[]> = {
@@ -129,17 +129,21 @@ const generateMockLogs = (): LogEntry[] => {
     ],
   };
 
+  // Use a fixed base time to avoid Date.now() hydration mismatch
+  const baseTime = new Date('2026-04-28T15:00:00+05:30').getTime();
   const logs: LogEntry[] = [];
   let id = 1;
   for (let i = 0; i < 50; i++) {
     const service = services[i % services.length];
     const serviceMessages = messages[service];
     const message = serviceMessages[i % serviceMessages.length];
-    const levelRoll = Math.random();
-    const level: 'info' | 'warning' | 'error' = levelRoll < 0.7 ? 'info' : levelRoll < 0.9 ? 'warning' : 'error';
+    // Deterministic level based on index instead of Math.random()
+    const levelRoll = (i * 7 + 3) % 10;
+    const level: 'info' | 'warning' | 'error' = levelRoll < 7 ? 'info' : levelRoll < 9 ? 'warning' : 'error';
     logs.push({
       id: `L${String(id++).padStart(3, '0')}`,
-      timestamp: new Date(Date.now() - (i + 1) * 60000 * (1 + Math.random() * 2)).toISOString(),
+      // Deterministic timestamp based on fixed base time
+      timestamp: new Date(baseTime - (i + 1) * 60000 * (1 + ((i * 3) % 3) * 0.5)).toISOString(),
       level,
       service,
       message,
@@ -188,7 +192,7 @@ export function HealthPage() {
     ],
     uptimeHistory: Array.from({ length: 25 }, (_, i) => ({
       time: `${String(i).padStart(2, '0')}:00`,
-      uptime: i === 0 ? 100 : Math.max(95, 100 - Math.random() * 3),
+      uptime: i === 0 ? 100 : Math.max(95, 100 - ((i * 7 + 3) % 10) * 0.3),
     })),
   });
 

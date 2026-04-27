@@ -8,6 +8,7 @@
  * Mobile: Sheet drawer (slides in from left, controlled by store state)
  */
 
+import { useEffect } from 'react';
 import {
   LayoutDashboard,
   Play,
@@ -219,9 +220,10 @@ function SidebarContent({ onNavigate, onToggleCollapse, isCollapsed }: {
             variant="ghost"
             size="sm"
             onClick={onToggleCollapse}
-            className="w-full justify-center text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+            className="w-full justify-center gap-2 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+            title={collapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
           >
-            {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+            {collapsed ? <ChevronsRight className="h-4 w-4" /> : <><ChevronsLeft className="h-4 w-4" /><span className="text-[10px]">Collapse</span></>}
           </Button>
         )}
       </div>
@@ -232,6 +234,19 @@ function SidebarContent({ onNavigate, onToggleCollapse, isCollapsed }: {
 export function DDLJSidebar() {
   const isMobile = useIsMobile();
   const { sidebarCollapsed, toggleSidebar, mobileMenuOpen, setMobileMenuOpen } = useDDLJStore();
+
+  // Keyboard shortcut: Ctrl/Cmd+B to toggle sidebar on desktop
+  useEffect(() => {
+    if (isMobile) return;
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isMobile, toggleSidebar]);
 
   // Mobile: Controlled Sheet drawer (triggered by hamburger button in topbar)
   if (isMobile) {

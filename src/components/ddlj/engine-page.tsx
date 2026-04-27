@@ -7,7 +7,7 @@
  * emergency actions, pause trading, engine uptime with start time.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDDLJStore } from '@/lib/store';
 import { cn, formatCurrency, pnlColor, formatDuration, biasColor, biasBgColor, timeAgo } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,17 +53,37 @@ type SignalFilterType = 'ALL' | 'ENTRY' | 'EXIT' | 'BIAS_CHANGE' | 'SYSTEM';
 export function EnginePage() {
   const { engineStatus, isEngineLoading, setEngineLoading, updateEngineStatus, positions, signalLog, removePosition } = useDDLJStore();
 
-  const [autoStart, setAutoStart] = useState(true);
-  const [autoStop, setAutoStop] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const [autoStart, setAutoStart] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return localStorage.getItem('ddljj-auto-start') !== 'false';
+  });
+  const [autoStop, setAutoStop] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return localStorage.getItem('ddljj-auto-stop') !== 'false';
+  });
   const [maxTradeCount, setMaxTradeCount] = useState(5);
   const [signalFilter, setSignalFilter] = useState<SignalFilterType>('ALL');
   const [candleCount, setCandleCount] = useState(1247);
   const [isPaused, setIsPaused] = useState(false);
-  const [engineStartTime] = useState(() => {
-    const now = new Date();
-    now.setHours(9, 15, 0, 0);
-    return now.toISOString();
-  });
+  const [engineStartTime] = useState('2026-04-28T09:15:00+05:30');
+
+  // Hydration guard
+  useEffect(() => { setMounted(true); }, []); // eslint-disable-line react-hooks/set-state-in-effect
+
+  // Persist auto-start preference
+  const toggleAutoStart = useCallback((checked: boolean) => {
+    setAutoStart(checked);
+    localStorage.setItem('ddljj-auto-start', String(checked));
+    toast.success(checked ? 'Auto-start enabled — engine will start at 9:15 AM' : 'Auto-start disabled');
+  }, []);
+
+  // Persist auto-stop preference
+  const toggleAutoStop = useCallback((checked: boolean) => {
+    setAutoStop(checked);
+    localStorage.setItem('ddljj-auto-stop', String(checked));
+    toast.success(checked ? 'Auto-stop enabled — engine will stop at 3:30 PM' : 'Auto-stop disabled');
+  }, []);
 
   // Simulate candle counter
   useEffect(() => {
@@ -142,6 +162,9 @@ export function EnginePage() {
 
   const handleForceClose = () => {
     setTimeout(() => {
+      // Remove all positions from store individually to keep state consistent
+      const posIds = positions.map(p => p.id);
+      posIds.forEach(id => removePosition(id));
       updateEngineStatus({ open_positions_count: 0 });
       toast.warning('All open positions force-closed at market price');
     }, 800);
@@ -187,37 +210,37 @@ export function EnginePage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3 mb-6 flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-3 mb-6 flex-wrap">
             {engineStatus.engine_running ? (
               <>
-                <Button variant="destructive" size="lg" onClick={handleStop} disabled={isEngineLoading} className="gap-2">
+                <Button variant="destructive" size="sm" onClick={handleStop} disabled={isEngineLoading} className="gap-2 sm:size-lg">
                   <Square className="h-4 w-4" />
-                  Stop Engine
+                  <span className="hidden sm:inline">Stop Engine</span><span className="sm:hidden">Stop</span>
                 </Button>
                 {isPaused ? (
-                  <Button size="lg" onClick={handleResume} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+                  <Button size="sm" onClick={handleResume} className="gap-2 bg-emerald-600 hover:bg-emerald-700 sm:size-lg">
                     <Play className="h-4 w-4" />
-                    Resume Trading
+                    <span className="hidden sm:inline">Resume Trading</span><span className="sm:hidden">Resume</span>
                   </Button>
                 ) : (
-                  <Button variant="outline" size="lg" onClick={handlePause} className="gap-2 border-amber-500/30 text-amber-400 hover:bg-amber-500/10">
+                  <Button variant="outline" size="sm" onClick={handlePause} className="gap-2 border-amber-500/30 text-amber-400 hover:bg-amber-500/10 sm:size-lg">
                     <Pause className="h-4 w-4" />
-                    Pause Trading
+                    <span className="hidden sm:inline">Pause Trading</span><span className="sm:hidden">Pause</span>
                   </Button>
                 )}
               </>
             ) : (
-              <Button size="lg" onClick={handleStart} disabled={isEngineLoading} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+              <Button size="sm" onClick={handleStart} disabled={isEngineLoading} className="gap-2 bg-emerald-600 hover:bg-emerald-700 sm:size-lg">
                 <Play className="h-4 w-4" />
-                Start Engine
+                <span className="hidden sm:inline">Start Engine</span><span className="sm:hidden">Start</span>
               </Button>
             )}
             {engineStatus.engine_running && positions.length > 0 && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="lg" className="gap-2 border-red-500/30 text-red-400 hover:bg-red-500/10">
+                  <Button variant="outline" size="sm" className="gap-2 border-red-500/30 text-red-400 hover:bg-red-500/10 sm:size-lg">
                     <AlertTriangle className="h-4 w-4" />
-                    Force Close All ({positions.length})
+                    <span className="hidden sm:inline">Force Close All ({positions.length})</span><span className="sm:hidden">Close All</span>
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -234,14 +257,14 @@ export function EnginePage() {
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            <Button variant="outline" size="lg" disabled className="gap-2">
+            <Button variant="outline" size="sm" disabled className="gap-2 sm:size-lg">
               <RotateCcw className="h-4 w-4" />
-              Restart Engine
+              <span className="hidden sm:inline">Restart Engine</span><span className="sm:hidden">Restart</span>
             </Button>
           </div>
 
           {/* Status Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
             <div className="p-3 rounded-lg bg-secondary/50 border border-border">
               <div className="text-xs text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3" /> Uptime
@@ -271,7 +294,7 @@ export function EnginePage() {
       </Card>
 
       {/* ── Auto-start + Trade Limit Row ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Card className="bg-card/80 border-border">
           <CardContent className="p-4 space-y-4">
             <div className="flex items-center justify-between">
@@ -286,10 +309,8 @@ export function EnginePage() {
               </div>
               <Switch
                 checked={autoStart}
-                onCheckedChange={(checked) => {
-                  setAutoStart(checked);
-                  toast.success(checked ? 'Auto-start enabled — engine will start at 9:15 AM' : 'Auto-start disabled');
-                }}
+                onCheckedChange={toggleAutoStart}
+                aria-label="Toggle auto-start at market open"
               />
             </div>
             <div className="flex items-center justify-between">
@@ -304,10 +325,8 @@ export function EnginePage() {
               </div>
               <Switch
                 checked={autoStop}
-                onCheckedChange={(checked) => {
-                  setAutoStop(checked);
-                  toast.success(checked ? 'Auto-stop enabled — engine will stop at 3:30 PM' : 'Auto-stop disabled');
-                }}
+                onCheckedChange={toggleAutoStop}
+                aria-label="Toggle auto-stop at market close"
               />
             </div>
           </CardContent>
@@ -374,7 +393,7 @@ export function EnginePage() {
       </div>
 
       {/* ── Live Counters Row ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
         <Card className="bg-card/80 border-border">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -408,7 +427,7 @@ export function EnginePage() {
               <CalendarClock className="h-3 w-3" /> Engine Start
             </div>
             <div className="font-mono text-xl tabular-nums mt-1 text-blue-400">{formatStartTime(engineStartTime)}</div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(engineStartTime).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{mounted ? new Date(engineStartTime).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' }) : ''}</p>
           </CardContent>
         </Card>
       </div>
@@ -599,7 +618,7 @@ export function EnginePage() {
             </div>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-64">
+            <ScrollArea className="h-48 sm:h-64">
               <div className="space-y-1">
                 {filteredSignals.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground text-sm">
@@ -607,7 +626,7 @@ export function EnginePage() {
                   </div>
                 ) : (
                   filteredSignals.map((sig, i) => (
-                    <div key={i} className="flex items-center gap-3 py-2 px-3 rounded-md hover:bg-secondary/30 border-b border-border/30 last:border-0">
+                    <div key={i} className="flex items-center gap-2 sm:gap-3 py-2 px-2 sm:px-3 rounded-md hover:bg-secondary/30 border-b border-border/30 last:border-0">
                       <div className={cn(
                         'w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0',
                         sig.type === 'ENTRY' ? 'bg-emerald-500/20 text-emerald-400' :

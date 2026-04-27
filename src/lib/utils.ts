@@ -12,9 +12,10 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Format a number as Indian currency (₹)
  */
-export function formatCurrency(value: number): string {
+export function formatCurrency(value: number, format?: 'indian' | 'international'): string {
   const isNegative = value < 0;
   const abs = Math.abs(value);
+  const numFormat = format ?? 'indian';
   
   if (abs >= 10000000) {
     return `${isNegative ? '-' : ''}₹${(abs / 10000000).toFixed(2)} Cr`;
@@ -22,7 +23,8 @@ export function formatCurrency(value: number): string {
   if (abs >= 100000) {
     return `${isNegative ? '-' : ''}₹${(abs / 100000).toFixed(2)} L`;
   }
-  return `${isNegative ? '-' : ''}₹${abs.toLocaleString('en-IN')}`;
+  const locale = numFormat === 'international' ? 'en-US' : 'en-IN';
+  return `${isNegative ? '-' : ''}₹${abs.toLocaleString(locale)}`;
 }
 
 /**

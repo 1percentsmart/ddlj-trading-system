@@ -65,6 +65,11 @@ export function JournalPage() {
   const [screenshotFile, setScreenshotFile] = useState<string | null>(null);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [newEntrySymbol, setNewEntrySymbol] = useState('BANKNIFTY');
+  const [newEntryDirection, setNewEntryDirection] = useState<'LONG' | 'SHORT'>('LONG');
+  const [newEntryEmotion, setNewEntryEmotion] = useState<EmotionalState>('confident');
+  const [newEntryRationale, setNewEntryRationale] = useState('');
+  const [newEntryTags, setNewEntryTags] = useState('');
 
   // Discipline streak: consecutive trades from the end where all 4 rules were checked
   // Using mock data — we simulate that recent trades had rules checked
@@ -81,7 +86,7 @@ export function JournalPage() {
 
   // Calculate discipline streak from most recent trade backward
   const disciplineStreak = (() => {
-    const tradeIds = entries.map(e => e.trade_id);
+    const tradeIds = [...entries].reverse().map(e => e.trade_id);
     let streak = 0;
     for (const tid of tradeIds) {
       const rules = tradeRuleHistory[tid];
@@ -178,7 +183,7 @@ export function JournalPage() {
                   <Plus className="h-3.5 w-3.5" /> New Journal Entry
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>New Journal Entry</DialogTitle>
                 </DialogHeader>
@@ -186,7 +191,7 @@ export function JournalPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label className="text-xs">Symbol</Label>
-                      <Select defaultValue="BANKNIFTY">
+                      <Select value={newEntrySymbol} onValueChange={setNewEntrySymbol}>
                         <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="BANKNIFTY">BankNifty</SelectItem>
@@ -196,7 +201,7 @@ export function JournalPage() {
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs">Direction</Label>
-                      <Select defaultValue="LONG">
+                      <Select value={newEntryDirection} onValueChange={(v) => setNewEntryDirection(v as 'LONG' | 'SHORT')}>
                         <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="LONG">Long</SelectItem>
@@ -209,7 +214,9 @@ export function JournalPage() {
                     <Label className="text-xs">Emotional State</Label>
                     <div className="flex flex-wrap gap-2">
                       {Object.entries(emotionEmojis).map(([state, emoji]) => (
-                        <button key={state} className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-secondary/50 border border-border text-xs hover:bg-secondary transition-colors">
+                        <button key={state} className={cn('flex items-center gap-1 px-2 py-1.5 rounded-lg border text-xs hover:bg-secondary transition-colors',
+                          newEntryEmotion === state ? 'bg-primary/10 border-primary/30' : 'bg-secondary/50 border-border'
+                        )} onClick={() => setNewEntryEmotion(state as EmotionalState)}>
                           <span>{emoji}</span>
                           <span className="capitalize">{state}</span>
                         </button>
@@ -218,11 +225,11 @@ export function JournalPage() {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Pre-Trade Rationale</Label>
-                    <Textarea placeholder="Why are you entering this trade? What's the setup?" className="text-xs min-h-[80px]" />
+                    <Textarea placeholder="Why are you entering this trade? What's the setup?" className="text-xs min-h-[80px]" value={newEntryRationale} onChange={(e) => setNewEntryRationale(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Tags</Label>
-                    <Input placeholder="ema-crossover, trend-following, plan-followed" className="h-9 text-xs" />
+                    <Input placeholder="ema-crossover, trend-following, plan-followed" className="h-9 text-xs" value={newEntryTags} onChange={(e) => setNewEntryTags(e.target.value)} />
                   </div>
 
                   {/* Screenshot Upload - Drag & Drop with Thumbnail */}
@@ -329,7 +336,33 @@ export function JournalPage() {
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setNewEntryOpen(false)}>Cancel</Button>
-                  <Button onClick={() => { toast.success('Journal entry created'); setNewEntryOpen(false); }}>Save Entry</Button>
+                  <Button onClick={() => {
+                    if (!newEntryRationale.trim()) {
+                      toast.error('Please enter a pre-trade rationale');
+                      return;
+                    }
+                    const newEntry: JournalEntry = {
+                      id: `J${String(entries.length + 1).padStart(3, '0')}`,
+                      trade_id: `T${String(entries.length + 1).padStart(3, '0')}`,
+                      symbol: newEntrySymbol,
+                      direction: newEntryDirection,
+                      entry_time: new Date().toISOString(),
+                      exit_time: null,
+                      pre_trade_rationale: newEntryRationale.trim(),
+                      post_trade_review: null,
+                      emotional_state: newEntryEmotion,
+                      tags: newEntryTags.split(',').map(t => t.trim()).filter(Boolean),
+                      pnl: null,
+                      screenshot_url: screenshotFile,
+                    };
+                    setEntries(prev => [newEntry, ...prev]);
+                    toast.success('Journal entry created');
+                    setNewEntryOpen(false);
+                    setNewEntryRationale('');
+                    setNewEntryTags('');
+                    setScreenshotFile(null);
+                    setScreenshotPreview(null);
+                  }}>Save Entry</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -338,7 +371,7 @@ export function JournalPage() {
       </Card>
 
       {/* Discipline Streak + Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
         <Card className="bg-card/80 border-emerald-500/20">
           <CardContent className="p-3 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
@@ -527,7 +560,7 @@ export function JournalPage() {
                 <CardTitle className="text-sm font-medium">Average P&L by Emotional State</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-64">
+                <div className="h-48 sm:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={emotionChart} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -551,7 +584,7 @@ export function JournalPage() {
                 <CardTitle className="text-sm font-medium">Win Rate by Emotional State</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-64">
+                <div className="h-48 sm:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={emotionChart} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -608,7 +641,7 @@ export function JournalPage() {
                 <CardDescription className="text-xs">Period: Apr 21 – Apr 27, 2026</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4">
                   <div className="p-3 rounded-lg bg-secondary/30 border border-border text-center">
                     <div className="text-[10px] text-muted-foreground">Total Trades</div>
                     <div className="text-xl font-bold font-mono">{weeklySummary.totalTrades}</div>
@@ -627,7 +660,7 @@ export function JournalPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4">
                   <div className="p-3 rounded-lg bg-secondary/30 border border-border text-center">
                     <div className="text-[10px] text-muted-foreground">Rules Followed</div>
                     <div className="text-lg font-bold font-mono text-emerald-400">{weeklySummary.rulesFollowed}/{totalTradesWithRules}</div>

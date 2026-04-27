@@ -105,7 +105,7 @@ export function RiskPage() {
   return (
     <div className="space-y-3 sm:space-y-4 p-3 sm:p-4">
       {/* Risk Overview Cards + Risk Score Gauge */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3">
         <Card className="bg-card/80 border-border">
           <CardContent className="p-3">
             <div className="text-xs text-muted-foreground flex items-center gap-1"><Shield className="h-3 w-3" /> Total Exposure</div>
@@ -136,8 +136,8 @@ export function RiskPage() {
         {/* Risk Score Gauge */}
         <Card className={cn('bg-card/80 border', riskScore < 30 ? 'border-emerald-500/20' : riskScore < 60 ? 'border-amber-500/20' : 'border-red-500/20')}>
           <CardContent className="p-3 flex items-center gap-3">
-            <div className="relative w-20 h-20 flex-shrink-0">
-              <svg className="w-20 h-20 -rotate-90" viewBox="0 0 120 120">
+            <div className="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0">
+              <svg className="w-16 h-16 sm:w-20 sm:h-20 -rotate-90" viewBox="0 0 120 120">
                 <circle cx="60" cy="60" r={gaugeRadius} fill="none" stroke="var(--secondary)" strokeWidth="8" />
                 <circle
                   cx="60" cy="60" r={gaugeRadius} fill="none"
@@ -525,7 +525,7 @@ export function RiskPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-40">
+            <div className="h-32 sm:h-40">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={risk.vix_regime.history}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -548,7 +548,7 @@ export function RiskPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-32">
+            <div className="h-24 sm:h-32">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={risk.drawdown_timeline}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -581,7 +581,7 @@ export function RiskPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-48">
+          <ScrollArea className="h-40 sm:h-48">
             <div className="space-y-1.5">
               {alerts.map((alert) => (
                 <div key={alert.id} className={cn(

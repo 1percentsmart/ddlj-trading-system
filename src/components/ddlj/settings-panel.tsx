@@ -38,6 +38,77 @@ import {
 import { toast } from 'sonner';
 import type { AccentColor } from '@/lib/mock-data';
 
+// Accent color → CSS variable mapping
+const accentColorMap: Record<AccentColor, { hsl: string; css: Record<string, string> }> = {
+  emerald: {
+    hsl: '160 84% 39%',
+    css: {
+      '--primary': '160 84% 39%',
+      '--primary-foreground': '0 0% 100%',
+      '--ring': '160 84% 39%',
+      '--accent': '160 84% 39%',
+      '--accent-foreground': '0 0% 100%',
+    },
+  },
+  blue: {
+    hsl: '217 91% 60%',
+    css: {
+      '--primary': '217 91% 60%',
+      '--primary-foreground': '0 0% 100%',
+      '--ring': '217 91% 60%',
+      '--accent': '217 91% 60%',
+      '--accent-foreground': '0 0% 100%',
+    },
+  },
+  purple: {
+    hsl: '271 91% 65%',
+    css: {
+      '--primary': '271 91% 65%',
+      '--primary-foreground': '0 0% 100%',
+      '--ring': '271 91% 65%',
+      '--accent': '271 91% 65%',
+      '--accent-foreground': '0 0% 100%',
+    },
+  },
+  amber: {
+    hsl: '38 92% 50%',
+    css: {
+      '--primary': '38 92% 50%',
+      '--primary-foreground': '0 0% 100%',
+      '--ring': '38 92% 50%',
+      '--accent': '38 92% 50%',
+      '--accent-foreground': '0 0% 100%',
+    },
+  },
+  red: {
+    hsl: '0 84% 60%',
+    css: {
+      '--primary': '0 84% 60%',
+      '--primary-foreground': '0 0% 100%',
+      '--ring': '0 84% 60%',
+      '--accent': '0 84% 60%',
+      '--accent-foreground': '0 0% 100%',
+    },
+  },
+};
+
+function applyAccentColor(color: AccentColor) {
+  const mapping = accentColorMap[color];
+  if (!mapping) return;
+  const root = document.documentElement;
+  for (const [prop, value] of Object.entries(mapping.css)) {
+    root.style.setProperty(prop, value);
+  }
+}
+
+function applyCompactMode(enabled: boolean) {
+  if (enabled) {
+    document.documentElement.classList.add('compact');
+  } else {
+    document.documentElement.classList.remove('compact');
+  }
+}
+
 const accentColors: { name: string; value: AccentColor; color: string; tw: string }[] = [
   { name: 'Emerald', value: 'emerald', color: '#22c55e', tw: 'bg-emerald-500' },
   { name: 'Blue', value: 'blue', color: '#3b82f6', tw: 'bg-blue-500' },
@@ -123,6 +194,7 @@ export function SettingsPanel() {
                     key={color.value}
                     onClick={() => {
                       setAccentColor(color.value);
+                      applyAccentColor(color.value);
                       toast.success(`Accent color: ${color.name}`);
                     }}
                     className={cn(
@@ -178,7 +250,11 @@ export function SettingsPanel() {
               </div>
               <Switch
                 checked={theme.compactMode}
-                onCheckedChange={setCompactMode}
+                onCheckedChange={(checked) => {
+                  setCompactMode(checked);
+                  applyCompactMode(checked);
+                  toast.success(checked ? 'Compact mode enabled' : 'Compact mode disabled');
+                }}
               />
             </div>
 
@@ -188,7 +264,10 @@ export function SettingsPanel() {
                 <Hash className="h-3.5 w-3.5 text-muted-foreground" />
                 <Label className="text-xs">Number Format</Label>
               </div>
-              <Select value={theme.numberFormat} onValueChange={(v) => setNumberFormat(v as 'indian' | 'international')}>
+              <Select value={theme.numberFormat} onValueChange={(v) => {
+                setNumberFormat(v as 'indian' | 'international');
+                toast.success(`Number format: ${v === 'indian' ? 'Indian (₹1,23,456)' : 'International (₹123,456)'}`);
+              }}>
                 <SelectTrigger className="w-28 h-7 text-[10px]">
                   <SelectValue />
                 </SelectTrigger>

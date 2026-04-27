@@ -8,6 +8,7 @@
  * and signal log.
  */
 
+import { useState, useEffect } from 'react';
 import { useDDLJStore } from '@/lib/store';
 import { cn, formatCurrency, pnlColor, pnlBgColor, formatDuration, timeAgo, biasColor, biasBgColor } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,6 +72,9 @@ function DailyPnlTooltip({ active, payload, label }: { active?: boolean; payload
 
 export function DashboardPage() {
   const { engineStatus, positions, trades, signalLog, setActivePage, updateEngineStatus } = useDDLJStore();
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
 
   const winRate = trades.length > 0
     ? ((trades.filter(t => t.net > 0).length / trades.length) * 100).toFixed(1)
@@ -266,8 +270,8 @@ export function DashboardPage() {
                 <div className="text-xs">
                   <span className="text-muted-foreground">Last Signal</span>
                   <p className="mt-0.5 text-emerald-400 truncate">{engineStatus.last_signal}</p>
-                  <p className="text-muted-foreground text-[10px] mt-0.5">
-                    {timeAgo(engineStatus.last_signal_time!)}
+                  <p className="text-muted-foreground text-[10px] mt-0.5" suppressHydrationWarning>
+                    {mounted ? timeAgo(engineStatus.last_signal_time!) : '--'}
                   </p>
                 </div>
               </>
@@ -358,7 +362,7 @@ export function DashboardPage() {
             <CardDescription className="text-xs">Capital growth over current month — {mockEquityCurve.length} data points</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-56">
+            <div className="h-48 sm:h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={mockEquityCurve} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                   <defs>
@@ -398,7 +402,7 @@ export function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="h-56">
+            <div className="h-48 sm:h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={mockDailyPnl} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
@@ -514,7 +518,7 @@ export function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-56">
+            <ScrollArea className="h-48 sm:h-56">
               <div className="space-y-1">
                 {signalLog.map((sig, i) => (
                   <div key={i} className="flex items-start gap-2 text-xs py-1.5 border-b border-border/30 last:border-0">
@@ -529,7 +533,7 @@ export function DashboardPage() {
                         <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 font-mono">
                           {sig.type}
                         </Badge>
-                        <span className="text-muted-foreground text-[10px]">{timeAgo(sig.time)}</span>
+                        <span className="text-muted-foreground text-[10px]" suppressHydrationWarning>{mounted ? timeAgo(sig.time) : '--'}</span>
                       </div>
                       <p className="text-muted-foreground mt-0.5 truncate text-[11px]">{sig.message}</p>
                     </div>

@@ -145,3 +145,54 @@ Stage Summary:
 - All 11 modules deeply enhanced with professional trading features
 - Build passes clean
 - All pages responsive
+---
+Task ID: comprehensive-frontend-qa-polish
+Agent: Main Agent + Subagents
+Task: Fix all reported bugs and do deep QA + polish across entire DDLJ frontend
+
+Work Log:
+- Fixed hydration error in dashboard-page.tsx (timeAgo SSR/client mismatch) - added mounted state + suppressHydrationWarning
+- Fixed hydration error in topbar.tsx (istTime) - already had suppressHydrationWarning + mounted guard
+- Fixed sidebar collapse/expand - added Ctrl/Cmd+B keyboard shortcut, improved collapse button visibility
+- Fixed settings panel: Accent color now updates CSS variables (--primary, --ring, --accent, etc.)
+- Fixed settings panel: Compact mode now adds 'compact' class to document root with CSS rules in globals.css
+- Fixed settings panel: Sidebar position now works (sidebar renders on right when set)
+- Fixed settings panel: Number format toggle shows toast confirmation
+- Fixed page.tsx: Dynamic sidebar position based on theme.sidebarPosition
+- Fixed theme-initializer.tsx: Syncs accent color CSS vars and compact mode class on mount
+- Fixed mock-data.ts: Replaced ALL Math.random() with deterministic formulas (eliminates hydration issues)
+- Fixed mock-data.ts: Replaced ALL Date.now() with fixed ISO strings (eliminates hydration issues)
+- Fixed backtest-page.tsx: Added strategy presets (DDLJ Default, Conservative, Aggressive, Custom)
+- Fixed backtest-page.tsx: EMA labels now show defaults (Entry EMA Fast Default: 9, Entry EMA Slow Default: 55)
+- Fixed backtest-page.tsx: Added Bias EMA Fast/Slow fields in advanced section
+- Fixed backtest-page.tsx: Added Risk % per Position toggle (Switch with fixed lot mode when off)
+- Fixed backtest-page.tsx: BE Trigger label now says "Breakeven (BE) Trigger (2x Risk)" with tooltip
+- Fixed backtest-page.tsx: Added Max Positions field to form
+- Fixed backtest-page.tsx: Added Trade Details dialog with full config, charts, and metrics
+- Fixed backtest-page.tsx: Added Strategy Preset dropdown in filter bar
+- Fixed engine-page.tsx: Force Close All now actually removes positions from store
+- Fixed engine-page.tsx: Auto-start toggle persists to localStorage
+- Fixed engine-page.tsx: Added mounted state guard for date-dependent rendering
+- Fixed trades-page.tsx: Fragment key warning, divide by zero in win rate, missing empty state
+- Fixed trades-page.tsx: Best/Worst trade colors now use pnlColor() for correct display
+- Fixed config-page.tsx: Config history uses fixed timestamps (no hydration mismatch)
+- Fixed config-page.tsx: Added empty state for search with no results
+- Fixed token-page.tsx: Mounted state guard for Progress component
+- Fixed health-page.tsx: Replaced Math.random() in logs and uptime with deterministic formulas
+- Fixed options-page.tsx: Calculator strike reset on index switch, table has min-width for scroll
+- Fixed alerts-page.tsx: Create Rule dialog now fully functional with form validation
+- Fixed journal-page.tsx: Discipline streak calculation fixed (iterates from recent backward)
+- Fixed journal-page.tsx: New Entry dialog is fully functional with emotion selection
+- Polished ALL pages for mobile responsiveness: responsive chart heights, grid columns, spacing, button sizes
+- Polished ALL dialogs for mobile: max-width calc(100vw-2rem) on small screens
+- Polished tables with overflow-x-auto for horizontal scroll on mobile
+- Build passes cleanly with 0 errors
+
+Stage Summary:
+- All 7 user-reported issues fixed
+- All hydration errors eliminated across the app
+- All settings panel options now functional (accent color, sidebar position, compact mode, number format)
+- Backtest page fully enhanced with presets, proper labels, risk toggle, trade details
+- Deep QA pass completed on all 11 pages with bug fixes
+- Comprehensive mobile responsiveness polish applied
+- Production build passes cleanly

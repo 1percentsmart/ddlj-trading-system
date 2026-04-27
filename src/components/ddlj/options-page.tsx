@@ -153,7 +153,13 @@ export function OptionsPage() {
               <CardDescription>Live options chain with Greeks, IV skew, and payoff analysis</CardDescription>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-              <Select value={selectedIndex} onValueChange={(v) => setSelectedIndex(v as 'BANKNIFTY' | 'NIFTY')}>
+              <Select value={selectedIndex} onValueChange={(v) => {
+                setSelectedIndex(v as 'BANKNIFTY' | 'NIFTY');
+                const newChain = v === 'BANKNIFTY' ? mockOptionsChain : mockNiftyOptionsChain;
+                setCalcStrike(String(newChain.atm_strike));
+                setCalcEntryPrice('');
+                setCalcTargetPrice('');
+              }}>
                 <SelectTrigger className="w-32 sm:w-40 h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
@@ -181,7 +187,7 @@ export function OptionsPage() {
       </Card>
 
       {/* PCR + Max Pain + Greeks Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
         <Card className="bg-card/80 border-border">
           <CardContent className="p-3">
             <div className="text-xs text-muted-foreground flex items-center gap-1"><Percent className="h-3 w-3" /> PCR</div>
@@ -255,10 +261,10 @@ export function OptionsPage() {
 
         {/* Options Chain Table with Position Overlay */}
         <TabsContent value="chain">
-          <Card className="bg-card/80 border-border">
+          <Card className="bg-card/80 border-border overflow-hidden">
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+              <div className="overflow-x-auto -mx-0">
+                <table className="w-full text-xs min-w-[700px]">
                   <thead>
                     <tr className="border-b border-border">
                       <th colSpan={6} className="py-2 text-center text-emerald-400 bg-emerald-500/5 text-[11px] font-semibold">CALLS (CE)</th>
@@ -333,7 +339,7 @@ export function OptionsPage() {
                 <CardDescription className="text-xs">CE and PE OI distribution across strikes</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-80">
+                <div className="h-56 sm:h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={oiChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />

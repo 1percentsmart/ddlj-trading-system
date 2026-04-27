@@ -41,7 +41,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 
 interface AccountInfo {
   id: string;
@@ -72,21 +72,24 @@ export function TokenPage() {
   const [notifyBeforeExpiry, setNotifyBeforeExpiry] = useState(true);
   const [selectedAccount, setSelectedAccount] = useState('acc1');
 
-  // Multi-account mock
-  const [accounts] = useState<AccountInfo[]>([
-    { id: 'acc1', name: 'Primary Trading', broker: 'Zerodha', userId: 'SGS123', active: true, tokenValid: true, expiresAt: new Date(Date.now() + 8 * 3600 * 1000).toISOString() },
-    { id: 'acc2', name: 'Paper Trading', broker: 'Zerodha', userId: 'SGS456', active: false, tokenValid: false, expiresAt: null },
-    { id: 'acc3', name: 'Scalping Account', broker: 'Zerodha', userId: 'SGS789', active: false, tokenValid: true, expiresAt: new Date(Date.now() + 2 * 3600 * 1000).toISOString() },
-  ]);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
-  // Login history (mock - last 5 logins)
-  const [loginHistory] = useState<LoginHistoryEntry[]>([
-    { id: 'LH001', timestamp: new Date(Date.now() - 2 * 3600 * 1000).toISOString(), device: 'Desktop', browser: 'Chrome 124', ip: '103.xxx.xxx.42', location: 'Mumbai, IN', status: 'success' },
-    { id: 'LH002', timestamp: new Date(Date.now() - 26 * 3600 * 1000).toISOString(), device: 'Desktop', browser: 'Chrome 124', ip: '103.xxx.xxx.42', location: 'Mumbai, IN', status: 'success' },
-    { id: 'LH003', timestamp: new Date(Date.now() - 50 * 3600 * 1000).toISOString(), device: 'Laptop', browser: 'Firefox 125', ip: '103.xxx.xxx.42', location: 'Mumbai, IN', status: 'success' },
-    { id: 'LH004', timestamp: new Date(Date.now() - 74 * 3600 * 1000).toISOString(), device: 'Desktop', browser: 'Chrome 123', ip: '103.xxx.xxx.15', location: 'Pune, IN', status: 'failed' },
-    { id: 'LH005', timestamp: new Date(Date.now() - 98 * 3600 * 1000).toISOString(), device: 'Desktop', browser: 'Chrome 123', ip: '103.xxx.xxx.42', location: 'Mumbai, IN', status: 'success' },
-  ]);
+  // Multi-account mock - use fixed dates to avoid hydration mismatch
+  const accounts = useMemo<AccountInfo[]>(() => [
+    { id: 'acc1', name: 'Primary Trading', broker: 'Zerodha', userId: 'SGS123', active: true, tokenValid: true, expiresAt: '2026-04-28T17:15:00+05:30' },
+    { id: 'acc2', name: 'Paper Trading', broker: 'Zerodha', userId: 'SGS456', active: false, tokenValid: false, expiresAt: null },
+    { id: 'acc3', name: 'Scalping Account', broker: 'Zerodha', userId: 'SGS789', active: false, tokenValid: true, expiresAt: '2026-04-28T11:15:00+05:30' },
+  ], []);
+
+  // Login history (mock - last 5 logins) - use fixed dates
+  const loginHistory = useMemo<LoginHistoryEntry[]>(() => [
+    { id: 'LH001', timestamp: '2026-04-28T07:15:00+05:30', device: 'Desktop', browser: 'Chrome 124', ip: '103.xxx.xxx.42', location: 'Mumbai, IN', status: 'success' },
+    { id: 'LH002', timestamp: '2026-04-27T07:15:00+05:30', device: 'Desktop', browser: 'Chrome 124', ip: '103.xxx.xxx.42', location: 'Mumbai, IN', status: 'success' },
+    { id: 'LH003', timestamp: '2026-04-26T07:15:00+05:30', device: 'Laptop', browser: 'Firefox 125', ip: '103.xxx.xxx.42', location: 'Mumbai, IN', status: 'success' },
+    { id: 'LH004', timestamp: '2026-04-25T07:15:00+05:30', device: 'Desktop', browser: 'Chrome 123', ip: '103.xxx.xxx.15', location: 'Pune, IN', status: 'failed' },
+    { id: 'LH005', timestamp: '2026-04-24T07:15:00+05:30', device: 'Desktop', browser: 'Chrome 123', ip: '103.xxx.xxx.42', location: 'Mumbai, IN', status: 'success' },
+  ], []);
 
   // Countdown timer
   const [timeLeft, setTimeLeft] = useState('');
@@ -284,7 +287,7 @@ export function TokenPage() {
                 <span>24 hours</span>
               </div>
               <Progress
-                value={Math.max(0, Math.min(100, ((new Date(engineStatus.token.expires_at).getTime() - Date.now()) / (24 * 3600 * 1000)) * 100))}
+                value={mounted ? Math.max(0, Math.min(100, ((new Date(engineStatus.token.expires_at).getTime() - Date.now()) / (24 * 3600 * 1000)) * 100)) : 0}
                 className="h-2"
               />
             </div>

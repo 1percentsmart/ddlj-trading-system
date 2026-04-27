@@ -54,12 +54,12 @@ export const mockEngineStatus: EngineStatus = {
   token: {
     stored: true,
     valid: true,
-    expires_at: new Date(Date.now() + 8 * 3600 * 1000).toISOString(),
+    expires_at: '2026-04-28T17:15:00+05:30',
     user_name: 'Sameer Gani Shaikh',
   },
   market_status: 'open',
   last_signal: 'BUY Signal — BankNifty 15m EMA Crossover',
-  last_signal_time: new Date(Date.now() - 12 * 60000).toISOString(),
+  last_signal_time: '2026-04-28T09:03:00+05:30',
 };
 
 // ── Trade History ────────────────────────────────────────────────
@@ -327,7 +327,7 @@ export const mockPositions: Position[] = [
     symbol: 'BANKNIFTY',
     direction: 'LONG',
     entry: 56200,
-    entry_time: new Date(Date.now() - 45 * 60000).toISOString(),
+    entry_time: '2026-04-28T08:30:00+05:30',
     qty: 15,
     sl: 55950,
     target: 56700,
@@ -345,7 +345,7 @@ export const mockPositions: Position[] = [
     symbol: 'NIFTY',
     direction: 'SHORT',
     entry: 24350,
-    entry_time: new Date(Date.now() - 25 * 60000).toISOString(),
+    entry_time: '2026-04-28T08:50:00+05:30',
     qty: 25,
     sl: 24550,
     target: 24150,
@@ -462,12 +462,12 @@ export interface HealthCheck {
 }
 
 export const mockHealthChecks: HealthCheck[] = [
-  { name: 'Engine Heartbeat', status: 'healthy', message: 'Engine is running', last_checked: new Date().toISOString() },
-  { name: 'Kite Token', status: 'healthy', message: 'Token is valid — expires in 8h', last_checked: new Date().toISOString() },
-  { name: 'Database', status: 'healthy', message: 'Database is accessible', last_checked: new Date().toISOString() },
-  { name: 'Market Hours Guard', status: 'healthy', message: 'Active — market is open', last_checked: new Date().toISOString() },
-  { name: 'Telegram Notifier', status: 'degraded', message: 'Last message delivered with 2s delay', last_checked: new Date().toISOString() },
-  { name: 'Session Recovery', status: 'healthy', message: 'No recoverable sessions', last_checked: new Date().toISOString() },
+  { name: 'Engine Heartbeat', status: 'healthy', message: 'Engine is running', last_checked: '2026-04-28T09:15:00+05:30' },
+  { name: 'Kite Token', status: 'healthy', message: 'Token is valid — expires in 8h', last_checked: '2026-04-28T09:15:00+05:30' },
+  { name: 'Database', status: 'healthy', message: 'Database is accessible', last_checked: '2026-04-28T09:15:00+05:30' },
+  { name: 'Market Hours Guard', status: 'healthy', message: 'Active — market is open', last_checked: '2026-04-28T09:15:00+05:30' },
+  { name: 'Telegram Notifier', status: 'degraded', message: 'Last message delivered with 2s delay', last_checked: '2026-04-28T09:15:00+05:30' },
+  { name: 'Session Recovery', status: 'healthy', message: 'No recoverable sessions', last_checked: '2026-04-28T09:15:00+05:30' },
 ];
 
 // ── Equity Curve Data (for charts) ──────────────────────────────
@@ -515,14 +515,14 @@ export interface SignalLog {
 }
 
 export const mockSignalLog: SignalLog[] = [
-  { time: new Date(Date.now() - 120000).toISOString(), type: 'ENTRY', message: 'BUY Signal — BankNifty 15m EMA Crossover, Bias: BULLISH', severity: 'success' },
-  { time: new Date(Date.now() - 300000).toISOString(), type: 'BIAS_CHANGE', message: 'Bias changed from NEUTRAL to BULLISH (strength: 0.78)', severity: 'info' },
-  { time: new Date(Date.now() - 600000).toISOString(), type: 'EXIT', message: 'Target hit — NIFTY PE 24300 exited at 210.5 (+3552)', severity: 'success' },
-  { time: new Date(Date.now() - 900000).toISOString(), type: 'SYSTEM', message: 'VIX refreshed from API: 16.42', severity: 'info' },
-  { time: new Date(Date.now() - 1200000).toISOString(), type: 'ENTRY', message: 'SELL Signal — Nifty 15m EMA Crossover, Bias: BEARISH', severity: 'success' },
-  { time: new Date(Date.now() - 1800000).toISOString(), type: 'EXIT', message: 'Target hit — BankNifty CE 54300 exited at 445.2 (+6438)', severity: 'success' },
-  { time: new Date(Date.now() - 2400000).toISOString(), type: 'SYSTEM', message: 'Session recovered from previous run — 0 open positions restored', severity: 'warning' },
-  { time: new Date(Date.now() - 3600000).toISOString(), type: 'SYSTEM', message: 'Market opened — engine auto-started', severity: 'info' },
+  { time: '2026-04-28T09:13:00+05:30', type: 'ENTRY', message: 'BUY Signal — BankNifty 15m EMA Crossover, Bias: BULLISH', severity: 'success' },
+  { time: '2026-04-28T09:10:00+05:30', type: 'BIAS_CHANGE', message: 'Bias changed from NEUTRAL to BULLISH (strength: 0.78)', severity: 'info' },
+  { time: '2026-04-28T09:05:00+05:30', type: 'EXIT', message: 'Target hit — NIFTY PE 24300 exited at 210.5 (+3552)', severity: 'success' },
+  { time: '2026-04-28T09:00:00+05:30', type: 'SYSTEM', message: 'VIX refreshed from API: 16.42', severity: 'info' },
+  { time: '2026-04-28T08:55:00+05:30', type: 'ENTRY', message: 'SELL Signal — Nifty 15m EMA Crossover, Bias: BEARISH', severity: 'success' },
+  { time: '2026-04-28T08:45:00+05:30', type: 'EXIT', message: 'Target hit — BankNifty CE 54300 exited at 445.2 (+6438)', severity: 'success' },
+  { time: '2026-04-28T08:35:00+05:30', type: 'SYSTEM', message: 'Session recovered from previous run — 0 open positions restored', severity: 'warning' },
+  { time: '2026-04-28T08:15:00+05:30', type: 'SYSTEM', message: 'Market opened — engine auto-started', severity: 'info' },
 ];
 
 // ── Options Chain Data ───────────────────────────────────────────
@@ -581,25 +581,25 @@ export const mockOptionsChain: OptionsChainData = {
     strike,
     isATM: idx === atmIdx,
     ce: {
-      ltp: Math.max(10, Math.round((56350 - strike + 150 + Math.random() * 100) * 100) / 100),
-      volume: Math.round(12000 + Math.random() * 50000),
-      oi: Math.round(50000 + Math.random() * 200000),
-      iv: Math.round((14 + Math.abs(idx - atmIdx) * 0.8 + Math.random() * 2) * 100) / 100,
+      ltp: Math.max(10, Math.round((56350 - strike + 150 + idx * 9 + 30) * 100) / 100),
+      volume: Math.round(12000 + idx * 4500 + 15000),
+      oi: Math.round(50000 + idx * 18000 + 55000),
+      iv: Math.round((14 + Math.abs(idx - atmIdx) * 0.8 + ((idx * 7) % 3) * 0.7) * 100) / 100,
       delta: Math.round((0.5 + (atmIdx - idx) * 0.08) * 100) / 100,
-      gamma: Math.round((0.003 + Math.random() * 0.002) * 10000) / 10000,
-      theta: Math.round((-3.5 - Math.random() * 2) * 100) / 100,
-      vega: Math.round((8 + Math.random() * 4) * 100) / 100,
+      gamma: Math.round((0.003 + (idx % 5) * 0.0004) * 10000) / 10000,
+      theta: Math.round((-3.5 - (idx % 4) * 0.5 - 0.3) * 100) / 100,
+      vega: Math.round((8 + (idx % 5) * 0.8 + 1.0) * 100) / 100,
       itm: strike < 56350,
     },
     pe: {
-      ltp: Math.max(10, Math.round((strike - 56350 + 150 + Math.random() * 100) * 100) / 100),
-      volume: Math.round(10000 + Math.random() * 45000),
-      oi: Math.round(45000 + Math.random() * 180000),
-      iv: Math.round((15 + Math.abs(idx - atmIdx) * 0.7 + Math.random() * 2) * 100) / 100,
+      ltp: Math.max(10, Math.round((strike - 56350 + 150 + idx * 8 + 25) * 100) / 100),
+      volume: Math.round(10000 + idx * 4000 + 12000),
+      oi: Math.round(45000 + idx * 16000 + 48000),
+      iv: Math.round((15 + Math.abs(idx - atmIdx) * 0.7 + ((idx * 5) % 3) * 0.6) * 100) / 100,
       delta: Math.round((-0.5 + (atmIdx - idx) * 0.08) * 100) / 100,
-      gamma: Math.round((0.003 + Math.random() * 0.002) * 10000) / 10000,
-      theta: Math.round((-3.2 - Math.random() * 1.8) * 100) / 100,
-      vega: Math.round((7.5 + Math.random() * 3.5) * 100) / 100,
+      gamma: Math.round((0.003 + (idx % 5) * 0.0004) * 10000) / 10000,
+      theta: Math.round((-3.2 - (idx % 4) * 0.4 - 0.2) * 100) / 100,
+      vega: Math.round((7.5 + (idx % 5) * 0.7 + 0.8) * 100) / 100,
       itm: strike > 56350,
     },
   })),
@@ -611,8 +611,8 @@ export const mockOptionsChain: OptionsChainData = {
   },
   iv_skew: bnStrikes.map((strike, idx) => ({
     strike,
-    ce_iv: Math.round((14 + Math.abs(idx - atmIdx) * 0.8 + Math.random()) * 100) / 100,
-    pe_iv: Math.round((15 + Math.abs(idx - atmIdx) * 0.7 + Math.random()) * 100) / 100,
+    ce_iv: Math.round((14 + Math.abs(idx - atmIdx) * 0.8 + (idx % 5) * 0.2) * 100) / 100,
+    pe_iv: Math.round((15 + Math.abs(idx - atmIdx) * 0.7 + (idx % 4) * 0.2) * 100) / 100,
   })),
   payoff: Array.from({ length: 21 }, (_, i) => {
     const price = 55400 + i * 200;
@@ -633,25 +633,25 @@ export const mockNiftyOptionsChain: OptionsChainData = {
     strike,
     isATM: idx === nfAtmIdx,
     ce: {
-      ltp: Math.max(5, Math.round((24320 - strike + 80 + Math.random() * 60) * 100) / 100),
-      volume: Math.round(20000 + Math.random() * 80000),
-      oi: Math.round(80000 + Math.random() * 400000),
-      iv: Math.round((12 + Math.abs(idx - nfAtmIdx) * 0.6 + Math.random() * 1.5) * 100) / 100,
+      ltp: Math.max(5, Math.round((24320 - strike + 80 + idx * 6 + 20) * 100) / 100),
+      volume: Math.round(20000 + idx * 7000 + 25000),
+      oi: Math.round(80000 + idx * 35000 + 120000),
+      iv: Math.round((12 + Math.abs(idx - nfAtmIdx) * 0.6 + ((idx * 3) % 3) * 0.5) * 100) / 100,
       delta: Math.round((0.5 + (nfAtmIdx - idx) * 0.07) * 100) / 100,
-      gamma: Math.round((0.002 + Math.random() * 0.001) * 10000) / 10000,
-      theta: Math.round((-2.8 - Math.random() * 1.5) * 100) / 100,
-      vega: Math.round((6 + Math.random() * 3) * 100) / 100,
+      gamma: Math.round((0.002 + (idx % 5) * 0.0002) * 10000) / 10000,
+      theta: Math.round((-2.8 - (idx % 4) * 0.35 - 0.2) * 100) / 100,
+      vega: Math.round((6 + (idx % 5) * 0.6 + 0.5) * 100) / 100,
       itm: strike < 24320,
     },
     pe: {
-      ltp: Math.max(5, Math.round((strike - 24320 + 80 + Math.random() * 60) * 100) / 100),
-      volume: Math.round(18000 + Math.random() * 70000),
-      oi: Math.round(75000 + Math.random() * 350000),
-      iv: Math.round((13 + Math.abs(idx - nfAtmIdx) * 0.5 + Math.random() * 1.5) * 100) / 100,
+      ltp: Math.max(5, Math.round((strike - 24320 + 80 + idx * 5 + 18) * 100) / 100),
+      volume: Math.round(18000 + idx * 6000 + 22000),
+      oi: Math.round(75000 + idx * 30000 + 100000),
+      iv: Math.round((13 + Math.abs(idx - nfAtmIdx) * 0.5 + ((idx * 4) % 3) * 0.5) * 100) / 100,
       delta: Math.round((-0.5 + (nfAtmIdx - idx) * 0.07) * 100) / 100,
-      gamma: Math.round((0.002 + Math.random() * 0.001) * 10000) / 10000,
-      theta: Math.round((-2.5 - Math.random() * 1.2) * 100) / 100,
-      vega: Math.round((5.5 + Math.random() * 2.5) * 100) / 100,
+      gamma: Math.round((0.002 + (idx % 5) * 0.0002) * 10000) / 10000,
+      theta: Math.round((-2.5 - (idx % 4) * 0.3 - 0.15) * 100) / 100,
+      vega: Math.round((5.5 + (idx % 5) * 0.5 + 0.4) * 100) / 100,
       itm: strike > 24320,
     },
   })),
@@ -663,8 +663,8 @@ export const mockNiftyOptionsChain: OptionsChainData = {
   },
   iv_skew: nfStrikes.map((strike, idx) => ({
     strike,
-    ce_iv: Math.round((12 + Math.abs(idx - nfAtmIdx) * 0.6 + Math.random()) * 100) / 100,
-    pe_iv: Math.round((13 + Math.abs(idx - nfAtmIdx) * 0.5 + Math.random()) * 100) / 100,
+    ce_iv: Math.round((12 + Math.abs(idx - nfAtmIdx) * 0.6 + (idx % 5) * 0.15) * 100) / 100,
+    pe_iv: Math.round((13 + Math.abs(idx - nfAtmIdx) * 0.5 + (idx % 4) * 0.18) * 100) / 100,
   })),
   payoff: Array.from({ length: 21 }, (_, i) => {
     const price = 23800 + i * 100;
@@ -780,11 +780,11 @@ export interface RiskAlert {
 }
 
 export const mockRiskAlerts: RiskAlert[] = [
-  { id: 'RA001', type: 'risk', severity: 'warning', message: 'Daily risk budget 53% used — 1.6% of 3.0%', time: new Date(Date.now() - 5 * 60000).toISOString(), acknowledged: false },
-  { id: 'RA002', type: 'vix', severity: 'info', message: 'VIX regime: NORMAL (16.42)', time: new Date(Date.now() - 15 * 60000).toISOString(), acknowledged: true },
-  { id: 'RA003', type: 'trade', severity: 'warning', message: 'BANKNIFTY position approaching stop loss — 45 points away', time: new Date(Date.now() - 25 * 60000).toISOString(), acknowledged: false },
-  { id: 'RA004', type: 'system', severity: 'info', message: 'Session recovered — 2 open positions restored', time: new Date(Date.now() - 60 * 60000).toISOString(), acknowledged: true },
-  { id: 'RA005', type: 'risk', severity: 'critical', message: 'Drawdown circuit breaker at 24% of limit', time: new Date(Date.now() - 90 * 60000).toISOString(), acknowledged: true },
+  { id: 'RA001', type: 'risk', severity: 'warning', message: 'Daily risk budget 53% used — 1.6% of 3.0%', time: '2026-04-28T09:10:00+05:30', acknowledged: false },
+  { id: 'RA002', type: 'vix', severity: 'info', message: 'VIX regime: NORMAL (16.42)', time: '2026-04-28T09:00:00+05:30', acknowledged: true },
+  { id: 'RA003', type: 'trade', severity: 'warning', message: 'BANKNIFTY position approaching stop loss — 45 points away', time: '2026-04-28T08:50:00+05:30', acknowledged: false },
+  { id: 'RA004', type: 'system', severity: 'info', message: 'Session recovered — 2 open positions restored', time: '2026-04-28T08:30:00+05:30', acknowledged: true },
+  { id: 'RA005', type: 'risk', severity: 'critical', message: 'Drawdown circuit breaker at 24% of limit', time: '2026-04-28T08:15:00+05:30', acknowledged: true },
 ];
 
 // ── Alerts & Notifications ────────────────────────────────────────
@@ -818,11 +818,11 @@ export interface AlertHistoryEntry {
 }
 
 export const mockAlertHistory: AlertHistoryEntry[] = [
-  { id: 'AH001', alert_name: 'Trade Entry Alert', type: 'trade', message: 'BUY BANKNIFTY CE 56300 @ ₹320', time: new Date(Date.now() - 45 * 60000).toISOString(), channel: 'telegram', acknowledged: true },
-  { id: 'AH002', alert_name: 'Daily Loss Alert', type: 'risk', message: 'Daily P&L at -₹960 (1.6% of 3% budget)', time: new Date(Date.now() - 5 * 60000).toISOString(), channel: 'in_app', acknowledged: false },
-  { id: 'AH003', alert_name: 'VIX Spike Alert', type: 'vix', message: 'VIX at 16.42 (below threshold 25)', time: new Date(Date.now() - 15 * 60000).toISOString(), channel: 'in_app', acknowledged: true },
-  { id: 'AH004', alert_name: 'Trade Exit Alert', type: 'trade', message: 'EXIT NIFTY PE 24300 @ ₹210.5 (+₹3,552)', time: new Date(Date.now() - 120 * 60000).toISOString(), channel: 'telegram', acknowledged: true },
-  { id: 'AH005', alert_name: 'Drawdown Alert', type: 'risk', message: 'Current drawdown at 4.8% (below 5% threshold)', time: new Date(Date.now() - 30 * 60000).toISOString(), channel: 'in_app', acknowledged: false },
+  { id: 'AH001', alert_name: 'Trade Entry Alert', type: 'trade', message: 'BUY BANKNIFTY CE 56300 @ ₹320', time: '2026-04-28T08:45:00+05:30', channel: 'telegram', acknowledged: true },
+  { id: 'AH002', alert_name: 'Daily Loss Alert', type: 'risk', message: 'Daily P&L at -₹960 (1.6% of 3% budget)', time: '2026-04-28T09:10:00+05:30', channel: 'in_app', acknowledged: false },
+  { id: 'AH003', alert_name: 'VIX Spike Alert', type: 'vix', message: 'VIX at 16.42 (below threshold 25)', time: '2026-04-28T09:00:00+05:30', channel: 'in_app', acknowledged: true },
+  { id: 'AH004', alert_name: 'Trade Exit Alert', type: 'trade', message: 'EXIT NIFTY PE 24300 @ ₹210.5 (+₹3,552)', time: '2026-04-28T08:30:00+05:30', channel: 'telegram', acknowledged: true },
+  { id: 'AH005', alert_name: 'Drawdown Alert', type: 'risk', message: 'Current drawdown at 4.8% (below 5% threshold)', time: '2026-04-28T08:50:00+05:30', channel: 'in_app', acknowledged: false },
 ];
 
 export interface TelegramConfig {
@@ -837,7 +837,7 @@ export const mockTelegramConfig: TelegramConfig = {
   bot_token: '7234*****:AAF5 ********************************',
   chat_id: '-1001*********',
   enabled: true,
-  last_test: new Date(Date.now() - 3600000).toISOString(),
+  last_test: '2026-04-28T08:15:00+05:30',
   last_test_success: true,
 };
 

@@ -43,6 +43,13 @@ export function AlertsPage() {
   const [isTestSending, setIsTestSending] = useState(false);
   const [newAlertOpen, setNewAlertOpen] = useState(false);
   const [testingAlert, setTestingAlert] = useState<string | null>(null);
+  const [newAlertName, setNewAlertName] = useState('');
+  const [newAlertType, setNewAlertType] = useState<string>('price');
+  const [newAlertChannel, setNewAlertChannel] = useState<string>('both');
+  const [newAlertPriority, setNewAlertPriority] = useState<string>('medium');
+  const [newAlertSchedule, setNewAlertSchedule] = useState<string>('market_hours');
+  const [newAlertCondition, setNewAlertCondition] = useState<string>('above');
+  const [newAlertThreshold, setNewAlertThreshold] = useState('');
 
   // Search & filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -135,7 +142,7 @@ export function AlertsPage() {
                     <Plus className="h-3.5 w-3.5" /> New Alert Rule
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
                   <DialogHeader>
                     <DialogTitle>Create Alert Rule</DialogTitle>
                     <DialogDescription>Define a new alert condition and notification channel</DialogDescription>
@@ -143,12 +150,12 @@ export function AlertsPage() {
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
                       <Label className="text-xs">Alert Name</Label>
-                      <Input placeholder="e.g., Nifty Above 25000" className="h-9 text-sm" />
+                      <Input placeholder="e.g., Nifty Above 25000" className="h-9 text-sm" value={newAlertName} onChange={(e) => setNewAlertName(e.target.value)} />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label className="text-xs">Alert Type</Label>
-                        <Select defaultValue="price">
+                        <Select value={newAlertType} onValueChange={setNewAlertType}>
                           <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="price">Price Alert</SelectItem>
@@ -160,7 +167,7 @@ export function AlertsPage() {
                       </div>
                       <div className="space-y-2">
                         <Label className="text-xs">Channel</Label>
-                        <Select defaultValue="both">
+                        <Select value={newAlertChannel} onValueChange={setNewAlertChannel}>
                           <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="telegram">Telegram Only</SelectItem>
@@ -173,7 +180,7 @@ export function AlertsPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label className="text-xs">Priority</Label>
-                        <Select defaultValue="medium">
+                        <Select value={newAlertPriority} onValueChange={setNewAlertPriority}>
                           <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="critical">Critical</SelectItem>
@@ -185,7 +192,7 @@ export function AlertsPage() {
                       </div>
                       <div className="space-y-2">
                         <Label className="text-xs">Schedule</Label>
-                        <Select defaultValue="market_hours">
+                        <Select value={newAlertSchedule} onValueChange={setNewAlertSchedule}>
                           <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="always">Always</SelectItem>
@@ -197,7 +204,7 @@ export function AlertsPage() {
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs">Condition</Label>
-                      <Select defaultValue="above">
+                      <Select value={newAlertCondition} onValueChange={setNewAlertCondition}>
                         <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="above">Price above threshold</SelectItem>
@@ -211,12 +218,34 @@ export function AlertsPage() {
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs">Threshold Value</Label>
-                      <Input type="number" placeholder="e.g., 25000" className="h-9 text-sm font-mono" />
+                      <Input type="number" placeholder="e.g., 25000" className="h-9 text-sm font-mono" value={newAlertThreshold} onChange={(e) => setNewAlertThreshold(e.target.value)} />
                     </div>
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setNewAlertOpen(false)}>Cancel</Button>
-                    <Button onClick={() => { toast.success('Alert rule created'); setNewAlertOpen(false); }}>Create Rule</Button>
+                    <Button onClick={() => {
+                      if (!newAlertName.trim()) {
+                        toast.error('Please enter an alert name');
+                        return;
+                      }
+                      const channels: ('telegram' | 'in_app')[] = newAlertChannel === 'telegram' ? ['telegram'] : newAlertChannel === 'in_app' ? ['in_app'] : ['telegram', 'in_app'];
+                      const conditionMap: Record<string, string> = { above: 'price > threshold', below: 'price < threshold', crosses: 'price crosses threshold', vix_high: 'vix > threshold', on_trade: 'on_trade_entry', daily_loss: 'daily_loss > threshold' };
+                      setAlertConfigs(prev => [...prev, {
+                        id: `AC${Date.now()}`,
+                        name: newAlertName.trim(),
+                        type: newAlertType as 'price' | 'vix' | 'trade' | 'risk',
+                        condition: conditionMap[newAlertCondition] || 'price > threshold',
+                        threshold: newAlertThreshold || 'Any',
+                        channels,
+                        enabled: true,
+                        priority: newAlertPriority as AlertPriority,
+                        marketHoursOnly: newAlertSchedule === 'market_hours',
+                      }]);
+                      toast.success('Alert rule created');
+                      setNewAlertOpen(false);
+                      setNewAlertName('');
+                      setNewAlertThreshold('');
+                    }}>Create Rule</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -226,7 +255,7 @@ export function AlertsPage() {
       </Card>
 
       {/* Priority Summary Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
         {(['critical', 'high', 'medium', 'low'] as AlertPriority[]).map((priority) => {
           const pCfg = priorityConfig[priority];
           const count = alertConfigs.filter(a => a.priority === priority).length;
@@ -338,9 +367,9 @@ export function AlertsPage() {
                 const pConfig = priorityConfig[priority];
                 return (
                   <Card key={alert.id} className={cn('bg-card/80 border', alert.enabled ? `border-border ${pConfig.borderColor}` : 'border-border/50 opacity-60')}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
+                    <CardContent className="p-3 sm:p-4">
+                      <div className="flex items-center justify-between gap-2 sm:gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                           <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center',
                             alert.type === 'price' ? 'bg-blue-500/20 text-blue-400' :
                             alert.type === 'vix' ? 'bg-amber-500/20 text-amber-400' :
@@ -351,7 +380,7 @@ export function AlertsPage() {
                           </div>
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-medium">{alert.name}</span>
+                              <span className="text-sm font-medium truncate">{alert.name}</span>
                               <Badge className={cn('text-[9px]', pConfig.bgColor, pConfig.color, 'hover:' + pConfig.bgColor)}>
                                 {pConfig.label}
                               </Badge>
@@ -366,7 +395,7 @@ export function AlertsPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                           <div className="hidden sm:flex items-center gap-1">
                             {alert.channels.map((ch) => (
                               <Badge key={ch} variant="outline" className="text-[8px] px-1 h-4">
@@ -481,7 +510,7 @@ export function AlertsPage() {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between gap-3">
                 <CardTitle className="text-sm font-medium">Alert History</CardTitle>
-                <div className="relative w-64">
+                <div className="relative w-full sm:w-64">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
                     placeholder="Search history..."
@@ -493,7 +522,7 @@ export function AlertsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[500px]">
+              <ScrollArea className="h-[350px] sm:h-[500px]">
                 <div className="space-y-1.5">
                   {filteredHistory.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground text-sm">No history matching search</div>

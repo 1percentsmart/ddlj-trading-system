@@ -25,6 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Tooltip as UiTooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Table,
@@ -59,6 +60,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   Minus,
+  Info,
+  FileText,
+  Zap,
+  Shield,
 } from 'lucide-react';
 import {
   BarChart,
@@ -120,6 +125,82 @@ const mockMonthlyReturns = [
 ];
 
 // ── Types ─────────────────────────────────────────────────────────
+
+type StrategyPresetKey = 'ddlDefault' | 'conservative' | 'aggressive' | 'custom';
+
+interface StrategyPreset {
+  key: StrategyPresetKey;
+  label: string;
+  icon: 'default' | 'shield' | 'zap' | 'settings';
+  description: string;
+  values: {
+    index: string;
+    timeframe: string;
+    optionType: string;
+    capital: string;
+    emaFast: string;
+    emaSlow: string;
+    emaBiasFast: string;
+    emaBiasSlow: string;
+    riskPct: string;
+    riskEnabled: boolean;
+    maxPositions: string;
+    drawdownLimit: string;
+    beTriggerEnabled: boolean;
+    trailingStopEnabled: boolean;
+  };
+}
+
+const strategyPresets: StrategyPreset[] = [
+  {
+    key: 'ddlDefault',
+    label: 'DDLJ Default',
+    icon: 'default',
+    description: 'Standard DDLJ strategy — EMA 9/21/55 entry, EMA 21/89 bias, 2% risk, ITM options',
+    values: {
+      index: 'BANKNIFTY', timeframe: '15m/60m', optionType: 'ITM', capital: '200000',
+      emaFast: '9', emaSlow: '55', emaBiasFast: '21', emaBiasSlow: '89',
+      riskPct: '2.0', riskEnabled: true, maxPositions: '2', drawdownLimit: '20',
+      beTriggerEnabled: true, trailingStopEnabled: true,
+    },
+  },
+  {
+    key: 'conservative',
+    label: 'Conservative',
+    icon: 'shield',
+    description: 'Lower risk (1.5%), higher slow EMA (89), ITM only, tighter drawdown limit',
+    values: {
+      index: 'BANKNIFTY', timeframe: '15m/60m', optionType: 'ITM', capital: '200000',
+      emaFast: '9', emaSlow: '89', emaBiasFast: '21', emaBiasSlow: '89',
+      riskPct: '1.5', riskEnabled: true, maxPositions: '1', drawdownLimit: '10',
+      beTriggerEnabled: true, trailingStopEnabled: true,
+    },
+  },
+  {
+    key: 'aggressive',
+    label: 'Aggressive',
+    icon: 'zap',
+    description: 'Higher risk (4%), faster timeframe (5m/60m), ATM options, wider drawdown limit',
+    values: {
+      index: 'BANKNIFTY', timeframe: '5m/60m', optionType: 'ATM', capital: '200000',
+      emaFast: '9', emaSlow: '55', emaBiasFast: '21', emaBiasSlow: '89',
+      riskPct: '4.0', riskEnabled: true, maxPositions: '3', drawdownLimit: '30',
+      beTriggerEnabled: true, trailingStopEnabled: false,
+    },
+  },
+  {
+    key: 'custom',
+    label: 'Custom',
+    icon: 'settings',
+    description: 'Configure everything manually — no pre-filled values',
+    values: {
+      index: 'BANKNIFTY', timeframe: '15m/60m', optionType: 'ITM', capital: '200000',
+      emaFast: '9', emaSlow: '55', emaBiasFast: '21', emaBiasSlow: '89',
+      riskPct: '2.0', riskEnabled: true, maxPositions: '2', drawdownLimit: '20',
+      beTriggerEnabled: true, trailingStopEnabled: true,
+    },
+  },
+];
 
 interface SavedBacktest {
   id: string;
@@ -186,6 +267,7 @@ export function BacktestPage() {
   const [renameValue, setRenameValue] = useState('');
 
   // Form state for new backtest
+  const [btPreset, setBtPreset] = useState<StrategyPresetKey>('ddlDefault');
   const [btConfigName, setBtConfigName] = useState('');
   const [btIndex, setBtIndex] = useState('BANKNIFTY');
   const [btTimeframe, setBtTimeframe] = useState('15m/60m');
@@ -195,9 +277,41 @@ export function BacktestPage() {
   const [btCapital, setBtCapital] = useState('200000');
   const [btEmaFast, setBtEmaFast] = useState('9');
   const [btEmaSlow, setBtEmaSlow] = useState('55');
-  const [btRiskPct, setBtRiskPct] = useState('3.0');
+  const [btEmaBiasFast, setBtEmaBiasFast] = useState('21');
+  const [btEmaBiasSlow, setBtEmaBiasSlow] = useState('89');
+  const [btRiskPct, setBtRiskPct] = useState('2.0');
+  const [btRiskEnabled, setBtRiskEnabled] = useState(true);
   const [btMaxPositions, setBtMaxPositions] = useState('2');
   const [btDrawdownLimit, setBtDrawdownLimit] = useState('20');
+  const [btBeTriggerEnabled, setBtBeTriggerEnabled] = useState(true);
+  const [btTrailingStopEnabled, setBtTrailingStopEnabled] = useState(true);
+
+  // Details dialog state
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsResult, setDetailsResult] = useState<BacktestResult | null>(null);
+
+  // Filter bar preset state
+  const [filterPreset, setFilterPreset] = useState<string>('all');
+
+  // Apply preset values to form
+  const applyPreset = useCallback((presetKey: StrategyPresetKey) => {
+    const preset = strategyPresets.find(p => p.key === presetKey);
+    if (!preset || presetKey === 'custom') return;
+    setBtIndex(preset.values.index);
+    setBtTimeframe(preset.values.timeframe);
+    setBtOptionType(preset.values.optionType);
+    setBtCapital(preset.values.capital);
+    setBtEmaFast(preset.values.emaFast);
+    setBtEmaSlow(preset.values.emaSlow);
+    setBtEmaBiasFast(preset.values.emaBiasFast);
+    setBtEmaBiasSlow(preset.values.emaBiasSlow);
+    setBtRiskPct(preset.values.riskPct);
+    setBtRiskEnabled(preset.values.riskEnabled);
+    setBtMaxPositions(preset.values.maxPositions);
+    setBtDrawdownLimit(preset.values.drawdownLimit);
+    setBtBeTriggerEnabled(preset.values.beTriggerEnabled);
+    setBtTrailingStopEnabled(preset.values.trailingStopEnabled);
+  }, []);
 
   const chartData = backtestResults.map(r => ({
     name: r.config_name,
@@ -315,7 +429,7 @@ export function BacktestPage() {
                     <GitCompareArrows className="h-3.5 w-3.5" /> Compare ({compareIds.length}/2)
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[85vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Compare Backtest Results</DialogTitle>
                     <DialogDescription>Side by side comparison of two configurations</DialogDescription>
@@ -377,26 +491,62 @@ export function BacktestPage() {
                     <FlaskConical className="h-3.5 w-3.5" /> New Backtest
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>New Backtest Configuration</DialogTitle>
                     <DialogDescription>Configure and run a new backtest simulation</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
+                    {/* Strategy Preset */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium">Strategy Preset</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {strategyPresets.map((preset) => (
+                          <button
+                            key={preset.key}
+                            type="button"
+                            onClick={() => { setBtPreset(preset.key); applyPreset(preset.key); }}
+                            className={cn(
+                              'flex items-start gap-2 p-2.5 rounded-lg border text-left transition-colors',
+                              btPreset === preset.key
+                                ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                                : 'border-border hover:border-primary/40 hover:bg-secondary/30'
+                            )}
+                          >
+                            <div className={cn(
+                              'w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5',
+                              btPreset === preset.key ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'
+                            )}>
+                              {preset.icon === 'default' && <FlaskConical className="h-3 w-3" />}
+                              {preset.icon === 'shield' && <Shield className="h-3 w-3" />}
+                              {preset.icon === 'zap' && <Zap className="h-3 w-3" />}
+                              {preset.icon === 'settings' && <Settings2 className="h-3 w-3" />}
+                            </div>
+                            <div className="min-w-0">
+                              <div className={cn('text-xs font-medium', btPreset === preset.key && 'text-primary')}>{preset.label}</div>
+                              <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">{preset.description}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <Separator />
+
                     {/* Config Name */}
                     <div className="space-y-2">
                       <Label className="text-xs font-medium">Config Name <span className="text-red-400">*</span></Label>
                       <Input
                         placeholder="e.g. BN ITM Conservative v2"
                         value={btConfigName}
-                        onChange={e => setBtConfigName(e.target.value)}
+                        onChange={e => { setBtConfigName(e.target.value); setBtPreset('custom'); }}
                         className="h-9 text-xs"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label className="text-xs">Index</Label>
-                        <Select value={btIndex} onValueChange={setBtIndex}>
+                        <Select value={btIndex} onValueChange={v => { setBtIndex(v); setBtPreset('custom'); }}>
                           <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="BANKNIFTY">BankNifty</SelectItem>
@@ -406,7 +556,7 @@ export function BacktestPage() {
                       </div>
                       <div className="space-y-2">
                         <Label className="text-xs">Timeframe</Label>
-                        <Select value={btTimeframe} onValueChange={setBtTimeframe}>
+                        <Select value={btTimeframe} onValueChange={v => { setBtTimeframe(v); setBtPreset('custom'); }}>
                           <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="5m/60m">5m / 60m</SelectItem>
@@ -420,7 +570,7 @@ export function BacktestPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label className="text-xs">Option Type</Label>
-                        <Select value={btOptionType} onValueChange={setBtOptionType}>
+                        <Select value={btOptionType} onValueChange={v => { setBtOptionType(v); setBtPreset('custom'); }}>
                           <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="ITM">ITM (In The Money)</SelectItem>
@@ -431,7 +581,7 @@ export function BacktestPage() {
                       </div>
                       <div className="space-y-2">
                         <Label className="text-xs">Starting Capital (₹)</Label>
-                        <Input type="number" value={btCapital} onChange={e => setBtCapital(e.target.value)} className="h-9 text-xs font-mono" />
+                        <Input type="number" value={btCapital} onChange={e => { setBtCapital(e.target.value); setBtPreset('custom'); }} className="h-9 text-xs font-mono" />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -447,23 +597,39 @@ export function BacktestPage() {
                     <Separator />
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
-                        <Label className="text-xs">EMA Fast Period</Label>
-                        <Input type="number" value={btEmaFast} onChange={e => setBtEmaFast(e.target.value)} className="h-9 text-xs font-mono" />
+                        <Label className="text-xs">Entry EMA Fast <span className="text-muted-foreground">(Default: 9)</span></Label>
+                        <Input type="number" value={btEmaFast} onChange={e => { setBtEmaFast(e.target.value); setBtPreset('custom'); }} className="h-9 text-xs font-mono" />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-xs">EMA Slow Period</Label>
-                        <Input type="number" value={btEmaSlow} onChange={e => setBtEmaSlow(e.target.value)} className="h-9 text-xs font-mono" />
+                        <Label className="text-xs">Entry EMA Slow <span className="text-muted-foreground">(Default: 55)</span></Label>
+                        <Input type="number" value={btEmaSlow} onChange={e => { setBtEmaSlow(e.target.value); setBtPreset('custom'); }} className="h-9 text-xs font-mono" />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
-                        <Label className="text-xs">Risk % per Position</Label>
-                        <Input type="number" value={btRiskPct} onChange={e => setBtRiskPct(e.target.value)} className="h-9 text-xs font-mono" step="0.5" />
+                        <Label className="text-xs">Max Positions</Label>
+                        <Input type="number" value={btMaxPositions} onChange={e => { setBtMaxPositions(e.target.value); setBtPreset('custom'); }} className="h-9 text-xs font-mono" min="1" max="5" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-xs">Max Drawdown %</Label>
-                        <Input type="number" value={btDrawdownLimit} onChange={e => setBtDrawdownLimit(e.target.value)} className="h-9 text-xs font-mono" />
+                        <Input type="number" value={btDrawdownLimit} onChange={e => { setBtDrawdownLimit(e.target.value); setBtPreset('custom'); }} className="h-9 text-xs font-mono" />
                       </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs">Risk % per Position Enabled</Label>
+                        <Switch
+                          checked={btRiskEnabled}
+                          onCheckedChange={v => { setBtRiskEnabled(v); setBtPreset('custom'); }}
+                        />
+                      </div>
+                      {btRiskEnabled ? (
+                        <Input type="number" value={btRiskPct} onChange={e => { setBtRiskPct(e.target.value); setBtPreset('custom'); }} className="h-9 text-xs font-mono" step="0.5" />
+                      ) : (
+                        <div className="h-9 px-3 flex items-center rounded-md border border-border bg-secondary/30 text-xs text-muted-foreground">
+                          Fixed lot size mode — Risk % is disabled
+                        </div>
+                      )}
                     </div>
 
                     {/* Advanced Settings */}
@@ -474,6 +640,16 @@ export function BacktestPage() {
                         {showAdvanced ? <ChevronDown className="h-3 w-3 ml-auto" /> : <ChevronRight className="h-3 w-3 ml-auto" />}
                       </CollapsibleTrigger>
                       <CollapsibleContent className="space-y-3 pt-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label className="text-xs">Bias EMA Fast <span className="text-muted-foreground">(Default: 21)</span></Label>
+                            <Input type="number" value={btEmaBiasFast} onChange={e => { setBtEmaBiasFast(e.target.value); setBtPreset('custom'); }} className="h-9 text-xs font-mono" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs">Bias EMA Slow <span className="text-muted-foreground">(Default: 89)</span></Label>
+                            <Input type="number" value={btEmaBiasSlow} onChange={e => { setBtEmaBiasSlow(e.target.value); setBtPreset('custom'); }} className="h-9 text-xs font-mono" />
+                          </div>
+                        </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-2">
                             <Label className="text-xs">RSI Period</Label>
@@ -496,11 +672,27 @@ export function BacktestPage() {
                         </div>
                         <div className="flex items-center justify-between">
                           <Label className="text-xs">Trailing Stop Enabled</Label>
-                          <Switch defaultChecked />
+                          <Switch
+                            checked={btTrailingStopEnabled}
+                            onCheckedChange={v => { setBtTrailingStopEnabled(v); setBtPreset('custom'); }}
+                          />
                         </div>
                         <div className="flex items-center justify-between">
-                          <Label className="text-xs">BE Trigger at 2x Risk</Label>
-                          <Switch defaultChecked />
+                          <UiTooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1 cursor-help">
+                                <Label className="text-xs">Breakeven (BE) Trigger (2x Risk)</Label>
+                                <Info className="h-3 w-3 text-muted-foreground" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[250px] text-xs">
+                              Move stop loss to entry price (breakeven) when unrealized profit reaches 2x the initial risk amount
+                            </TooltipContent>
+                          </UiTooltip>
+                          <Switch
+                            checked={btBeTriggerEnabled}
+                            onCheckedChange={v => { setBtBeTriggerEnabled(v); setBtPreset('custom'); }}
+                          />
                         </div>
                       </CollapsibleContent>
                     </Collapsible>
@@ -539,7 +731,20 @@ export function BacktestPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground">Strategy Preset</label>
+              <Select value={filterPreset} onValueChange={setFilterPreset}>
+                <SelectTrigger className="h-9 text-xs mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Presets</SelectItem>
+                  <SelectItem value="ddlDefault">DDLJ Default</SelectItem>
+                  <SelectItem value="conservative">Conservative</SelectItem>
+                  <SelectItem value="aggressive">Aggressive</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <label className="text-xs text-muted-foreground">Index</label>
               <Select defaultValue="all">
@@ -648,7 +853,7 @@ export function BacktestPage() {
               <CardTitle className="text-sm font-medium">Net P&L by Configuration</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-64">
+              <div className="h-48 sm:h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
@@ -704,6 +909,7 @@ export function BacktestPage() {
                       <TableHead className="text-xs text-right hidden lg:table-cell">Max DD</TableHead>
                       <TableHead className="text-xs text-right hidden lg:table-cell">PF</TableHead>
                       <TableHead className="text-xs w-8">View</TableHead>
+                      <TableHead className="text-xs w-8">Details</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -740,6 +946,11 @@ export function BacktestPage() {
                         <TableCell>
                           <Button variant="ghost" size="sm" className="h-6 text-[9px] px-1" onClick={() => setSelectedResult(result.config_name)}>
                             <Eye className="h-3 w-3" />
+                          </Button>
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm" className="h-6 text-[9px] px-1" onClick={() => { setDetailsResult(result); setDetailsOpen(true); }}>
+                            <FileText className="h-3 w-3" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -787,7 +998,7 @@ export function BacktestPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
+              <div className="h-56 sm:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={mockBacktestEquity} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                     <defs>
@@ -1139,6 +1350,125 @@ export function BacktestPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* ── Trade Details Dialog ── */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Backtest Details — {detailsResult?.config_name}</DialogTitle>
+            <DialogDescription>Full configuration, trade distribution, and monthly returns</DialogDescription>
+          </DialogHeader>
+          {detailsResult && (
+            <div className="space-y-4 py-4">
+              {/* Key Metrics with visual indicators */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: 'Net P&L', value: formatCurrency(detailsResult.net_pnl), color: detailsResult.net_pnl >= 0 ? 'text-emerald-400' : 'text-red-400', icon: detailsResult.net_pnl >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" /> },
+                  { label: 'Win Rate', value: `${detailsResult.win_rate}%`, color: detailsResult.win_rate >= 50 ? 'text-emerald-400' : 'text-red-400', icon: <Target className="h-4 w-4" /> },
+                  { label: 'Profit Factor', value: detailsResult.profit_factor.toFixed(2), color: detailsResult.profit_factor > 1.5 ? 'text-emerald-400' : detailsResult.profit_factor > 1 ? 'text-amber-400' : 'text-red-400', icon: <BarChart3 className="h-4 w-4" /> },
+                  { label: 'Max Drawdown', value: `${detailsResult.max_drawdown}%`, color: detailsResult.max_drawdown > 15 ? 'text-red-400' : 'text-amber-400', icon: <AlertTriangle className="h-4 w-4" /> },
+                ].map((metric) => (
+                  <div key={metric.label} className="rounded-lg border border-border p-3 text-center">
+                    <div className={cn('flex items-center justify-center gap-1.5 mb-1 text-muted-foreground', metric.color)}>
+                      {metric.icon}
+                    </div>
+                    <div className={cn('text-sm font-mono font-bold', metric.color)}>{metric.value}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{metric.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <Separator />
+
+              {/* Full Configuration Used */}
+              <div>
+                <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5"><Settings2 className="h-3 w-3" /> Configuration Used</h4>
+                <div className="rounded-lg bg-secondary/30 border border-border/50 p-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                  <div><span className="text-muted-foreground">Index:</span> <span className="font-mono">{detailsResult.index}</span></div>
+                  <div><span className="text-muted-foreground">Timeframe:</span> <span className="font-mono">{detailsResult.timeframe}</span></div>
+                  <div><span className="text-muted-foreground">Option Type:</span> <span className="font-mono">{detailsResult.option_type}</span></div>
+                  <div><span className="text-muted-foreground">Entry EMA:</span> <span className="font-mono">9 / 21 / 55</span></div>
+                  <div><span className="text-muted-foreground">Bias EMA:</span> <span className="font-mono">21 / 89</span></div>
+                  <div><span className="text-muted-foreground">Risk %:</span> <span className="font-mono">2.0%</span></div>
+                  <div><span className="text-muted-foreground">Total Trades:</span> <span className="font-mono">{detailsResult.total_trades}</span></div>
+                  <div><span className="text-muted-foreground">Sharpe Ratio:</span> <span className="font-mono">{detailsResult.sharpe_ratio}</span></div>
+                  <div><span className="text-muted-foreground">Avg Trade:</span> <span className="font-mono">₹{detailsResult.avg_trade.toLocaleString('en-IN')}</span></div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Trade Distribution Breakdown */}
+              <div>
+                <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5"><Target className="h-3 w-3" /> Trade Distribution</h4>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={mockTradeDistribution} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="range" tick={{ fontSize: 9, fill: 'var(--muted-foreground)' }} tickLine={false} axisLine={false} />
+                      <YAxis tick={{ fontSize: 9, fill: 'var(--muted-foreground)' }} tickLine={false} axisLine={false} />
+                      <Tooltip content={<DistributionTooltip />} />
+                      <Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={28}>
+                        {mockTradeDistribution.map((entry, idx) => (
+                          <Cell key={idx} fill={entry.type === 'win' ? '#22c55e' : '#ef4444'} fillOpacity={0.85} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
+                  <div className="rounded-md bg-secondary/30 p-2 text-center">
+                    <div className="text-muted-foreground text-[10px]">Best Trade</div>
+                    <div className="font-mono font-semibold text-emerald-400">₹{detailsResult.best_trade.toLocaleString('en-IN')}</div>
+                  </div>
+                  <div className="rounded-md bg-secondary/30 p-2 text-center">
+                    <div className="text-muted-foreground text-[10px]">Worst Trade</div>
+                    <div className="font-mono font-semibold text-red-400">₹{detailsResult.worst_trade.toLocaleString('en-IN')}</div>
+                  </div>
+                  <div className="rounded-md bg-secondary/30 p-2 text-center">
+                    <div className="text-muted-foreground text-[10px]">Avg Trade</div>
+                    <div className={cn('font-mono font-semibold', pnlColor(detailsResult.avg_trade))}>₹{detailsResult.avg_trade.toLocaleString('en-IN')}</div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Monthly Returns */}
+              <div>
+                <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5"><CalendarDays className="h-3 w-3" /> Monthly Returns</h4>
+                <div className="overflow-x-auto">
+                  <div className="min-w-[400px]">
+                    <div className="grid grid-cols-[60px_1fr_1fr] gap-1 mb-1">
+                      <div className="text-[10px] text-muted-foreground font-medium px-1 py-1">Month</div>
+                      <div className="text-[10px] text-muted-foreground font-medium px-1 py-1 text-center">2025</div>
+                      <div className="text-[10px] text-muted-foreground font-medium px-1 py-1 text-center">2026</div>
+                    </div>
+                    {mockMonthlyReturns.map(row => (
+                      <div key={row.month} className="grid grid-cols-[60px_1fr_1fr] gap-1 mb-1">
+                        <div className="text-[10px] text-muted-foreground font-medium px-1 py-1.5">{row.month}</div>
+                        <div className="h-6"><HeatmapCell value={row.y2025} /></div>
+                        <div className="h-6"><HeatmapCell value={row.y2026} /></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsOpen(false)}>Close</Button>
+            <Button className="gap-1.5" onClick={() => {
+              if (detailsResult) {
+                handleSaveResult(detailsResult, `${detailsResult.config_name} Copy`);
+              }
+              setDetailsOpen(false);
+            }}>
+              <Save className="h-3.5 w-3.5" /> Save Copy
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -7,7 +7,7 @@
  * streak tracking, expandable trade details, trade analytics summary.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { useDDLJStore } from '@/lib/store';
 import { cn, formatCurrency, pnlColor, formatDateTime, formatDate } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -222,7 +222,7 @@ export function TradesPage() {
   return (
     <div className="space-y-3 sm:space-y-4 p-3 sm:p-4">
       {/* ── Summary Cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
         <Card className="bg-card/80 border-border">
           <CardContent className="p-4">
             <div className="text-xs text-muted-foreground">Total Trades</div>
@@ -260,7 +260,7 @@ export function TradesPage() {
       </div>
 
       {/* ── Streak Tracking ── */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Card className="bg-card/80 border-border">
           <CardContent className="p-3 flex items-center gap-3">
             <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', streaks.currentType === 'win' ? 'bg-emerald-500/20' : 'bg-red-500/20')}>
@@ -312,8 +312,8 @@ export function TradesPage() {
                 <div className="flex items-center gap-1.5 text-xs text-emerald-400">
                   <Trophy className="h-3 w-3" /> Best Trade
                 </div>
-                <div className="font-mono text-lg font-bold text-emerald-400 mt-1">
-                  +₹{tradeAnalytics.bestTrade.net.toLocaleString('en-IN')}
+                <div className={cn('font-mono text-lg font-bold mt-1', pnlColor(tradeAnalytics.bestTrade.net))}>
+                  {tradeAnalytics.bestTrade.net >= 0 ? '+' : ''}₹{Math.abs(tradeAnalytics.bestTrade.net).toLocaleString('en-IN')}
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
                   {tradeAnalytics.bestTrade.symbol} {tradeAnalytics.bestTrade.direction} ({tradeAnalytics.bestTrade.id})
@@ -323,8 +323,8 @@ export function TradesPage() {
                 <div className="flex items-center gap-1.5 text-xs text-red-400">
                   <AlertOctagon className="h-3 w-3" /> Worst Trade
                 </div>
-                <div className="font-mono text-lg font-bold text-red-400 mt-1">
-                  -₹{Math.abs(tradeAnalytics.worstTrade.net).toLocaleString('en-IN')}
+                <div className={cn('font-mono text-lg font-bold mt-1', pnlColor(tradeAnalytics.worstTrade.net))}>
+                  {tradeAnalytics.worstTrade.net >= 0 ? '+' : '-'}₹{Math.abs(tradeAnalytics.worstTrade.net).toLocaleString('en-IN')}
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
                   {tradeAnalytics.worstTrade.symbol} {tradeAnalytics.worstTrade.direction} ({tradeAnalytics.worstTrade.id})
@@ -377,13 +377,13 @@ export function TradesPage() {
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5">
               <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground font-medium">Filters:</span>
+              <span className="text-xs text-muted-foreground font-medium hidden sm:inline">Filters:</span>
             </div>
             <div className="flex items-center gap-2">
-              <CalendarDays className="h-3 w-3 text-muted-foreground" />
-              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-8 text-xs w-32" placeholder="From" />
+              <CalendarDays className="h-3 w-3 text-muted-foreground hidden sm:block" />
+              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-8 text-xs w-28 sm:w-32" placeholder="From" />
               <span className="text-xs text-muted-foreground">to</span>
-              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-8 text-xs w-32" placeholder="To" />
+              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-8 text-xs w-28 sm:w-32" placeholder="To" />
             </div>
             <Select value={symbolFilter} onValueChange={setSymbolFilter}>
               <SelectTrigger className="h-8 text-xs w-32"><SelectValue /></SelectTrigger>
@@ -408,7 +408,7 @@ export function TradesPage() {
             )}
             <div className="ml-auto">
               <Button variant="outline" size="sm" className="gap-1.5 text-xs h-8" onClick={handleExportCSV}>
-                <Download className="h-3 w-3" /> Export CSV
+                <Download className="h-3 w-3" /> <span className="hidden sm:inline">Export</span> CSV
               </Button>
             </div>
           </div>
@@ -440,7 +440,8 @@ export function TradesPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[500px]">
+              <ScrollArea className="h-[400px] sm:h-[500px]">
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border hover:bg-transparent">
@@ -457,9 +458,18 @@ export function TradesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredTrades.map((trade) => (
-                      <>
-                        <TableRow key={trade.id} className="border-border/50 hover:bg-secondary/30 cursor-pointer" onClick={() => setExpandedTrade(expandedTrade === trade.id ? null : trade.id)}>
+                    {filteredTrades.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                          <History className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                          <p>No trades match your filters</p>
+                          <p className="text-xs mt-1">Try adjusting the date range or symbol filter</p>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                    filteredTrades.map((trade) => (
+                      <Fragment key={trade.id}>
+                        <TableRow className="border-border/50 hover:bg-secondary/30 cursor-pointer" onClick={() => setExpandedTrade(expandedTrade === trade.id ? null : trade.id)}>
                           <TableCell className="text-xs font-mono">{trade.id}</TableCell>
                           <TableCell className="text-xs font-medium">{trade.symbol}</TableCell>
                           <TableCell>
@@ -492,7 +502,7 @@ export function TradesPage() {
                           </TableCell>
                         </TableRow>
                         {expandedTrade === trade.id && (
-                          <TableRow key={`${trade.id}-detail`} className="border-border/30 bg-secondary/20">
+                          <TableRow className="border-border/30 bg-secondary/20">
                             <TableCell colSpan={10} className="p-4">
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                                 <div>
@@ -537,10 +547,12 @@ export function TradesPage() {
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
-                    ))}
+                      </Fragment>
+                    ))
+                    )}
                   </TableBody>
                 </Table>
+                </div>
               </ScrollArea>
             </CardContent>
           </Card>
@@ -633,7 +645,7 @@ export function TradesPage() {
                 <CardTitle className="text-sm font-medium">Trade P&L Distribution</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-64">
+                <div className="h-48 sm:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={tradePnlChart}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
@@ -663,7 +675,7 @@ export function TradesPage() {
                   { label: 'Net Profit', value: totalProfit - totalLoss, color: pnlColor(totalProfit - totalLoss) },
                   { label: 'Average Win', value: avgWin, color: 'text-emerald-400' },
                   { label: 'Average Loss', value: -avgLoss, color: 'text-red-400' },
-                  { label: 'Win Rate', value: (filteredTrades.filter(t => t.net > 0).length / filteredTrades.length) * 100, color: 'text-amber-400', isPercent: true },
+                  { label: 'Win Rate', value: filteredTrades.length > 0 ? (filteredTrades.filter(t => t.net > 0).length / filteredTrades.length) * 100 : 0, color: 'text-amber-400', isPercent: true },
                   { label: 'Profit Factor', value: parseFloat(profitFactor) || 0, color: parseFloat(profitFactor) > 1.5 ? 'text-emerald-400' : 'text-amber-400', isFactor: true },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
@@ -688,7 +700,7 @@ export function TradesPage() {
               <CardDescription className="text-xs">Running total of net P&L across all trades</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
+              <div className="h-56 sm:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={cumulativePnlData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                     <defs>

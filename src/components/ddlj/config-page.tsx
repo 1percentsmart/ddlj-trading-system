@@ -60,11 +60,11 @@ export function ConfigPage() {
   const [showDiff, setShowDiff] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [configHistory, setConfigHistory] = useState<ConfigHistoryEntry[]>([
-    { id: 'H001', timestamp: new Date(Date.now() - 3600000).toISOString(), key: 'DAILY_RISK_PCT', oldValue: 2.0, newValue: 3.0 },
-    { id: 'H002', timestamp: new Date(Date.now() - 7200000).toISOString(), key: 'EMA_FAST', oldValue: 12, newValue: 9 },
-    { id: 'H003', timestamp: new Date(Date.now() - 86400000).toISOString(), key: 'MAX_OPEN_POSITIONS', oldValue: 3, newValue: 2 },
-    { id: 'H004', timestamp: new Date(Date.now() - 172800000).toISOString(), key: 'TRAILING_STOP_ENABLED', oldValue: false, newValue: true },
-    { id: 'H005', timestamp: new Date(Date.now() - 259200000).toISOString(), key: 'VIX_HIGH_THRESHOLD', oldValue: 20, newValue: 25 },
+    { id: 'H001', timestamp: '2026-04-28T08:15:00+05:30', key: 'DAILY_RISK_PCT', oldValue: 2.0, newValue: 3.0 },
+    { id: 'H002', timestamp: '2026-04-28T07:15:00+05:30', key: 'EMA_FAST', oldValue: 12, newValue: 9 },
+    { id: 'H003', timestamp: '2026-04-27T09:15:00+05:30', key: 'MAX_OPEN_POSITIONS', oldValue: 3, newValue: 2 },
+    { id: 'H004', timestamp: '2026-04-26T09:15:00+05:30', key: 'TRAILING_STOP_ENABLED', oldValue: false, newValue: true },
+    { id: 'H005', timestamp: '2026-04-25T09:15:00+05:30', key: 'VIX_HIGH_THRESHOLD', oldValue: 20, newValue: 25 },
   ]);
 
   const categories = config.reduce<Record<string, typeof config>>((acc, param) => {
@@ -252,7 +252,7 @@ export function ConfigPage() {
               placeholder="Search parameters... (e.g., EMA, risk, VIX)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-md"
+              className="max-w-full sm:max-w-md"
             />
             <Button variant={showDiff ? 'default' : 'outline'} size="sm" onClick={() => setShowDiff(!showDiff)} className="gap-1.5 text-xs">
               <FileJson className="h-3.5 w-3.5" /> Diff View
@@ -266,7 +266,7 @@ export function ConfigPage() {
       </Card>
 
       {/* ── Config Presets ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         {configPresets.map((preset) => (
           <Card key={preset.name} className="bg-card/80 border-border hover:border-primary/30 transition-colors cursor-pointer">
             <CardContent className="p-4">
@@ -313,7 +313,7 @@ export function ConfigPage() {
           ) : (
             <div className="space-y-1.5">
               {configHistory.slice(0, 5).map((entry) => (
-                <div key={entry.id} className="flex items-center gap-3 p-2 rounded bg-secondary/20 text-xs">
+                <div key={entry.id} className="flex items-center gap-2 sm:gap-3 p-2 rounded bg-secondary/20 text-xs overflow-x-auto">
                   <span className="text-muted-foreground">{new Date(entry.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
                   <span className="font-mono font-semibold text-foreground">{entry.key}</span>
                   <span className="text-red-400 line-through">{String(entry.oldValue)}</span>
@@ -394,9 +394,16 @@ export function ConfigPage() {
       </div>
 
       {/* ── Config Sections ── */}
-      <ScrollArea className="h-[calc(100vh-580px)]">
+      <ScrollArea className="h-[calc(100vh-580px)] min-h-[200px]">
         <div className="space-y-4 pr-4">
-          {Object.entries(filteredCategories).map(([category, params]) => (
+          {Object.entries(filteredCategories).length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Settings className="h-10 w-10 mx-auto mb-2 opacity-30" />
+              <p>No parameters match your search</p>
+              <p className="text-xs mt-1">Try a different search term</p>
+            </div>
+          ) : (
+          Object.entries(filteredCategories).map(([category, params]) => (
             <Card key={category} className="bg-card/80 border-border">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -499,7 +506,8 @@ export function ConfigPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+          ))
+          )}
         </div>
       </ScrollArea>
     </div>

@@ -8,6 +8,7 @@
  */
 
 import { useDDLJStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { DDLJSidebar } from '@/components/ddlj/sidebar';
 import { DDLJTopBar } from '@/components/ddlj/topbar';
 import { DashboardPage } from '@/components/ddlj/dashboard-page';
@@ -24,7 +25,7 @@ import { JournalPage } from '@/components/ddlj/journal-page';
 import { SpotlightSearch } from '@/components/ddlj/spotlight-search';
 
 export default function Home() {
-  const { activePage } = useDDLJStore();
+  const { activePage, theme } = useDDLJStore();
 
   const renderPage = () => {
     switch (activePage) {
@@ -43,10 +44,12 @@ export default function Home() {
     }
   };
 
+  const sidebarOnRight = theme.sidebarPosition === 'right';
+
   return (
-    <div className="flex h-dvh overflow-hidden bg-background">
+    <div className={cn('flex h-dvh overflow-hidden bg-background', theme.compactMode && 'compact')}>
       {/* ── Sidebar (desktop only, mobile uses Sheet in TopBar) ── */}
-      <DDLJSidebar />
+      {!sidebarOnRight && <DDLJSidebar />}
 
       {/* ── Main Content Area ── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -58,6 +61,9 @@ export default function Home() {
           {renderPage()}
         </main>
       </div>
+
+      {/* ── Right Sidebar (when position is right) ── */}
+      {sidebarOnRight && <DDLJSidebar />}
 
       {/* ── Spotlight Search (Cmd+K) ── */}
       <SpotlightSearch />
