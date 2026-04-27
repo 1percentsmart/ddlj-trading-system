@@ -47,6 +47,7 @@ logs/
 session_state.json
 trades_log.json
 trades_log.csv
+sessions/
 
 # ── Node.js (Frontend) ──
 node_modules/

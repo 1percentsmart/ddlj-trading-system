@@ -145,3 +145,48 @@ Stage Summary:
 - Token exchange endpoint works (remote token refresh capability)
 - Graceful shutdown on SIGTERM/SIGINT implemented
 - Version upgraded from 9.1.0 (standalone) to 10.0.0 (cloud-deployable)
+---
+Task ID: 6
+Agent: Main Agent
+Task: v10.1 Production Backend — Core Infrastructure + Database + Services
+
+Work Log:
+- Explored and read ALL existing backend files (main.py, routes.py, websocket.py, engine_manager.py, all 14 engine modules)
+- Identified 8 critical issues: circular import, hardcoded paths, API key fallbacks, no database, no services
+- Created core/ package with 3 modules:
+  - core/config.py: Centralized app config with dynamic path resolution, DATABASE_URL validation, feature flags
+  - core/logging_config.py: Structured logging with JSON (prod) and console (dev) formatters
+  - core/exceptions.py: Custom exception hierarchy (DDLJError → EngineError, TokenError, MarketClosedError, etc.)
+- Fixed circular import: Created api/deps.py for dependency injection (no more `from main import engine_manager`)
+- Fixed hardcoded paths: engine/config.py now uses _detect_project_root() — zero hardcoded /home/z/ paths
+- Fixed API key security: Removed hardcoded KITE_API_KEY/SECRET fallbacks — env vars only
+- Fixed data_fetcher.py: CACHE_DIR now derived from project root
+- Created database layer with 5 files:
+  - database/connection.py: Dual-engine (PostgreSQL + SQLite) with async SQLAlchemy, auto-create tables
+  - database/models.py: 6 ORM models (trades, positions, sessions, config_overrides, token_log, error_log)
+  - database/crud.py: 17 async CRUD functions with full type hints
+  - database/migrations/001_initial.sql: Supabase PostgreSQL migration script
+- Created 5 service modules:
+  - services/market_hours.py: MarketHoursGuard with auto start/stop, callbacks, holiday handling
+  - services/session_recovery.py: SessionRecovery with atomic writes, crash detection, auto-save
+  - services/telegram_notifier.py: TelegramNotifier with async httpx, rate limiting, HTML formatting
+  - services/token_refresh.py: TokenRefreshService with background monitoring, expiry detection
+  - services/health_monitor.py: HealthMonitor with extensible health checks
+- Rewrote main.py: Full service lifecycle wiring (10-step startup, 6-step shutdown)
+- Rewrote routes.py: Proper dependency injection via Depends(get_engine_manager), 11 endpoints
+- Created Dockerfile (Python 3.12-slim, non-root user, health check)
+- Created Procfile for Railway
+- Created .env.example (comprehensive template with explanations)
+- Updated requirements.txt with new dependencies (sqlalchemy, aiosqlite, httpx, pytest)
+- Fixed DATABASE_URL validation: platform sets file:// URL, now validated for postgresql:// only
+- Fixed signal handler: try/except for non-main thread context
+
+Stage Summary:
+- ALL imports verified: core (3), database (5), services (5), engine (14), api (3) = 30 modules ✅
+- Database CRUD cycle tested: create session → create trade → create position → close position → close session ✅
+- Full integration test: 8 API endpoints all return 200 ✅
+- Server starts with all services: Market Guard ON, Token Service ON, Health Monitor with 3 checks ✅
+- Zero hardcoded paths — all derived from PROJECT_ROOT ✅
+- Zero secrets in code — all from environment variables ✅
+- Zero circular imports — proper dependency injection ✅
+- Version upgraded from 10.0.0 to 10.1.0

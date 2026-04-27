@@ -43,7 +43,9 @@ class KiteDataFetcher:
         ... )
     """
 
-    CACHE_DIR = Path("/home/z/my-project/kite_cache_v10")
+    # WHY: Cache directory derived from project root — no hardcoded paths.
+    #      Can be overridden via CACHE_DIR env var.
+    CACHE_DIR = Path(os.getenv("CACHE_DIR", str(Path(__file__).resolve().parent.parent.parent / "kite_cache_v10")))
 
     def __init__(self, api_key: str, access_token: str, rate_limit_delay: float = 0.35):
         try:

@@ -6,25 +6,34 @@ DDLJ Trading System — REST API Routes
 All REST API endpoints for controlling and monitoring the trading engine.
 
 Endpoints:
-  GET  /api/v1/status     — Engine status (capital, P&L, positions, bias)
-  GET  /api/v1/health     — Health check for Railway monitoring
-  POST /api/v1/start      — Start the trading engine
-  POST /api/v1/stop       — Stop the trading engine
-  GET  /api/v1/config     — Get current configuration
-  PUT  /api/v1/config     — Update configuration
-  POST /api/v1/token      — Exchange a Kite request token
-  GET  /api/v1/trades     — Get trade history
-  GET  /api/v1/positions  — Get current open positions
+  GET  /api/v1/status      — Engine status (capital, P&L, positions, bias)
+  GET  /api/v1/health      — Health check for Railway monitoring
+  POST /api/v1/start       — Start the trading engine
+  POST /api/v1/stop        — Stop the trading engine
+  GET  /api/v1/config      — Get current configuration
+  PUT  /api/v1/config      — Update configuration
+  POST /api/v1/token       — Exchange a Kite request token
+  GET  /api/v1/trades      — Get trade history
+  GET  /api/v1/positions   — Get current open positions
+  GET  /api/v1/token/status — Get Kite token status
+  GET  /api/v1/token/login  — Get Kite login URL
 
 Author: DDLJ Strategy Team
-Version: 10.0.0
+Version: 10.1.0
 """
 
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
+
+from api.deps import get_engine_manager
+from services.engine_manager import EngineManager
+from core.exceptions import (
+    EngineAlreadyRunningError, EngineNotRunningError,
+    TokenExchangeError, error_to_response,
+)
 
 log = logging.getLogger("ddlj_backend")
 
@@ -74,26 +83,11 @@ class ConfigUpdateRequest(BaseModel):
 
 
 # ══════════════════════════════════════════════════════════════════
-# HELPER — Get the engine manager from the app state
-# ══════════════════════════════════════════════════════════════════
-
-def get_engine_manager():
-    """
-    Get the global EngineManager instance.
-
-    This is a simple dependency injection. In the future, we can
-    replace this with FastAPI's Depends() for proper DI.
-    """
-    from main import engine_manager
-    return engine_manager
-
-
-# ══════════════════════════════════════════════════════════════════
 # ENDPOINTS
 # ══════════════════════════════════════════════════════════════════
 
 @router.get("/status")
-async def get_status():
+async def get_status(mgr: EngineManager = Depends(get_engine_manager)):
     """
     Get the current trading engine status.
 
@@ -106,12 +100,11 @@ async def get_status():
     - Token status
     - Uptime and error count
     """
-    mgr = get_engine_manager()
     return mgr.get_status()
 
 
 @router.get("/health")
-async def health_check():
+async def health_check(mgr: EngineManager = Depends(get_engine_manager)):
     """
     Health check endpoint for Railway monitoring.
 
@@ -119,38 +112,48 @@ async def health_check():
     is alive. If this returns non-200, Railway restarts the server.
 
     Returns:
-        - "healthy" if the server is running and engine is initialized
-        - "degraded" if running but engine has errors
+        - "healthy" if all critical components are working
+        - "degraded" if running but some components have issues
         - "unhealthy" if critical components are down
     """
-    mgr = get_engine_manager()
-    status = mgr.get_status()
+    # Use the health monitor if available
+    from fastapi import Request
+    # Try to get health monitor from app state
+    try:
+        # We need to access app.state, but we're in a route.
+        # Use a simple approach: check engine manager status
+        status = mgr.get_status()
 
-    # Determine health status
-    if not status.get("initialized", False):
-        return {"status": "unhealthy", "reason": "Engine manager not initialized"}
+        # Determine health status
+        if not status.get("initialized", False):
+            return {"status": "unhealthy", "reason": "Engine manager not initialized"}
 
-    if status.get("error_count", 0) > 5:
-        return {"status": "degraded", "reason": f"Too many errors: {status['error_count']}"}
+        if status.get("error_count", 0) > 5:
+            return {"status": "degraded", "reason": f"Too many errors: {status['error_count']}"}
 
-    # Check token status
-    token = status.get("token", {})
-    if not token.get("stored", False):
+        # Check token status
+        token = status.get("token", {})
+        if not token.get("stored", False):
+            return {
+                "status": "degraded",
+                "reason": "No Kite access token — engine cannot connect to API",
+                "action": "Provide a request token via POST /api/v1/token",
+            }
+
         return {
-            "status": "degraded",
-            "reason": "No Kite access token — engine cannot connect to API",
-            "action": "Provide a request token via POST /api/v1/token",
+            "status": "healthy",
+            "engine_running": status.get("engine_running", False),
+            "token_valid": token.get("valid", False),
         }
-
-    return {
-        "status": "healthy",
-        "engine_running": status.get("engine_running", False),
-        "token_valid": token.get("valid", False),
-    }
+    except Exception as e:
+        return {"status": "unhealthy", "reason": str(e)}
 
 
 @router.post("/start")
-async def start_engine(request: StartEngineRequest = None):
+async def start_engine(
+    request: StartEngineRequest = None,
+    mgr: EngineManager = Depends(get_engine_manager),
+):
     """
     Start the trading engine.
 
@@ -162,8 +165,6 @@ async def start_engine(request: StartEngineRequest = None):
 
     Optional: Pass config_override to customize parameters for this session.
     """
-    mgr = get_engine_manager()
-
     config_override = None
     if request and request.config_override:
         config_override = request.config_override
@@ -171,14 +172,14 @@ async def start_engine(request: StartEngineRequest = None):
     try:
         result = mgr.start_engine(config_override=config_override)
         return result
-    except RuntimeError as e:
-        raise HTTPException(status_code=409, detail=str(e))
+    except EngineAlreadyRunningError as e:
+        raise HTTPException(status_code=409, detail=error_to_response(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start engine: {e}")
 
 
 @router.post("/stop")
-async def stop_engine():
+async def stop_engine(mgr: EngineManager = Depends(get_engine_manager)):
     """
     Stop the trading engine gracefully.
 
@@ -188,12 +189,11 @@ async def stop_engine():
     3. Close any open positions (force close)
     4. Exit the main loop
     """
-    mgr = get_engine_manager()
     return mgr.stop_engine()
 
 
 @router.get("/config")
-async def get_config():
+async def get_config(mgr: EngineManager = Depends(get_engine_manager)):
     """
     Get the current engine configuration.
 
@@ -201,12 +201,14 @@ async def get_config():
     If the engine is running, returns the live config.
     Otherwise, returns the default config with any stored overrides.
     """
-    mgr = get_engine_manager()
     return mgr.get_config()
 
 
 @router.put("/config")
-async def update_config(request: ConfigUpdateRequest):
+async def update_config(
+    request: ConfigUpdateRequest,
+    mgr: EngineManager = Depends(get_engine_manager),
+):
     """
     Update engine configuration.
 
@@ -215,12 +217,14 @@ async def update_config(request: ConfigUpdateRequest):
 
     Returns which parameters were updated live vs which need restart.
     """
-    mgr = get_engine_manager()
     return mgr.update_config(request.updates)
 
 
 @router.post("/token")
-async def exchange_token(request: TokenExchangeRequest):
+async def exchange_token(
+    request: TokenExchangeRequest,
+    mgr: EngineManager = Depends(get_engine_manager),
+):
     """
     Exchange a Kite request token for an access token.
 
@@ -232,17 +236,46 @@ async def exchange_token(request: TokenExchangeRequest):
 
     If the engine is running, it will be restarted with the new token.
     """
-    mgr = get_engine_manager()
     result = mgr.exchange_token(request.request_token)
 
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result.get("message", "Token exchange failed"))
 
     return result
 
 
+@router.get("/token/status")
+async def get_token_status(mgr: EngineManager = Depends(get_engine_manager)):
+    """
+    Get the current Kite API token status.
+
+    Returns whether a token is stored, valid, and when it expires.
+    """
+    status = mgr.get_status()
+    return status.get("token", {"stored": False, "valid": False})
+
+
+@router.get("/token/login")
+async def get_login_url():
+    """
+    Get the Kite login URL for token generation.
+
+    Open this URL in a browser, login to Zerodha, and copy the
+    request_token from the redirect URL.
+    """
+    try:
+        from engine.token_manager import get_login_url as _get_login_url
+        return {"login_url": _get_login_url()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate login URL: {e}")
+
+
 @router.get("/trades")
-async def get_trades(limit: int = 50, offset: int = 0):
+async def get_trades(
+    limit: int = 50,
+    offset: int = 0,
+    mgr: EngineManager = Depends(get_engine_manager),
+):
     """
     Get trade history.
 
@@ -254,7 +287,6 @@ async def get_trades(limit: int = 50, offset: int = 0):
         limit (int): Maximum number of trades to return. Default: 50.
         offset (int): Number of trades to skip. Default: 0.
     """
-    mgr = get_engine_manager()
     status = mgr.get_status()
 
     # Get trades from the running engine
@@ -309,15 +341,13 @@ async def get_trades(limit: int = 50, offset: int = 0):
 
 
 @router.get("/positions")
-async def get_positions():
+async def get_positions(mgr: EngineManager = Depends(get_engine_manager)):
     """
     Get current open positions.
 
     Returns all currently open positions with their details
     including entry price, stop loss, target, and P&L estimate.
     """
-    mgr = get_engine_manager()
-
     if mgr._trader is not None and hasattr(mgr._trader, 'open_positions'):
         positions = []
         for pos in mgr._trader.open_positions:

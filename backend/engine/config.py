@@ -24,6 +24,23 @@ Version: 9.0.0 (Production — Paper Trading Ready)
 """
 
 import os
+from pathlib import Path
+
+# ============================================================================
+# 0. PATH RESOLUTION — No hardcoded paths!
+# ============================================================================
+# WHY: Hardcoded paths like "/home/z/my-project/" break on Railway/Docker.
+#      We detect the project root dynamically and derive all paths from it.
+
+def _detect_project_root() -> Path:
+    """Detect the project root directory from environment or file location."""
+    env_root = os.getenv("PROJECT_ROOT")
+    if env_root:
+        return Path(env_root).resolve()
+    # This file is at backend/engine/config.py → root is 3 levels up
+    return Path(__file__).resolve().parent.parent.parent
+
+_PROJECT_ROOT = _detect_project_root()
 
 # ============================================================================
 # 1. TRADING CAPITAL & RISK MANAGEMENT
@@ -509,17 +526,17 @@ USE_WEBSOCKET = False
 
 # --- Trade Log File (JSON) ---
 # WHY: Complete record of all paper trades in JSON format for analysis.
-TRADE_LOG_FILE = os.getenv("TRADE_LOG_FILE", "/home/z/my-project/ddlj_v9/trades_log.json")
+TRADE_LOG_FILE = os.getenv("TRADE_LOG_FILE", str(_PROJECT_ROOT / "logs" / "trades_log.json"))
 
 # --- Trade Log File (CSV) ---
 # WHY: CSV format for easy import into Excel/Google Sheets.
-TRADE_LOG_CSV = os.getenv("TRADE_LOG_CSV", "/home/z/my-project/ddlj_v9/trades_log.csv")
+TRADE_LOG_CSV = os.getenv("TRADE_LOG_CSV", str(_PROJECT_ROOT / "logs" / "trades_log.csv"))
 
 # --- Session State File ---
 # WHY: Saves current positions and state so we can resume after restart.
 #      If the script crashes or you stop it, you can restart and it picks
 #      up where it left off.
-SESSION_STATE_FILE = os.getenv("SESSION_STATE_FILE", "/home/z/my-project/ddlj_v9/session_state.json")
+SESSION_STATE_FILE = os.getenv("SESSION_STATE_FILE", str(_PROJECT_ROOT / "sessions" / "session_state.json"))
 
 # --- Log Level ---
 # DEFAULT:   "INFO"
@@ -568,29 +585,29 @@ TEST_END_DAY = 25
 
 # --- API Key ---
 # WHY: Your Kite API key from Zerodha.
-#      In v10+, this is read from environment variable KITE_API_KEY.
-#      Fallback to hardcoded value for backward compatibility.
-#      NEVER commit your API key to Git. Use .env file instead.
-KITE_API_KEY = os.getenv("KITE_API_KEY", "cjzjv3v9y3lox6mh")
+#      MUST be set via environment variable KITE_API_KEY.
+#      No hardcoded fallback — secrets should NEVER be in source code.
+#      Set it in .env (local) or Railway Environment Variables (production).
+KITE_API_KEY = os.getenv("KITE_API_KEY", "")
 
 # --- API Secret ---
 # WHY: Your API secret from Zerodha. NEVER share this publicly.
-#      In v10+, this is read from environment variable KITE_API_SECRET.
-#      Fallback to hardcoded value for backward compatibility.
-KITE_API_SECRET = os.getenv("KITE_API_SECRET", "tkg39m07fqan0h1yzirpyilmvovf9gr8")
+#      MUST be set via environment variable KITE_API_SECRET.
+#      No hardcoded fallback — secrets should NEVER be in source code.
+KITE_API_SECRET = os.getenv("KITE_API_SECRET", "")
 
 # --- Token File Path ---
 # WHY: Where to store the access token after login.
 #      The token is valid for one day and auto-refreshes.
-#      In v10+, this can be overridden via KITE_TOKEN_FILE env var.
-KITE_TOKEN_FILE = os.getenv("KITE_TOKEN_FILE", "/home/z/my-project/kite_access_token.txt")
+#      Derived from project root — no hardcoded paths.
+KITE_TOKEN_FILE = os.getenv("KITE_TOKEN_FILE", str(_PROJECT_ROOT / "kite_access_token.txt"))
 
 
 # ============================================================================
 # 14. DATA CACHE DIRECTORY
 # ============================================================================
 # WHY: Historical data is cached locally to avoid re-downloading.
-CACHE_DIR = os.getenv("CACHE_DIR", "kite_cache_v10")
+CACHE_DIR = os.getenv("CACHE_DIR", str(_PROJECT_ROOT / "kite_cache_v10"))
 
 
 # ============================================================================

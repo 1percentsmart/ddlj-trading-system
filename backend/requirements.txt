@@ -22,12 +22,19 @@ kiteconnect>=4.1.0            # Zerodha Kite Connect Python SDK
 # ── Data & Time ──
 pytz>=2024.1                  # Timezone handling
 
-# ── Database (Future — Supabase) ──
-# supabase>=2.0.0             # Supabase Python client
-# psycopg2-binary>=2.9.0      # PostgreSQL adapter
+# ── Database ──
+sqlalchemy[asyncio]>=2.0.0    # ORM with async support
+aiosqlite>=0.20.0             # Async SQLite driver (local dev fallback)
+# asyncpg>=0.29.0             # Async PostgreSQL driver (Supabase production)
+# supabase>=2.0.0             # Supabase Python client (future)
 
-# ── Notifications (Future — Telegram) ──
-# python-telegram-bot>=21.0   # Telegram bot framework
+# ── HTTP Client (Telegram notifications) ──
+httpx>=0.27.0                 # Async HTTP client for Telegram API
 
 # ── Error Tracking (Future — Sentry) ──
 # sentry-sdk[fastapi]>=2.0.0  # Error tracking
+
+# ── Testing ──
+pytest>=8.0.0                 # Testing framework
+pytest-asyncio>=0.23.0        # Async test support
+httpx>=0.27.0                 # Also used for TestClient
