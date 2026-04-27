@@ -1,0 +1,54 @@
+# ============================================================
+# DDLJ Trading System — Git Ignore
+# ============================================================
+
+# ── Environment & Secrets ──
+.env
+.env.local
+.env.production
+*.secret
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+.venv/
+
+# ── IDE ──
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+
+# ── Kite API ──
+kite_access_token.txt
+kite_cache_v10/
+
+# ── Database ──
+db/
+*.db
+*.sqlite3
+
+# ── Logs ──
+*.log
+logs/
+
+# ── Session State ──
+session_state.json
+trades_log.json
+trades_log.csv
+
+# ── Node.js (Frontend) ──
+node_modules/
+.next/
+out/

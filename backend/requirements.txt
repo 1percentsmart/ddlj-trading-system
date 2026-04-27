@@ -1,0 +1,33 @@
+# ============================================================
+# DDLJ Trading System — Python Dependencies
+# ============================================================
+# Install with: pip install -r requirements.txt
+# ============================================================
+
+# ── Web Framework ──
+fastapi>=0.110.0              # Modern async Python web framework
+uvicorn[standard]>=0.29.0     # ASGI server (runs FastAPI)
+python-multipart>=0.0.9       # File upload support for FastAPI
+websockets>=12.0              # WebSocket support
+
+# ── Environment & Config ──
+python-dotenv>=1.0.0          # Load .env files
+
+# ── Pydantic (Data Validation) ──
+pydantic>=2.0.0               # Data validation (bundled with FastAPI)
+
+# ── Kite API ──
+kiteconnect>=4.1.0            # Zerodha Kite Connect Python SDK
+
+# ── Data & Time ──
+pytz>=2024.1                  # Timezone handling
+
+# ── Database (Future — Supabase) ──
+# supabase>=2.0.0             # Supabase Python client
+# psycopg2-binary>=2.9.0      # PostgreSQL adapter
+
+# ── Notifications (Future — Telegram) ──
+# python-telegram-bot>=21.0   # Telegram bot framework
+
+# ── Error Tracking (Future — Sentry) ──
+# sentry-sdk[fastapi]>=2.0.0  # Error tracking
