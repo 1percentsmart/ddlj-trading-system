@@ -41,7 +41,13 @@ def _detect_project_root() -> Path:
 
     Priority:
       1. PROJECT_ROOT env var (set in Railway/Docker)
-      2. Parent of the directory containing this file (backend/)
+      2. Walk up from this file looking for marker files (main.py, requirements.txt)
+      3. Fallback: 2 levels up from core/config.py (backend/../ = project root)
+
+    WHY: On Railway, root directory = backend/, so this file is at /app/core/config.py.
+    Going up 2 levels gives /app which is correct and writable.
+    We also add marker-file detection for robustness in case the directory
+    structure changes.
 
     Returns:
         Path: Absolute path to the project root.
@@ -50,9 +56,18 @@ def _detect_project_root() -> Path:
     if env_root:
         return Path(env_root).resolve()
 
-    # This file is at backend/core/config.py
-    # Project root is 2 levels up
+    # Walk up from this file looking for a marker directory
     this_dir = Path(__file__).resolve().parent
+    candidate = this_dir
+    for _ in range(5):
+        # On Railway: /app has main.py and requirements.txt
+        # Locally: /home/z/my-project/ has both backend/ and frontend/
+        if (candidate / "main.py").exists() or (candidate / "requirements.txt").exists():
+            return candidate
+        candidate = candidate.parent
+
+    # Fallback: This file is at backend/core/config.py
+    # Project root is 2 levels up
     return this_dir.parent.parent  # backend/../ = project root
 
 

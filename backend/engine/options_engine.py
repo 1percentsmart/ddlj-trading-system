@@ -68,8 +68,10 @@ def load_vix_data(vix_path=None):
     """
     if vix_path is None:
         search_paths = [
-            "/home/z/my-project/download/india_vix_data.json",
+            # Portable path: engine/data/india_vix_data.json (always works)
             os.path.join(os.path.dirname(__file__), "data", "india_vix_data.json"),
+            # Environment-based path for custom locations
+            os.path.join(os.getenv("PROJECT_ROOT", ""), "download", "india_vix_data.json"),
         ]
         for p in search_paths:
             if os.path.exists(p):

@@ -170,7 +170,11 @@ def main():
         "method_b_monthly_batch": results_b,
     }
 
-    output_path = "/home/z/my-project/download/v9_backtest_results.json"
+    # Resolve output path dynamically (works on both local dev and Railway)
+    _project_root = os.getenv("PROJECT_ROOT", os.path.join(os.path.dirname(__file__), "..", ".."))
+    output_dir = os.path.join(_project_root, "download")
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, "v9_backtest_results.json")
     with open(output_path, "w") as f:
         json.dump(output, f, indent=2, default=str)
     log.info("Results saved to %s", output_path)

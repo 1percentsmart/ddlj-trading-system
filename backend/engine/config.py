@@ -33,11 +33,31 @@ from pathlib import Path
 #      We detect the project root dynamically and derive all paths from it.
 
 def _detect_project_root() -> Path:
-    """Detect the project root directory from environment or file location."""
+    """Detect the project root directory from environment or file location.
+
+    Priority:
+      1. PROJECT_ROOT env var (set on Railway/Docker)
+      2. Walk up from this file looking for marker files (main.py, requirements.txt)
+      3. Fallback: 3 levels up (local dev: backend/engine/config.py → project root)
+
+    WHY: On Railway, root directory = backend/, so this file is at /app/engine/config.py.
+    Going up 3 levels would give '/' (filesystem root) which is not writable.
+    We use marker file detection instead to find the correct root.
+    """
     env_root = os.getenv("PROJECT_ROOT")
     if env_root:
         return Path(env_root).resolve()
-    # This file is at backend/engine/config.py → root is 3 levels up
+
+    # Walk up from this file looking for a marker directory
+    candidate = Path(__file__).resolve().parent
+    for _ in range(5):
+        # On Railway: /app has main.py and requirements.txt
+        # Locally: /home/z/my-project/ has both backend/ and frontend/
+        if (candidate / "main.py").exists() or (candidate / "requirements.txt").exists():
+            return candidate
+        candidate = candidate.parent
+
+    # Fallback: 3 levels up (local dev structure)
     return Path(__file__).resolve().parent.parent.parent
 
 _PROJECT_ROOT = _detect_project_root()

@@ -63,12 +63,37 @@ log = logging.getLogger("ddlj_backend.session_recovery")
 # CONSTANTS
 # ============================================================================
 
-# Use /app/sessions on Railway (PROJECT_ROOT=/app) or local backend/sessions
-_PROJECT_ROOT = os.getenv("PROJECT_ROOT", str(Path(__file__).resolve().parent.parent.parent))
-SESSION_STATE_FILE = os.getenv(
-    "SESSION_STATE_FILE",
-    str(Path(_PROJECT_ROOT) / "sessions" / "session_state.json"),
-)
+# Use core.config for path resolution — it handles Railway (/app) vs local dev
+def _get_session_state_file() -> str:
+    """Resolve session state file path using core.config's PROJECT_ROOT.
+
+    WHY: On Railway, the app runs from /app (root dir = backend/).
+    Path(__file__).parent.parent.parent would resolve to '/' which is
+    not writable. core.config._detect_project_root() handles this
+    correctly by going up only 2 levels from core/config.py.
+    """
+    env_val = os.getenv("SESSION_STATE_FILE")
+    if env_val:
+        return env_val
+    try:
+        from core.config import SESSION_DIR
+        return str(SESSION_DIR / "session_state.json")
+    except ImportError:
+        pass
+    # Fallback: detect project root with marker file check
+    env_root = os.getenv("PROJECT_ROOT")
+    if env_root:
+        return str(Path(env_root) / "sessions" / "session_state.json")
+    # Walk up from this file looking for a marker directory
+    candidate = Path(__file__).resolve().parent
+    for _ in range(5):
+        if (candidate / "main.py").exists() or (candidate / "requirements.txt").exists():
+            return str(candidate / "sessions" / "session_state.json")
+        candidate = candidate.parent
+    # Last resort: use /tmp (always writable)
+    return str(Path(os.environ.get("TMPDIR", "/tmp")) / "ddlj_sessions" / "session_state.json")
+
+SESSION_STATE_FILE = _get_session_state_file()
 """Path to the session state JSON file."""
 
 CLEAN_SHUTDOWN_FLAG = "clean_shutdown"

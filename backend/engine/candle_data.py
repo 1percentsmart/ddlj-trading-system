@@ -162,7 +162,7 @@ def parse_candles(raw, symbol, tf="15m"):
     return out
 
 
-def load_cached_data(tokens, interval, cache_dir="/home/z/my-project/kite_cache_v10"):
+def load_cached_data(tokens, interval, cache_dir=None):
     """
     Load and merge cached candle data for multiple instrument tokens.
 
@@ -170,10 +170,13 @@ def load_cached_data(tokens, interval, cache_dir="/home/z/my-project/kite_cache_
         tokens (list[int]): List of instrument tokens to search for.
         interval (str): Kite API interval string (e.g., "15minute").
         cache_dir (str): Directory containing cached data files.
+            Defaults to CACHE_DIR from config (no hardcoded paths).
 
     Returns:
         list[dict]: Merged and deduplicated raw candle data.
     """
+    if cache_dir is None:
+        cache_dir = os.getenv("CACHE_DIR", os.path.join(os.path.dirname(__file__), "..", "..", "kite_cache_v10"))
     all_data = []
 
     if not os.path.exists(cache_dir):

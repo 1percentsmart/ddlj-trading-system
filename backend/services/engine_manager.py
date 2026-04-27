@@ -95,7 +95,14 @@ class EngineManager:
             log.warning("  The engine will NOT start until these are set.")
 
         # Check if Kite token file exists
-        token_file = os.getenv("KITE_TOKEN_FILE", "/home/z/my-project/kite_access_token.txt")
+        # Use core.config for path resolution (handles Railway /app vs local dev)
+        try:
+            from core.config import KITE_TOKEN_FILE as _default_token_file
+        except ImportError:
+            _default_token_file = os.path.join(
+                os.path.dirname(__file__), "..", "kite_access_token.txt"
+            )
+        token_file = os.getenv("KITE_TOKEN_FILE", _default_token_file)
         if os.path.exists(token_file):
             try:
                 with open(token_file) as f:
