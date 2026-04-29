@@ -1,13 +1,32 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDDLJStore } from '@/lib/store';
 import { formatCurrency, pnlColor } from '@/lib/utils';
 import SummaryCard from './summary-card';
 import { PnlChart } from './pnl-chart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Circle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Circle, RefreshCw } from 'lucide-react';
+
+function DashboardSkeleton() {
+  return (
+    <div className="mx-auto max-w-6xl space-y-6 p-4">
+      <div className="h-10 w-64 animate-pulse rounded-xl bg-secondary/60" />
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((item) => (
+          <div key={item} className="h-28 animate-pulse rounded-xl border border-border/60 bg-card/60" />
+        ))}
+      </div>
+      <div className="h-64 animate-pulse rounded-xl border border-border/60 bg-card/60" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="h-64 animate-pulse rounded-xl border border-border/60 bg-card/60" />
+        <div className="h-64 animate-pulse rounded-xl border border-border/60 bg-card/60" />
+      </div>
+    </div>
+  );
+}
 
 export function DashboardPhaseA() {
   const {
@@ -20,20 +39,40 @@ export function DashboardPhaseA() {
     fetchPositions,
   } = useDDLJStore();
 
-  useEffect(() => {
-    fetchStatus();
-    fetchTrades();
-    fetchPositions();
-  }, [fetchStatus, fetchTrades, fetchPositions]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const totalPnl = trades.reduce((sum, trade) => sum + Number(trade.net || 0), 0);
-  const day = new Date().toISOString().slice(0, 10);
-  const dayPnl = trades
-    .filter((trade) => trade.exit_time?.startsWith(day))
-    .reduce((sum, trade) => sum + Number(trade.net || 0), 0);
-  const wins = trades.filter((trade) => Number(trade.net || 0) > 0).length;
-  const losses = trades.filter((trade) => Number(trade.net || 0) < 0).length;
-  const winRate = trades.length ? ((wins / trades.length) * 100).toFixed(1) : '—';
+  const refresh = async () => {
+    setError(null);
+    try {
+      await Promise.all([fetchStatus(), fetchTrades(), fetchPositions()]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to refresh dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const stats = useMemo(() => {
+    const totalPnl = trades.reduce((sum, trade) => sum + Number(trade.net || 0), 0);
+    const day = new Date().toISOString().slice(0, 10);
+    const dayPnl = trades
+      .filter((trade) => trade.exit_time?.startsWith(day))
+      .reduce((sum, trade) => sum + Number(trade.net || 0), 0);
+    const wins = trades.filter((trade) => Number(trade.net || 0) > 0).length;
+    const losses = trades.filter((trade) => Number(trade.net || 0) < 0).length;
+    const winRate = trades.length ? ((wins / trades.length) * 100).toFixed(1) : '—';
+    return { totalPnl, dayPnl, wins, losses, winRate };
+  }, [trades]);
+
+  if (loading && trades.length === 0 && positions.length === 0) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4">
@@ -52,13 +91,26 @@ export function DashboardPhaseA() {
             {engineStatus.engine_running ? 'Engine running' : 'Engine stopped'}
           </Badge>
           <Badge variant="outline">Token {engineStatus.token.valid ? 'valid' : 'invalid'}</Badge>
+          <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={refresh} disabled={loading}>
+            <RefreshCw className={loading ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
+            Refresh
+          </Button>
         </div>
       </div>
 
+      {error ? (
+        <Card className="border-red-500/40 bg-red-500/10">
+          <CardContent className="flex items-center justify-between gap-3 p-4 text-sm text-red-300">
+            <span>{error}</span>
+            <Button size="sm" variant="outline" onClick={refresh}>Retry</Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <SummaryCard title="Total P&L" value={formatCurrency(totalPnl)} valueClass={pnlColor(totalPnl)} />
-        <SummaryCard title="Day P&L" value={formatCurrency(dayPnl)} valueClass={pnlColor(dayPnl)} />
-        <SummaryCard title="Win Rate" value={winRate === '—' ? '—' : `${winRate}%`} sub={trades.length ? `${wins}W / ${losses}L` : 'No closed trades'} />
+        <SummaryCard title="Total P&L" value={formatCurrency(stats.totalPnl)} valueClass={pnlColor(stats.totalPnl)} />
+        <SummaryCard title="Day P&L" value={formatCurrency(stats.dayPnl)} valueClass={pnlColor(stats.dayPnl)} />
+        <SummaryCard title="Win Rate" value={stats.winRate === '—' ? '—' : `${stats.winRate}%`} sub={trades.length ? `${stats.wins}W / ${stats.losses}L` : 'No closed trades'} />
         <SummaryCard title="Open Positions" value={positions.length} sub={`${trades.length} closed trades`} />
       </div>
 
