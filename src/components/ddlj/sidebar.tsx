@@ -77,13 +77,18 @@ function SidebarContent({ onNavigate, onToggleCollapse, isCollapsed }: {
       ],
     },
     {
-      title: 'Coming Soon',
+      title: 'Analysis',
       items: [
-        { id: 'backtest', label: 'Backtest', icon: <FlaskConical className="h-4 w-4" />, disabled: true },
-        { id: 'options', label: 'Options Chain', icon: <TrendingUp className="h-4 w-4" />, disabled: true },
-        { id: 'risk', label: 'Risk', icon: <Shield className="h-4 w-4" />, disabled: true },
-        { id: 'alerts', label: 'Alerts', icon: <Bell className="h-4 w-4" />, disabled: true },
-        { id: 'journal', label: 'Journal', icon: <BookOpen className="h-4 w-4" />, disabled: true },
+        { id: 'backtest', label: 'Backtest', icon: <FlaskConical className="h-4 w-4" /> },
+        { id: 'options', label: 'Options Chain', icon: <TrendingUp className="h-4 w-4" /> },
+        { id: 'risk', label: 'Risk', icon: <Shield className="h-4 w-4" /> },
+      ],
+    },
+    {
+      title: 'Logs',
+      items: [
+        { id: 'alerts', label: 'Alerts', icon: <Bell className="h-4 w-4" /> },
+        { id: 'journal', label: 'Journal', icon: <BookOpen className="h-4 w-4" /> },
       ],
     },
   ];
