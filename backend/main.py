@@ -67,6 +67,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import router
+from api.routes_live_safety import router as live_safety_router
 from api.websocket import ws_router
 
 # ── Import services ──
@@ -459,6 +460,7 @@ app.add_middleware(
 
 # ── Register routes ──
 app.include_router(router, prefix="/api/v1", tags=["Trading Engine"])
+app.include_router(live_safety_router, prefix="/api/v1")
 
 if ENABLE_WEBSOCKET:
     app.include_router(ws_router, prefix="/ws", tags=["WebSocket"])

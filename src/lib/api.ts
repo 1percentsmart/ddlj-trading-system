@@ -42,7 +42,7 @@ export interface TradesResponse {
 }
 
 export interface Trade {
-  id: string;
+  id?: string;
   symbol: string;
   direction: 'LONG' | 'SHORT';
   entry: number;
@@ -74,7 +74,7 @@ export interface PositionsResponse {
 }
 
 export interface Position {
-  id: string;
+  id?: string;
   symbol: string;
   direction: 'LONG' | 'SHORT';
   entry: number;

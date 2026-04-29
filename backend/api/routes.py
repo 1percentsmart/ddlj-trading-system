@@ -159,8 +159,9 @@ async def get_trades(limit: int = 50, offset: int = 0, mgr: EngineManager = Depe
         total = len(trades)
         paginated = trades[offset:offset + limit]
         trade_list = []
-        for t in paginated:
+        for idx, t in enumerate(paginated):
             trade_dict = {
+                "id": str(idx + offset),
                 "symbol": t.symbol,
                 "direction": t.direction,
                 "entry": t.entry,
@@ -197,8 +198,9 @@ async def get_trades(limit: int = 50, offset: int = 0, mgr: EngineManager = Depe
 async def get_positions(mgr: EngineManager = Depends(get_engine_manager)):
     if mgr._trader is not None and hasattr(mgr._trader, 'open_positions'):
         positions = []
-        for pos in mgr._trader.open_positions:
+        for idx, pos in enumerate(mgr._trader.open_positions):
             positions.append({
+                "id": str(idx),
                 "symbol": pos.symbol,
                 "direction": pos.direction,
                 "entry": pos.entry,
