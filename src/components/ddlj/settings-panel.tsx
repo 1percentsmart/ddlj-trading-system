@@ -3,7 +3,8 @@
 /**
  * DDLJ Settings Panel
  * ====================
- * Theme & layout settings accessible from topbar.
+ * Theme & layout settings accessible from topbar via a gear icon popover.
+ * Controls: theme mode, accent color, sidebar position, compact mode, number format.
  */
 
 import { useDDLJStore, type AccentColor } from '@/lib/store';
@@ -32,7 +33,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Accent color → CSS variable mapping
+// ── Accent color → CSS variable mapping ─────────────────────────
 const accentColorMap: Record<AccentColor, { hsl: string; css: Record<string, string> }> = {
   emerald: {
     hsl: '160 84% 39%',
@@ -41,7 +42,6 @@ const accentColorMap: Record<AccentColor, { hsl: string; css: Record<string, str
       '--primary-foreground': '0 0% 100%',
       '--ring': '160 84% 39%',
       '--accent': '160 84% 39%',
-      '--accent-foreground': '0 0% 100%',
     },
   },
   blue: {
@@ -51,7 +51,6 @@ const accentColorMap: Record<AccentColor, { hsl: string; css: Record<string, str
       '--primary-foreground': '0 0% 100%',
       '--ring': '217 91% 60%',
       '--accent': '217 91% 60%',
-      '--accent-foreground': '0 0% 100%',
     },
   },
   purple: {
@@ -61,7 +60,6 @@ const accentColorMap: Record<AccentColor, { hsl: string; css: Record<string, str
       '--primary-foreground': '0 0% 100%',
       '--ring': '271 91% 65%',
       '--accent': '271 91% 65%',
-      '--accent-foreground': '0 0% 100%',
     },
   },
   amber: {
@@ -71,7 +69,6 @@ const accentColorMap: Record<AccentColor, { hsl: string; css: Record<string, str
       '--primary-foreground': '0 0% 100%',
       '--ring': '38 92% 50%',
       '--accent': '38 92% 50%',
-      '--accent-foreground': '0 0% 100%',
     },
   },
   red: {
@@ -81,17 +78,32 @@ const accentColorMap: Record<AccentColor, { hsl: string; css: Record<string, str
       '--primary-foreground': '0 0% 100%',
       '--ring': '0 84% 60%',
       '--accent': '0 84% 60%',
-      '--accent-foreground': '0 0% 100%',
     },
   },
 };
 
+// ── CSS helpers ──────────────────────────────────────────────────
 function applyAccentColor(color: AccentColor) {
   const mapping = accentColorMap[color];
   if (!mapping) return;
   const root = document.documentElement;
   for (const [prop, value] of Object.entries(mapping.css)) {
     root.style.setProperty(prop, value);
+  }
+}
+
+function applyThemeMode(mode: 'dark' | 'light' | 'system') {
+  if (mode === 'dark') {
+    document.documentElement.classList.add('dark');
+  } else if (mode === 'light') {
+    document.documentElement.classList.remove('dark');
+  } else {
+    // system
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }
 }
 
@@ -103,14 +115,16 @@ function applyCompactMode(enabled: boolean) {
   }
 }
 
-const accentColors: { name: string; value: AccentColor; color: string; tw: string }[] = [
-  { name: 'Emerald', value: 'emerald', color: '#22c55e', tw: 'bg-emerald-500' },
-  { name: 'Blue', value: 'blue', color: '#3b82f6', tw: 'bg-blue-500' },
-  { name: 'Purple', value: 'purple', color: '#a855f7', tw: 'bg-purple-500' },
-  { name: 'Amber', value: 'amber', color: '#f59e0b', tw: 'bg-amber-500' },
-  { name: 'Red', value: 'red', color: '#ef4444', tw: 'bg-red-500' },
+// ── Accent color display config ──────────────────────────────────
+const accentColors: { name: string; value: AccentColor; tw: string }[] = [
+  { name: 'Emerald', value: 'emerald', tw: 'bg-emerald-500' },
+  { name: 'Blue', value: 'blue', tw: 'bg-blue-500' },
+  { name: 'Purple', value: 'purple', tw: 'bg-purple-500' },
+  { name: 'Amber', value: 'amber', tw: 'bg-amber-500' },
+  { name: 'Red', value: 'red', tw: 'bg-red-500' },
 ];
 
+// ── Component ────────────────────────────────────────────────────
 export function SettingsPanel() {
   const {
     theme,
@@ -124,12 +138,17 @@ export function SettingsPanel() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+        >
           <Settings className="h-4 w-4" />
+          <span className="sr-only">Settings</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="end">
-        <Card className="bg-popover border-0 shadow-none">
+        <Card className="border-0 shadow-none">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <Palette className="h-4 w-4" /> Display Settings
@@ -139,7 +158,7 @@ export function SettingsPanel() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Theme Mode */}
+            {/* ── Theme Mode ─────────────────────────────────── */}
             <div className="space-y-2">
               <Label className="text-xs">Theme</Label>
               <div className="grid grid-cols-3 gap-2">
@@ -155,17 +174,7 @@ export function SettingsPanel() {
                     className="gap-1.5 text-xs"
                     onClick={() => {
                       setThemeMode(mode.value);
-                      if (mode.value === 'dark') {
-                        document.documentElement.classList.add('dark');
-                      } else if (mode.value === 'light') {
-                        document.documentElement.classList.remove('dark');
-                      } else {
-                        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                          document.documentElement.classList.add('dark');
-                        } else {
-                          document.documentElement.classList.remove('dark');
-                        }
-                      }
+                      applyThemeMode(mode.value);
                       toast.success(`Theme set to ${mode.label}`);
                     }}
                   >
@@ -177,7 +186,7 @@ export function SettingsPanel() {
 
             <Separator />
 
-            {/* Accent Color */}
+            {/* ── Accent Color ───────────────────────────────── */}
             <div className="space-y-2">
               <Label className="text-xs">Accent Color</Label>
               <div className="flex items-center gap-2">
@@ -196,9 +205,17 @@ export function SettingsPanel() {
                         ? 'border-white ring-2 ring-white/20 scale-110'
                         : 'border-transparent hover:scale-105'
                     )}
+                    aria-label={`Set accent color to ${color.name}`}
                   >
                     {theme.accent === color.value && (
-                      <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <svg
+                        className="w-3.5 h-3.5 text-white"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        aria-hidden="true"
+                      >
                         <path d="M5 13l4 4L19 7" />
                       </svg>
                     )}
@@ -209,7 +226,7 @@ export function SettingsPanel() {
 
             <Separator />
 
-            {/* Sidebar Position */}
+            {/* ── Sidebar Position ───────────────────────────── */}
             <div className="space-y-2">
               <Label className="text-xs">Sidebar Position</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -217,7 +234,10 @@ export function SettingsPanel() {
                   variant={theme.sidebarPosition === 'left' ? 'default' : 'outline'}
                   size="sm"
                   className="gap-1.5 text-xs"
-                  onClick={() => setSidebarPosition('left')}
+                  onClick={() => {
+                    setSidebarPosition('left');
+                    toast.success('Sidebar moved to left');
+                  }}
                 >
                   <SidebarOpen className="h-3.5 w-3.5" /> Left
                 </Button>
@@ -225,7 +245,10 @@ export function SettingsPanel() {
                   variant={theme.sidebarPosition === 'right' ? 'default' : 'outline'}
                   size="sm"
                   className="gap-1.5 text-xs"
-                  onClick={() => setSidebarPosition('right')}
+                  onClick={() => {
+                    setSidebarPosition('right');
+                    toast.success('Sidebar moved to right');
+                  }}
                 >
                   <PanelRight className="h-3.5 w-3.5" /> Right
                 </Button>
@@ -234,7 +257,7 @@ export function SettingsPanel() {
 
             <Separator />
 
-            {/* Compact Mode */}
+            {/* ── Compact Mode ───────────────────────────────── */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Minimize2 className="h-3.5 w-3.5 text-muted-foreground" />
@@ -250,17 +273,20 @@ export function SettingsPanel() {
               />
             </div>
 
-            {/* Number Format */}
+            {/* ── Number Format ──────────────────────────────── */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Hash className="h-3.5 w-3.5 text-muted-foreground" />
                 <Label className="text-xs">Number Format</Label>
               </div>
-              <Select value={theme.numberFormat} onValueChange={(v) => {
-                setNumberFormat(v as 'indian' | 'international');
-                toast.success(`Number format: ${v === 'indian' ? 'Indian' : 'International'}`);
-              }}>
-                <SelectTrigger className="w-24 h-7 text-[10px]">
+              <Select
+                value={theme.numberFormat}
+                onValueChange={(v) => {
+                  setNumberFormat(v as 'indian' | 'international');
+                  toast.success(`Number format: ${v === 'indian' ? 'Indian' : 'International'}`);
+                }}
+              >
+                <SelectTrigger className="w-28 h-7 text-[11px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

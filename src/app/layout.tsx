@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
-import { ThemeInitializer } from "@/components/ddlj/theme-initializer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,7 +29,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Inline script to set theme class before paint to avoid flash */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -54,7 +52,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground font-sans`}
       >
-        <ThemeInitializer />
         {children}
         <Toaster richColors position="bottom-right" />
       </body>

@@ -5,7 +5,6 @@
  * All endpoints match the real backend at https://ddlj.up.railway.app/api/v1
  */
 
-// ── Config ──────────────────────────────────────────────────────
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://ddlj.up.railway.app/api/v1';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'wss://ddlj.up.railway.app/ws';
 
@@ -27,7 +26,7 @@ export interface EngineStatus {
 }
 
 export interface HealthStatus {
-  status: 'healthy' | 'degraded';
+  status: 'healthy' | 'degraded' | 'unhealthy';
   reason?: string;
   action?: string;
   engine_running?: boolean;
@@ -108,6 +107,44 @@ export interface TokenLoginUrl {
   login_url: string;
 }
 
+export interface BacktestRunResult {
+  status: string;
+  message: string;
+  note?: string;
+  hint?: string;
+}
+
+export interface BacktestStatusResult {
+  status: string;
+  message?: string;
+  last_results?: {
+    version: string;
+    configs_tested: number;
+    method_a_top: Record<string, BacktestConfigResult>;
+    method_b_top: Record<string, BacktestConfigResult>;
+  };
+}
+
+export interface BacktestConfigResult {
+  label: string;
+  net_pnl: number;
+  net_pnl_pct: number;
+  win_rate: number;
+  profit_factor: number;
+  total_trades: number;
+  max_dd_pct: number;
+  sharpe_approx: number;
+  avg_trade: number;
+}
+
+export interface ReadinessCheck {
+  status: 'ready' | 'not_ready';
+  checks: Record<string, boolean>;
+  blockers: string[];
+  engine_running: boolean;
+  next_actions: string[];
+}
+
 // ── Helper ─────────────────────────────────────────────────────
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -126,13 +163,17 @@ export const engineApi = {
   getStatus: () => request<EngineStatus>('/status'),
   start: () => request<{ ok: boolean }>('/start', { method: 'POST' }),
   stop: () => request<{ ok: boolean }>('/stop', { method: 'POST' }),
+  getReadiness: () => request<ReadinessCheck>('/readiness'),
 };
 
 // ── Config ──────────────────────────────────────────────────────
 export const configApi = {
   getAll: () => request<Record<string, unknown>>('/config'),
-  update: (data: Record<string, unknown>) =>
-    request<Record<string, unknown>>('/config', { method: 'PUT', body: JSON.stringify(data) }),
+  update: (updates: Record<string, unknown>) =>
+    request<Record<string, unknown>>('/config', {
+      method: 'PUT',
+      body: JSON.stringify({ updates }),
+    }),
 };
 
 // ── Trades & Positions ──────────────────────────────────────────
@@ -159,24 +200,6 @@ export const tokenApi = {
 };
 
 // ── Backtest ──────────────────────────────────────────────────────
-export interface BacktestRunResult {
-  status: string;
-  message: string;
-  note?: string;
-  hint?: string;
-}
-
-export interface BacktestStatusResult {
-  status: string;
-  message?: string;
-  last_results?: {
-    version: string;
-    configs_tested: number;
-    method_a_top: Record<string, any>;
-    method_b_top: Record<string, any>;
-  };
-}
-
 export const backtestApi = {
   run: () =>
     request<BacktestRunResult>('/backtest/run', { method: 'POST' }),
