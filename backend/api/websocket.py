@@ -27,12 +27,19 @@ import logging
 from datetime import datetime
 
 import pytz
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request
 
 IST = pytz.timezone("Asia/Kolkata")
 log = logging.getLogger("ddlj_backend")
 
 ws_router = APIRouter()
+
+
+def _get_engine_manager():
+    """Get EngineManager from app.state — avoids circular import from main."""
+    # Import the app instance lazily to avoid circular imports
+    from main import app
+    return app.state.engine_manager
 
 
 @ws_router.websocket("/status")
@@ -57,8 +64,8 @@ async def websocket_status(websocket: WebSocket):
     log.info("WebSocket client connected")
 
     try:
-        # Send initial status
-        from main import engine_manager
+        # Send initial status via app.state (no circular import)
+        engine_manager = _get_engine_manager()
         status = engine_manager.get_status()
         await websocket.send_json({"type": "status", "data": status})
 

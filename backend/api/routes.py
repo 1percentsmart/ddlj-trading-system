@@ -217,9 +217,80 @@ async def get_positions(mgr: EngineManager = Depends(get_engine_manager)):
 
 @router.post("/backtest/run")
 async def run_backtest():
-    """Explicit placeholder until the backtest runner is wired into the API."""
+    """Run the DDLJ backtest engine and return results."""
+    import threading
+    import json
+    from pathlib import Path
+
+    log.info("Backtest: Request received — starting in background thread")
+
+    # The backtest needs a valid Kite token to fetch data
+    try:
+        from engine.token_manager import token_status
+        token_info = token_status()
+        if not token_info.get("valid", False):
+            return {
+                "status": "error",
+                "message": "Kite token is not valid. Please exchange a fresh token first via the Token page.",
+                "hint": "Tokens expire daily — visit the Token page to get a new one.",
+            }
+    except Exception as e:
+        log.warning("Backtest: Could not check token status: %s", e)
+
+    # Run backtest in a background thread so we don't block the API
+    backtest_result = {"status": "running", "message": "Backtest started"}
+
+    def _run_backtest_thread():
+        """Run backtest in a background thread."""
+        try:
+            from engine.run_backtest import main as run_bt
+            result = run_bt()
+            backtest_result["status"] = "completed"
+            backtest_result["data"] = result
+            log.info("Backtest: Completed successfully")
+        except Exception as e:
+            backtest_result["status"] = "error"
+            backtest_result["message"] = f"Backtest failed: {e}"
+            log.error("Backtest: Failed — %s", e, exc_info=True)
+
+    # Start backtest in background
+    bt_thread = threading.Thread(target=_run_backtest_thread, name="DDLJ-Backtest", daemon=True)
+    bt_thread.start()
+
     return {
-        "status": "not_implemented",
-        "message": "Backtest endpoint exists for frontend compatibility, but the backtest runner is not wired yet.",
-        "next_step": "Connect engine backtest module/service here and persist results to Supabase.",
+        "status": "started",
+        "message": "Backtest is running in the background. Results will be saved to download/v9_backtest_results.json.",
+        "note": "Check the Health page or backend logs for progress. Backtest typically takes 2-5 minutes.",
     }
+
+
+@router.get("/backtest/status")
+async def backtest_status():
+    """Check if a backtest is currently running and get last results."""
+    import json
+    from pathlib import Path
+
+    # Check for results file
+    try:
+        from core.config import PROJECT_ROOT
+        results_path = PROJECT_ROOT / "download" / "v9_backtest_results.json"
+    except Exception:
+        results_path = Path("/app/download/v9_backtest_results.json")
+
+    if results_path.exists():
+        try:
+            with open(results_path) as f:
+                data = json.load(f)
+            return {
+                "status": "completed",
+                "last_results": {
+                    "version": data.get("version", "unknown"),
+                    "configs_tested": len(data.get("method_a_compounding", {})),
+                    "method_a_top": dict(list(data.get("method_a_compounding", {}).items())[:3]),
+                    "method_b_top": dict(list(data.get("method_b_monthly_batch", {}).items())[:3]),
+                },
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Could not read results: {e}"}
+
+    return {"status": "no_results", "message": "No backtest results found. Run POST /backtest/run first."}

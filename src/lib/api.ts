@@ -157,3 +157,28 @@ export const tokenApi = {
   getStatus: () => request<TokenStatus>('/token/status'),
   getLoginUrl: () => request<TokenLoginUrl>('/token/login'),
 };
+
+// ── Backtest ──────────────────────────────────────────────────────
+export interface BacktestRunResult {
+  status: string;
+  message: string;
+  note?: string;
+  hint?: string;
+}
+
+export interface BacktestStatusResult {
+  status: string;
+  message?: string;
+  last_results?: {
+    version: string;
+    configs_tested: number;
+    method_a_top: Record<string, any>;
+    method_b_top: Record<string, any>;
+  };
+}
+
+export const backtestApi = {
+  run: () =>
+    request<BacktestRunResult>('/backtest/run', { method: 'POST' }),
+  getStatus: () => request<BacktestStatusResult>('/backtest/status'),
+};
