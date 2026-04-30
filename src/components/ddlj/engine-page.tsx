@@ -121,16 +121,22 @@ export default function EnginePage() {
 
   // ── Live uptime counter ─────────────────────────────────────
   useEffect(() => {
-    if (!engineStatus.engine_running || !engineStatus.start_time) {
-      setLiveUptime(0);
-      return;
-    }
+    if (!engineStatus.engine_running || !engineStatus.start_time) return;
     const start = new Date(engineStatus.start_time).getTime();
     const update = () => setLiveUptime(Math.floor((Date.now() - start) / 1000));
-    update();
     const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
+    // Initial update in next tick to avoid synchronous setState in effect
+    const immediate = setTimeout(update, 0);
+    return () => { clearInterval(interval); clearTimeout(immediate); };
   }, [engineStatus.engine_running, engineStatus.start_time]);
+
+  // Reset uptime when engine stops
+  useEffect(() => {
+    if (!engineStatus.engine_running) {
+      const t = setTimeout(() => setLiveUptime(0), 0);
+      return () => clearTimeout(t);
+    }
+  }, [engineStatus.engine_running]);
 
   // ── Initial data fetch ──────────────────────────────────────
   useEffect(() => {
