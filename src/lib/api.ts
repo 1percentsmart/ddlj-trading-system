@@ -140,6 +140,7 @@ export interface BacktestStatusResult {
   message?: string;
   last_results?: {
     version: string;
+    params_used?: Record<string, unknown>;
     configs_tested: number;
     method_a_top: Record<string, BacktestConfigResult>;
     method_b_top: Record<string, BacktestConfigResult>;
@@ -288,6 +289,15 @@ export interface BacktestRunParams {
   symbol?: string;
   timeframe?: string;
   method?: string;
+  from_date?: string;
+  to_date?: string;
+  capital?: number;
+  sl_atr?: number;
+  min_rr?: number;
+  moneyness?: string;
+  daily_risk_pct?: number;
+  max_open_positions?: number;
+  max_daily_trades?: number;
 }
 
 export const backtestApi = {

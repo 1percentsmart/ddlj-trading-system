@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -27,6 +29,7 @@ import {
 } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   FlaskConical,
   Play,
@@ -38,24 +41,42 @@ import {
   Clock,
   TrendingUp,
   TrendingDown,
+  Settings2,
+  Calendar,
+  RotateCcw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDDLJStore } from '@/lib/store';
 import { cn, formatCurrency, pnlColor } from '@/lib/utils';
-import { API_BASE, backtestApi, type BacktestConfigResult } from '@/lib/api';
+import { backtestApi, type BacktestConfigResult, type BacktestRunParams } from '@/lib/api';
 
 // ── Types ────────────────────────────────────────────────────────
 
 type BtStatus = 'idle' | 'running' | 'completed' | 'error';
-type SymbolOption = 'BANKNIFTY' | 'NIFTY';
-type TimeframeOption = '15m/60m' | '15m/15m';
+type SymbolOption = 'BANKNIFTY' | 'NIFTY' | 'both';
+type TimeframeOption = '15m/60m' | '15m/15m' | '5m/60m' | 'all';
 type MethodOption = 'method_a' | 'method_b' | 'both';
+type MoneynessOption = 'ITM' | 'ATM' | 'DEEP_ITM';
 
 interface FlattenedResult {
   key: string;
   method: string;
   config: BacktestConfigResult;
 }
+
+// ── Default backtest params (matching engine/config.py) ───────────
+
+const DEFAULT_PARAMS = {
+  capital: 50000,
+  sl_atr: 2.0,
+  min_rr: 1.5,
+  daily_risk_pct: 6.0,
+  max_open_positions: 2,
+  max_daily_trades: 4,
+};
+
+const DEFAULT_FROM_DATE = '2025-11-01';
+const DEFAULT_TO_DATE = '2026-04-25';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -121,12 +142,12 @@ function RunningState() {
           Backtest is running...
         </h3>
         <p className="mt-1 max-w-md text-sm text-muted-foreground">
-          Check backend logs for progress. Results will appear automatically
-          once the backtest completes.
+          The engine is processing historical data with your parameters.
+          Results will appear automatically once complete.
         </p>
         <Progress className="mt-4 h-1.5 w-64" value={undefined} />
         <p className="mt-2 text-xs text-muted-foreground/60">
-          Polling for status every 30 seconds
+          Polling for status every 15 seconds
         </p>
       </CardContent>
     </Card>
@@ -151,98 +172,100 @@ function ResultsTable({ results }: { results: FlattenedResult[] }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="px-0 pb-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="pl-4">Config</TableHead>
-              <TableHead>Method</TableHead>
-              <TableHead className="text-right">Net P&L</TableHead>
-              <TableHead className="text-right">P&L %</TableHead>
-              <TableHead className="text-right">Win Rate</TableHead>
-              <TableHead className="text-right">Profit Factor</TableHead>
-              <TableHead className="text-right">Trades</TableHead>
-              <TableHead className="text-right">Max DD %</TableHead>
-              <TableHead className="text-right pr-4">Sharpe</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {results.map((r) => {
-              const c = r.config;
-              return (
-                <TableRow key={r.key}>
-                  <TableCell className="pl-4 font-medium text-sm">
-                    {c.label || r.key}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="pl-4">Config</TableHead>
+                <TableHead>Method</TableHead>
+                <TableHead className="text-right">Net P&L</TableHead>
+                <TableHead className="text-right">P&L %</TableHead>
+                <TableHead className="text-right">Win Rate</TableHead>
+                <TableHead className="text-right">Profit Factor</TableHead>
+                <TableHead className="text-right">Trades</TableHead>
+                <TableHead className="text-right">Max DD %</TableHead>
+                <TableHead className="text-right pr-4">Sharpe</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {results.map((r) => {
+                const c = r.config;
+                return (
+                  <TableRow key={r.key}>
+                    <TableCell className="pl-4 font-medium text-sm">
+                      {c.label || r.key}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'text-[10px] border-0',
+                          r.method.includes('A')
+                            ? 'bg-emerald-500/10 text-emerald-400'
+                            : 'bg-purple-500/10 text-purple-400'
+                        )}
+                      >
+                        {r.method}
+                      </Badge>
+                    </TableCell>
+                    <TableCell
                       className={cn(
-                        'text-[10px] border-0',
-                        r.method.includes('A')
-                          ? 'bg-emerald-500/10 text-emerald-400'
-                          : 'bg-purple-500/10 text-purple-400'
+                        'text-right font-semibold tabular-nums',
+                        pnlColor(c.net_pnl)
                       )}
                     >
-                      {r.method}
-                    </Badge>
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      'text-right font-semibold tabular-nums',
-                      pnlColor(c.net_pnl)
-                    )}
-                  >
-                    {c.net_pnl >= 0 ? '+' : ''}
-                    {formatCurrency(c.net_pnl)}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      'text-right tabular-nums',
-                      pnlColor(c.net_pnl_pct)
-                    )}
-                  >
-                    {c.net_pnl_pct >= 0 ? '+' : ''}
-                    {c.net_pnl_pct.toFixed(2)}%
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {c.win_rate.toFixed(1)}%
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      'text-right tabular-nums',
-                      c.profit_factor >= 1.5
-                        ? 'text-emerald-400'
-                        : c.profit_factor >= 1
-                          ? 'text-amber-400'
-                          : 'text-red-400'
-                    )}
-                  >
-                    {c.profit_factor.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {c.total_trades}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      'text-right tabular-nums',
-                      ddColor(c.max_dd_pct)
-                    )}
-                  >
-                    {c.max_dd_pct.toFixed(2)}%
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      'text-right tabular-nums pr-4',
-                      sharpeColor(c.sharpe_approx)
-                    )}
-                  >
-                    {c.sharpe_approx.toFixed(2)}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                      {c.net_pnl >= 0 ? '+' : ''}
+                      {formatCurrency(c.net_pnl)}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'text-right tabular-nums',
+                        pnlColor(c.net_pnl_pct)
+                      )}
+                    >
+                      {c.net_pnl_pct >= 0 ? '+' : ''}
+                      {c.net_pnl_pct.toFixed(2)}%
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {c.win_rate.toFixed(1)}%
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'text-right tabular-nums',
+                        c.profit_factor >= 1.5
+                          ? 'text-emerald-400'
+                          : c.profit_factor >= 1
+                            ? 'text-amber-400'
+                            : 'text-red-400'
+                      )}
+                    >
+                      {c.profit_factor.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {c.total_trades}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'text-right tabular-nums',
+                        ddColor(c.max_dd_pct)
+                      )}
+                    >
+                      {c.max_dd_pct.toFixed(2)}%
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'text-right tabular-nums pr-4',
+                        sharpeColor(c.sharpe_approx)
+                      )}
+                    >
+                      {c.sharpe_approx.toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   );
@@ -262,6 +285,17 @@ export default function BacktestPage() {
   const [symbol, setSymbol] = useState<SymbolOption>('BANKNIFTY');
   const [timeframe, setTimeframe] = useState<TimeframeOption>('15m/60m');
   const [method, setMethod] = useState<MethodOption>('both');
+  const [fromDate, setFromDate] = useState(DEFAULT_FROM_DATE);
+  const [toDate, setToDate] = useState(DEFAULT_TO_DATE);
+  const [capital, setCapital] = useState(DEFAULT_PARAMS.capital.toString());
+  const [slAtr, setSlAtr] = useState(DEFAULT_PARAMS.sl_atr.toString());
+  const [minRr, setMinRr] = useState(DEFAULT_PARAMS.min_rr.toString());
+  const [dailyRiskPct, setDailyRiskPct] = useState(DEFAULT_PARAMS.daily_risk_pct.toString());
+  const [maxOpenPositions, setMaxOpenPositions] = useState(DEFAULT_PARAMS.max_open_positions.toString());
+  const [maxDailyTrades, setMaxDailyTrades] = useState(DEFAULT_PARAMS.max_daily_trades.toString());
+  const [moneyness, setMoneyness] = useState<MoneynessOption>('ITM');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   const [isRunning, setIsRunning] = useState(false);
   const [errorFlag, setErrorFlag] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -280,12 +314,10 @@ export default function BacktestPage() {
 
   const hasResults = flattenedResults.length > 0;
 
-  // ── Derive btStatus from store + local flags (no setState in effect) ──
+  // ── Derive btStatus ──
   const btStatus: BtStatus = useMemo(() => {
     if (errorFlag) return 'error';
     if (isRunning) return 'running';
-    // Backend never returns 'running' from /backtest/status — it returns
-    // 'completed', 'error', or 'no_results'. Use isRunning flag instead.
     if (backtestStatus?.last_results) return 'completed';
     return 'idle';
   }, [isRunning, errorFlag, backtestStatus]);
@@ -301,7 +333,6 @@ export default function BacktestPage() {
     pollRef.current = setInterval(async () => {
       try {
         await fetchBacktestStatus();
-        // Check if status changed to completed
         const latest = await backtestApi.getStatus();
         if (latest.status === 'completed' || latest.status === 'error' || latest.status === 'no_results') {
           setIsRunning(false);
@@ -319,7 +350,7 @@ export default function BacktestPage() {
       } catch {
         // Silently ignore polling errors
       }
-    }, 30_000);
+    }, 15_000);
   }, [fetchBacktestStatus]);
 
   const stopPolling = useCallback(() => {
@@ -334,13 +365,46 @@ export default function BacktestPage() {
     return () => stopPolling();
   }, [stopPolling]);
 
+  // ── Reset params to defaults ────────────────────────────────
+  const handleResetParams = useCallback(() => {
+    setFromDate(DEFAULT_FROM_DATE);
+    setToDate(DEFAULT_TO_DATE);
+    setCapital(DEFAULT_PARAMS.capital.toString());
+    setSlAtr(DEFAULT_PARAMS.sl_atr.toString());
+    setMinRr(DEFAULT_PARAMS.min_rr.toString());
+    setDailyRiskPct(DEFAULT_PARAMS.daily_risk_pct.toString());
+    setMaxOpenPositions(DEFAULT_PARAMS.max_open_positions.toString());
+    setMaxDailyTrades(DEFAULT_PARAMS.max_daily_trades.toString());
+    setMoneyness('ITM');
+    setSymbol('BANKNIFTY');
+    setTimeframe('15m/60m');
+    setMethod('both');
+    toast.info('Parameters reset to defaults');
+  }, []);
+
   // ── Handle run backtest ──────────────────────────────────────
   const handleRunBacktest = useCallback(async () => {
     try {
       setIsRunning(true);
       setErrorFlag(false);
+
+      const params: BacktestRunParams = {
+        symbol,
+        timeframe,
+        method,
+        from_date: fromDate,
+        to_date: toDate,
+        capital: parseFloat(capital) || DEFAULT_PARAMS.capital,
+        sl_atr: parseFloat(slAtr) || DEFAULT_PARAMS.sl_atr,
+        min_rr: parseFloat(minRr) || DEFAULT_PARAMS.min_rr,
+        moneyness,
+        daily_risk_pct: parseFloat(dailyRiskPct) || DEFAULT_PARAMS.daily_risk_pct,
+        max_open_positions: parseInt(maxOpenPositions) || DEFAULT_PARAMS.max_open_positions,
+        max_daily_trades: parseInt(maxDailyTrades) || DEFAULT_PARAMS.max_daily_trades,
+      };
+
       toast.info('Backtest started. This may take a few minutes...');
-      await backtestApi.run({ symbol, timeframe, method });
+      await backtestApi.run(params);
       startPolling();
     } catch (err) {
       setIsRunning(false);
@@ -350,10 +414,14 @@ export default function BacktestPage() {
       );
       stopPolling();
     }
-  }, [startPolling, stopPolling, symbol, timeframe, method]);
+  }, [startPolling, stopPolling, symbol, timeframe, method, fromDate, toDate,
+      capital, slAtr, minRr, moneyness, dailyRiskPct, maxOpenPositions, maxDailyTrades]);
 
   // ── Run button disabled logic ────────────────────────────────
   const runDisabled = !tokenValid || !isConnected || isRunning;
+
+  // ── Params used in last backtest (from backend response) ────
+  const paramsUsed = backtestStatus?.last_results?.params_used;
 
   return (
     <div className="page-enter space-y-6">
@@ -407,13 +475,12 @@ export default function BacktestPage() {
             Configuration
           </CardTitle>
           <CardDescription>
-            Set up the parameters for the backtest run. The engine will test your
-            strategy configuration against historical market data and return the
-            top-performing setups.
+            Set up the parameters for the backtest run. Date range, strategy
+            parameters, and risk settings are all configurable.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          {/* ── Config selects row ───────────────────────────────── */}
+          {/* ── Row 1: Symbol, Timeframe, Method ─────────────────── */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {/* Symbol */}
             <div className="space-y-2">
@@ -429,8 +496,9 @@ export default function BacktestPage() {
                   <SelectValue placeholder="Select symbol" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="BANKNIFTY">BANKNIFTY</SelectItem>
-                  <SelectItem value="NIFTY">NIFTY</SelectItem>
+                  <SelectItem value="BANKNIFTY">BankNifty</SelectItem>
+                  <SelectItem value="NIFTY">Nifty</SelectItem>
+                  <SelectItem value="both">Both</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -449,8 +517,10 @@ export default function BacktestPage() {
                   <SelectValue placeholder="Select timeframe" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="15m/60m">15m / 60m</SelectItem>
+                  <SelectItem value="15m/60m">15m / 60m (Recommended)</SelectItem>
                   <SelectItem value="15m/15m">15m / 15m</SelectItem>
+                  <SelectItem value="5m/60m">5m / 60m</SelectItem>
+                  <SelectItem value="all">All Combinations</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -479,19 +549,175 @@ export default function BacktestPage() {
 
           <Separator />
 
-          {/* ── Date range & token info row ─────────────────────── */}
+          {/* ── Row 2: Date Range ──────────────────────────────────── */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="size-4 text-muted-foreground" />
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Date Range
+              </label>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="from-date" className="text-xs text-muted-foreground">From Date</Label>
+                <Input
+                  id="from-date"
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  disabled={isRunning}
+                  className="font-mono text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="to-date" className="text-xs text-muted-foreground">To Date</Label>
+                <Input
+                  id="to-date"
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  disabled={isRunning}
+                  className="font-mono text-sm"
+                />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* ── Row 3: Strategy Parameters ─────────────────────────── */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Settings2 className="size-4 text-muted-foreground" />
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Strategy Parameters
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="capital" className="text-xs text-muted-foreground">Starting Capital (₹)</Label>
+                <Input
+                  id="capital"
+                  type="number"
+                  value={capital}
+                  onChange={(e) => setCapital(e.target.value)}
+                  disabled={isRunning}
+                  className="font-mono text-sm"
+                  min="10000"
+                  step="10000"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="sl-atr" className="text-xs text-muted-foreground">SL ATR Multiplier</Label>
+                <Input
+                  id="sl-atr"
+                  type="number"
+                  value={slAtr}
+                  onChange={(e) => setSlAtr(e.target.value)}
+                  disabled={isRunning}
+                  className="font-mono text-sm"
+                  min="0.5"
+                  max="5.0"
+                  step="0.1"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="min-rr" className="text-xs text-muted-foreground">Min Risk:Reward</Label>
+                <Input
+                  id="min-rr"
+                  type="number"
+                  value={minRr}
+                  onChange={(e) => setMinRr(e.target.value)}
+                  disabled={isRunning}
+                  className="font-mono text-sm"
+                  min="0.5"
+                  max="5.0"
+                  step="0.1"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="moneyness" className="text-xs text-muted-foreground">Option Moneyness</Label>
+                <Select
+                  value={moneyness}
+                  onValueChange={(v) => setMoneyness(v as MoneynessOption)}
+                  disabled={isRunning}
+                >
+                  <SelectTrigger id="moneyness">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ITM">ITM (In-The-Money)</SelectItem>
+                    <SelectItem value="ATM">ATM (At-The-Money)</SelectItem>
+                    <SelectItem value="DEEP_ITM">Deep ITM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Advanced Risk Parameters (collapsible) ────────────── */}
+          <div className="space-y-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-xs text-muted-foreground"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+            >
+              <Settings2 className="size-3.5" />
+              {showAdvanced ? 'Hide' : 'Show'} Risk Parameters
+            </Button>
+
+            {showAdvanced && (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="daily-risk" className="text-xs text-muted-foreground">Daily Risk %</Label>
+                  <Input
+                    id="daily-risk"
+                    type="number"
+                    value={dailyRiskPct}
+                    onChange={(e) => setDailyRiskPct(e.target.value)}
+                    disabled={isRunning}
+                    className="font-mono text-sm"
+                    min="1"
+                    max="15"
+                    step="0.5"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="max-positions" className="text-xs text-muted-foreground">Max Open Positions</Label>
+                  <Input
+                    id="max-positions"
+                    type="number"
+                    value={maxOpenPositions}
+                    onChange={(e) => setMaxOpenPositions(e.target.value)}
+                    disabled={isRunning}
+                    className="font-mono text-sm"
+                    min="1"
+                    max="5"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="max-trades" className="text-xs text-muted-foreground">Max Daily Trades</Label>
+                  <Input
+                    id="max-trades"
+                    type="number"
+                    value={maxDailyTrades}
+                    onChange={(e) => setMaxDailyTrades(e.target.value)}
+                    disabled={isRunning}
+                    className="font-mono text-sm"
+                    min="1"
+                    max="10"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* ── Action row ──────────────────────────────────────────── */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              {/* Date range info */}
-              <div className="flex items-center gap-2">
-                <Clock className="size-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  Nov 2025 – Apr 2026 (6 months historical data)
-                </span>
-              </div>
-
-              <Separator orientation="vertical" className="hidden h-4 sm:block" />
-
               {/* Token validity badge */}
               <Badge
                 variant="outline"
@@ -510,29 +736,48 @@ export default function BacktestPage() {
                 />
                 {tokenValid ? 'Token Valid' : 'Token Invalid'}
               </Badge>
+
+              {/* Date range summary */}
+              <span className="text-xs text-muted-foreground font-mono">
+                {fromDate} → {toDate}
+              </span>
             </div>
 
-            {/* Run Backtest button */}
-            <Button
-              className={cn(
-                'gap-2 min-w-[160px]',
-                !runDisabled && 'bg-emerald-600 hover:bg-emerald-700 text-white'
-              )}
-              onClick={handleRunBacktest}
-              disabled={runDisabled}
-            >
-              {isRunning ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Running...
-                </>
-              ) : (
-                <>
-                  <Play className="size-4 fill-current" />
-                  Run Backtest
-                </>
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Reset button */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={handleResetParams}
+                disabled={isRunning}
+              >
+                <RotateCcw className="size-3.5" />
+                Reset
+              </Button>
+
+              {/* Run Backtest button */}
+              <Button
+                className={cn(
+                  'gap-2 min-w-[160px]',
+                  !runDisabled && 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                )}
+                onClick={handleRunBacktest}
+                disabled={runDisabled}
+              >
+                {isRunning ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Running...
+                  </>
+                ) : (
+                  <>
+                    <Play className="size-4 fill-current" />
+                    Run Backtest
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* ── Disabled reasons ─────────────────────────────────── */}
@@ -551,14 +796,13 @@ export default function BacktestPage() {
             </div>
           )}
 
-          {/* ── Description ──────────────────────────────────────── */}
+          {/* ── Info note ────────────────────────────────────────── */}
           <div className="rounded-lg border bg-muted/30 p-3">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              The backtest engine replays historical candle data for the selected
-              symbol and timeframe, applying the DDLJ strategy with both Compounding
-              (Method A) and Monthly Batch (Method B) approaches. It evaluates
-              multiple configuration variants and returns the top-performing setups
-              ranked by Net P&L. Ensure your Kite token is valid before running.
+              The backtest replays historical candle data for the selected symbol and timeframe,
+              applying the DDLJ strategy with both Compounding (Method A) and Monthly Batch
+              (Method B) approaches. All parameters above are passed directly to the engine.
+              Ensure your Kite token is valid before running.
             </p>
           </div>
         </CardContent>
@@ -575,7 +819,14 @@ export default function BacktestPage() {
       {hasResults && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Summary</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium">Summary</CardTitle>
+              {paramsUsed && (
+                <Badge variant="outline" className="text-[10px] border-0 bg-muted/50">
+                  {Object.entries(paramsUsed).length} params configured
+                </Badge>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -606,18 +857,37 @@ export default function BacktestPage() {
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Best Win Rate</p>
                 <span className="text-lg font-bold text-emerald-400">
-                  {Math.max(...flattenedResults.map((r) => r.config.win_rate)).toFixed(1)}%
+                  {flattenedResults.length > 0
+                    ? Math.max(...flattenedResults.map((r) => r.config.win_rate)).toFixed(1)
+                    : '—'}%
                 </span>
               </div>
 
               {/* Best Sharpe */}
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Best Sharpe</p>
-                <span className={cn('text-lg font-bold', sharpeColor(Math.max(...flattenedResults.map((r) => r.config.sharpe_approx))))}>
-                  {Math.max(...flattenedResults.map((r) => r.config.sharpe_approx)).toFixed(2)}
+                <span className={cn('text-lg font-bold', sharpeColor(
+                  flattenedResults.length > 0
+                    ? Math.max(...flattenedResults.map((r) => r.config.sharpe_approx))
+                    : 0
+                ))}>
+                  {flattenedResults.length > 0
+                    ? Math.max(...flattenedResults.map((r) => r.config.sharpe_approx)).toFixed(2)
+                    : '—'}
                 </span>
               </div>
             </div>
+
+            {/* Params used badge */}
+            {paramsUsed && (
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {Object.entries(paramsUsed).map(([key, val]) => (
+                  <Badge key={key} variant="outline" className="text-[10px] border-0 bg-muted/40 font-mono">
+                    {key}: {String(val)}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

@@ -242,14 +242,40 @@ async def get_positions(mgr: EngineManager = Depends(get_engine_manager)):
     return {"count": 0, "positions": []}
 
 
+class BacktestRunRequest(BaseModel):
+    """Request body for running a backtest with user-configurable parameters."""
+    symbol: Optional[str] = "both"
+    timeframe: Optional[str] = "all"
+    method: Optional[str] = "both"
+    from_date: Optional[str] = None
+    to_date: Optional[str] = None
+    capital: Optional[float] = None
+    sl_atr: Optional[float] = None
+    min_rr: Optional[float] = None
+    moneyness: Optional[str] = None
+    daily_risk_pct: Optional[float] = None
+    max_open_positions: Optional[int] = None
+    max_daily_trades: Optional[int] = None
+
+
 @router.post("/backtest/run")
-async def run_backtest():
-    """Run the DDLJ backtest engine and return results."""
+async def run_backtest(request: BacktestRunRequest = None):
+    """Run the DDLJ backtest engine with user-configurable parameters."""
     import threading
     import json
     from pathlib import Path
 
-    log.info("Backtest: Request received — starting in background thread")
+    # Build params dict from request, filtering out None values
+    params = {}
+    if request:
+        for key in ["symbol", "timeframe", "method", "from_date", "to_date",
+                     "capital", "sl_atr", "min_rr", "moneyness",
+                     "daily_risk_pct", "max_open_positions", "max_daily_trades"]:
+            val = getattr(request, key, None)
+            if val is not None:
+                params[key] = val
+
+    log.info("Backtest: Request received with params=%s — starting in background thread", params)
 
     # The backtest needs a valid Kite token to fetch data
     try:
@@ -267,11 +293,11 @@ async def run_backtest():
     # Run backtest in a background thread so we don't block the API
     backtest_result = {"status": "running", "message": "Backtest started"}
 
-    def _run_backtest_thread():
+    def _run_backtest_thread(bt_params):
         """Run backtest in a background thread."""
         try:
             from engine.run_backtest import main as run_bt
-            result = run_bt()
+            result = run_bt(bt_params)
             backtest_result["status"] = "completed"
             backtest_result["data"] = result
             log.info("Backtest: Completed successfully")
@@ -281,13 +307,14 @@ async def run_backtest():
             log.error("Backtest: Failed — %s", e, exc_info=True)
 
     # Start backtest in background
-    bt_thread = threading.Thread(target=_run_backtest_thread, name="DDLJ-Backtest", daemon=True)
+    bt_thread = threading.Thread(target=_run_backtest_thread, args=(params,), name="DDLJ-Backtest", daemon=True)
     bt_thread.start()
 
     return {
         "status": "started",
-        "message": "Backtest is running in the background. Results will be saved to download/v9_backtest_results.json.",
-        "note": "Check the Health page or backend logs for progress. Backtest typically takes 2-5 minutes.",
+        "message": "Backtest is running in the background with your parameters.",
+        "params": params,
+        "note": "Results will be available at GET /backtest/status. Typically takes 2-5 minutes.",
     }
 
 
@@ -308,13 +335,19 @@ async def backtest_status():
         try:
             with open(results_path) as f:
                 data = json.load(f)
+
+            # Return FULL results — not truncated — so the frontend can display everything
+            method_a = data.get("method_a_compounding", {})
+            method_b = data.get("method_b_monthly_batch", {})
+
             return {
                 "status": "completed",
                 "last_results": {
                     "version": data.get("version", "unknown"),
-                    "configs_tested": len(data.get("method_a_compounding", {})),
-                    "method_a_top": dict(list(data.get("method_a_compounding", {}).items())[:3]),
-                    "method_b_top": dict(list(data.get("method_b_monthly_batch", {}).items())[:3]),
+                    "params_used": data.get("params_used", {}),
+                    "configs_tested": len(method_a) + len(method_b),
+                    "method_a_top": method_a,
+                    "method_b_top": method_b,
                 },
             }
         except Exception as e:
