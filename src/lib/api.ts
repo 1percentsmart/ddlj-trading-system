@@ -319,7 +319,7 @@ export interface BacktestRunParams {
   max_open_positions?: number;
   max_daily_trades?: number;
   max_daily_trades_enabled?: boolean;
-  use_sample_data?: boolean;
+  // NOTE: use_sample_data removed — always enabled as internal fallback
 }
 
 export const backtestApi = {

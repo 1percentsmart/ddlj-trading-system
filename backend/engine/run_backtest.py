@@ -126,13 +126,13 @@ def _fetch_data_if_needed(tokens, interval, from_date, to_date,
             except Exception:
                 pass
 
-    # 3. Fall back to sample data — ALWAYS try if API failed, regardless of flag
-    #    WHY: The use_sample_data flag controls whether the user WANTS sample data.
-    #    But if the API fails completely, we should ALWAYS try sample data as a safety net
-    #    rather than returning empty data that causes a RuntimeError crash.
-    #    When use_sample_data=True: user explicitly wants this (log normally)
-    #    When use_sample_data=False but API failed: still try as emergency fallback (log warning)
-    if api_fetch_failed or use_sample_data:
+    # 3. Fall back to sample data — ALWAYS try if API failed.
+    #    WHY: Sample data is used as an INTERNAL fallback only when the Kite API
+    #    is unavailable. This is NOT a user-facing toggle anymore — it's a system
+    #    safety net to prevent "No candle data available" RuntimeError crashes.
+    #    The backtest always attempts real data first (cache, then API), and only
+    #    falls back to synthetic data when both fail.
+    if api_fetch_failed:
         # Determine which symbol this token list corresponds to
         symbol = None
         for sym, sym_tokens in _TOKEN_SYMBOL_MAP.items():
@@ -141,31 +141,18 @@ def _fetch_data_if_needed(tokens, interval, from_date, to_date,
                 break
 
         if symbol:
-            if not use_sample_data:
-                log.warning("API fetch failed and use_sample_data=False, but attempting "
-                            "sample data as EMERGENCY FALLBACK for %s to prevent crash.", symbol)
-                if progress_callback:
-                    try:
-                        progress_callback(
-                            phase="fetching",
-                            message=f"Kite API failed — using sample data as emergency fallback for {symbol}. "
-                                    f"Enable 'Sample Data Fallback' toggle to suppress this warning.",
-                        )
-                    except Exception:
-                        pass
-            else:
-                log.warning("Generating SAMPLE DATA for %s (%s, %s → %s). "
-                            "Results will be based on synthetic data, not real market data.",
-                            symbol, interval, from_date, to_date)
-                if progress_callback:
-                    try:
-                        progress_callback(
-                            phase="fetching",
-                            message=f"Generating sample data for {symbol} ({interval}, {from_date} → {to_date}). "
-                                    f"Results are based on synthetic data.",
-                        )
-                    except Exception:
-                        pass
+            log.warning("Generating SAMPLE DATA for %s (%s, %s → %s). "
+                        "Results will be based on synthetic data, not real market data.",
+                        symbol, interval, from_date, to_date)
+            if progress_callback:
+                try:
+                    progress_callback(
+                        phase="fetching",
+                        message=f"Kite API unavailable — generating synthetic data for {symbol} ({interval}, {from_date} → {to_date}). "
+                                f"Results are based on synthetic data.",
+                    )
+                except Exception:
+                    pass
 
             try:
                 from .sample_data import generate_sample_data_kite_format
@@ -184,9 +171,8 @@ def _fetch_data_if_needed(tokens, interval, from_date, to_date,
 
     # 4. No data available — return empty with a clear error logged
     log.error("No candle data available for tokens=%s interval=%s. "
-              "Cache empty, API fetch failed, and sample data %s.",
-              tokens, interval,
-              "generation also failed" if use_sample_data else "not enabled (use_sample_data=False)")
+              "Cache empty, API fetch failed, and sample data generation also failed.",
+              tokens, interval)
     return []
 
 
@@ -228,7 +214,8 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
     max_open_positions = int(p.get("max_open_positions", MAX_OPEN_POSITIONS))
     max_daily_trades = int(p.get("max_daily_trades", MAX_DAILY_TRADES))
     max_daily_trades_enabled = bool(p.get("max_daily_trades_enabled", True))
-    use_sample_data = bool(p.get("use_sample_data", True))
+    # use_sample_data is always True internally — no longer a user toggle
+    use_sample_data = True
 
     # ── Parse date range ──
     try:
@@ -255,7 +242,7 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
     log.info("Period: %s → %s | Capital: ₹%s", from_date, to_date, f"{capital:,}")
     log.info("Symbol: %s | TF: %s | Method: %s | SL_ATR: %s | Min_RR: %s | Moneyness: %s",
              symbol, timeframe, method, sl_atr, min_rr, moneyness)
-    log.info("Use sample data fallback: %s", use_sample_data)
+    log.info("Sample data as fallback: always enabled (internal safety net)")
     _progress(phase="fetching", message=f"Fetching data for {symbol} ({from_date} → {to_date})...", pct=5)
 
     # Load data
@@ -301,10 +288,13 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
         bn_60m = filter_candles_by_date(parse_candles(bn_60m_raw, "BANKNIFTY", "60m"), from_date, to_date)
 
         # Validate: ensure we have enough data for the backtest to produce results
+        # NOTE: With sample data always enabled as fallback, this should rarely happen.
+        # If it does, it means BOTH the API and sample data generation failed.
         if not bn_5m and not bn_15m and not bn_60m:
             error_msg = (
-                "ERROR: No candle data available for BANKNIFTY after all fetch attempts. "
-                "Check your Kite token or enable sample data (use_sample_data=True)."
+                "No candle data available for BANKNIFTY after all fetch attempts. "
+                "Both Kite API and sample data generation failed. "
+                "This is an internal error — please check backend logs."
             )
             log.error(error_msg)
             _progress(phase="error", message=error_msg)
@@ -339,8 +329,9 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
         # Validate: ensure we have enough data for the backtest to produce results
         if not nf_5m and not nf_15m and not nf_60m:
             error_msg = (
-                "ERROR: No candle data available for NIFTY after all fetch attempts. "
-                "Check your Kite token or enable sample data (use_sample_data=True)."
+                "No candle data available for NIFTY after all fetch attempts. "
+                "Both Kite API and sample data generation failed. "
+                "This is an internal error — please check backend logs."
             )
             log.error(error_msg)
             _progress(phase="error", message=error_msg)
@@ -356,9 +347,9 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
     total_candles = sum(candle_counts.values())
     if total_candles == 0:
         error_msg = (
-            "ERROR: No candle data available for any symbol. "
+            "No candle data available for any symbol. "
             "The backtest cannot run without data. "
-            "Check your Kite token or enable sample data (use_sample_data=True)."
+            "Both Kite API and sample data generation failed — internal error."
         )
         log.error(error_msg)
         _progress(phase="error", message=error_msg)

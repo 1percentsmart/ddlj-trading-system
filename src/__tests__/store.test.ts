@@ -28,6 +28,7 @@ beforeEach(() => {
       stop_time: null,
       token: { stored: false, valid: false, user: null },
       last_heartbeat: null,
+      last_error: null,
       running: false,
       capital: 0,
       peak_capital: 0,

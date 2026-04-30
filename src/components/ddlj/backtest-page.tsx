@@ -29,7 +29,6 @@ import {
 } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
 import {
   FlaskConical,
   Play,
@@ -44,7 +43,6 @@ import {
   Settings2,
   Calendar,
   RotateCcw,
-  Database,
   Cpu,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -133,7 +131,7 @@ function phaseLabel(phase: string): string {
 
 function phaseIcon(phase: string) {
   switch (phase) {
-    case 'fetching': return <Database className="size-5 text-blue-400 animate-pulse" />;
+    case 'fetching': return <BarChart3 className="size-5 text-blue-400 animate-pulse" />;
     case 'running': return <Cpu className="size-5 text-amber-400 animate-pulse" />;
     case 'done': return <CheckCircle2 className="size-5 text-emerald-400" />;
     case 'error': return <AlertTriangle className="size-5 text-red-400" />;
@@ -395,7 +393,7 @@ export default function BacktestPage() {
   const [maxDailyTrades, setMaxDailyTrades] = useState(DEFAULT_PARAMS.max_daily_trades.toString());
   const [maxDailyTradesEnabled, setMaxDailyTradesEnabled] = useState(true);
   const [moneyness, setMoneyness] = useState<MoneynessOption>('ITM');
-  const [useSampleData, setUseSampleData] = useState(true); // Always default ON — sample data is used as fallback when API fails
+  // NOTE: use_sample_data removed from UI — always enabled internally as fallback
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [isRunning, setIsRunning] = useState(false);
@@ -572,7 +570,6 @@ export default function BacktestPage() {
     setMaxOpenPositions(DEFAULT_PARAMS.max_open_positions.toString());
     setMaxDailyTrades(DEFAULT_PARAMS.max_daily_trades.toString());
     setMaxDailyTradesEnabled(true);
-    setUseSampleData(true);
     setMoneyness('ITM');
     setSymbol('BANKNIFTY');
     setTimeframe('15m/60m');
@@ -614,7 +611,7 @@ export default function BacktestPage() {
         max_open_positions: parseInt(maxOpenPositions) || DEFAULT_PARAMS.max_open_positions,
         max_daily_trades: parseInt(maxDailyTrades) || DEFAULT_PARAMS.max_daily_trades,
         max_daily_trades_enabled: maxDailyTradesEnabled,
-        use_sample_data: useSampleData, // Always use sample data as fallback when API fails
+        // use_sample_data: always enabled internally as fallback
       };
 
       const result = await backtestApi.run(params);
@@ -660,10 +657,10 @@ export default function BacktestPage() {
       stopPolling();
     }
   }, [startProgressStream, startPolling, stopPolling, fetchBacktestStatus, symbol, timeframe, method, fromDate, toDate,
-      capital, slAtr, minRr, moneyness, dailyRiskPct, maxOpenPositions, maxDailyTrades, maxDailyTradesEnabled, useSampleData, isRunning]);
+      capital, slAtr, minRr, moneyness, dailyRiskPct, maxOpenPositions, maxDailyTrades, maxDailyTradesEnabled, isRunning]);
 
   // ── Run button disabled logic ────────────────────────────────
-  // Allow running even without valid token (sample data mode available)
+  // Allow running even without valid token (internal sample data fallback)
   const runDisabled = !isConnected || isRunning;
 
   // ── Params used in last backtest ─────────────────────────────
@@ -906,10 +903,10 @@ export default function BacktestPage() {
             <div className="flex items-center gap-2">
               <Settings2 className="size-4 text-muted-foreground" />
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Risk & Data Parameters
+                Risk Parameters
               </label>
             </div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <div className="space-y-1.5">
                 <Label htmlFor="daily-risk" className="text-xs text-muted-foreground">Daily Risk %</Label>
                 <Input
@@ -940,65 +937,48 @@ export default function BacktestPage() {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="max-trades" className="text-xs text-muted-foreground">Max Daily Trades</Label>
-                  <div className="flex items-center gap-1.5">
-                    <Switch
-                      id="max-trades-toggle"
-                      checked={maxDailyTradesEnabled}
-                      onCheckedChange={setMaxDailyTradesEnabled}
-                      disabled={isRunning}
-                      className="scale-75"
-                    />
-                    <span className={cn(
-                      'text-[10px] font-semibold',
-                      maxDailyTradesEnabled ? 'text-emerald-400' : 'text-zinc-500'
-                    )}>
-                      {maxDailyTradesEnabled ? 'ON' : 'OFF'}
-                    </span>
-                  </div>
+                  {/* Indicator badge showing current status — not a toggle */}
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'gap-1 border-0 text-[10px] font-semibold',
+                      maxDailyTradesEnabled
+                        ? 'bg-emerald-500/10 text-emerald-400'
+                        : 'bg-zinc-500/10 text-zinc-400'
+                    )}
+                  >
+                    <Circle className={cn('size-1.5', maxDailyTradesEnabled ? 'fill-emerald-400' : 'fill-zinc-400')} />
+                    {maxDailyTradesEnabled ? `ON · ${maxDailyTrades}/day` : 'OFF · Unlimited'}
+                  </Badge>
                 </div>
-                <Input
-                  id="max-trades"
-                  type="number"
-                  value={maxDailyTrades}
-                  onChange={(e) => setMaxDailyTrades(e.target.value)}
-                  disabled={isRunning || !maxDailyTradesEnabled}
-                  className={cn(
-                    'font-mono text-sm transition-opacity',
-                    !maxDailyTradesEnabled && 'opacity-40'
-                  )}
-                  min="1"
-                  max="10"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Sample Data Fallback</Label>
-                  <div className="flex items-center gap-1.5">
-                    <Switch
-                      id="sample-data-toggle"
-                      checked={useSampleData}
-                      onCheckedChange={setUseSampleData}
-                      disabled={isRunning}
-                      className="scale-75"
-                    />
-                    <span className={cn(
-                      'text-[10px] font-semibold',
-                      useSampleData ? 'text-emerald-400' : 'text-zinc-500'
-                    )}>
-                      {useSampleData ? 'ON' : 'OFF'}
-                    </span>
-                  </div>
-                </div>
-                <div className={cn(
-                  'flex items-center gap-2 rounded-md border px-3 py-2 text-xs transition-opacity',
-                  useSampleData
-                    ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400'
-                    : 'border-zinc-700 bg-zinc-800/50 text-muted-foreground opacity-40'
-                )}>
-                  <Database className="size-3.5" />
-                  {useSampleData
-                    ? 'Uses real data first, falls back to synthetic if API fails'
-                    : 'Requires valid Kite token for real data'}
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="max-trades"
+                    type="number"
+                    value={maxDailyTrades}
+                    onChange={(e) => setMaxDailyTrades(e.target.value)}
+                    disabled={isRunning || !maxDailyTradesEnabled}
+                    className={cn(
+                      'font-mono text-sm transition-opacity',
+                      !maxDailyTradesEnabled && 'opacity-40'
+                    )}
+                    min="1"
+                    max="10"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      'h-9 px-3 text-xs shrink-0',
+                      maxDailyTradesEnabled
+                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                        : 'border-zinc-700 bg-zinc-800/50 text-zinc-400 hover:bg-zinc-700/50'
+                    )}
+                    onClick={() => setMaxDailyTradesEnabled(!maxDailyTradesEnabled)}
+                    disabled={isRunning}
+                  >
+                    {maxDailyTradesEnabled ? 'Disable' : 'Enable'}
+                  </Button>
                 </div>
               </div>
             </div>

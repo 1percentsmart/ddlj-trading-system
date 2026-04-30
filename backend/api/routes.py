@@ -259,7 +259,6 @@ class BacktestRunRequest(BaseModel):
     max_open_positions: Optional[int] = None
     max_daily_trades: Optional[int] = None
     max_daily_trades_enabled: Optional[bool] = True
-    use_sample_data: Optional[bool] = True
 
 
 # ── Global backtest state tracker ─────────────────────────────────────
@@ -317,50 +316,36 @@ async def run_backtest(request: BacktestRunRequest = None):
         }
 
     # Build params dict from request, filtering out None values
+    # NOTE: use_sample_data is NO LONGER a user-facing toggle.
+    # The system always uses sample data as an INTERNAL fallback when the
+    # Kite API is unavailable. This ensures backtests never crash with
+    # "No candle data available" errors.
     params = {}
     if request:
         for key in ["symbol", "timeframe", "method", "from_date", "to_date",
                      "capital", "sl_atr", "min_rr", "moneyness",
                      "daily_risk_pct", "max_open_positions", "max_daily_trades",
-                     "max_daily_trades_enabled", "use_sample_data"]:
+                     "max_daily_trades_enabled"]:
             val = getattr(request, key, None)
             if val is not None:
                 params[key] = val
-
-    use_sample_data = params.get("use_sample_data", True)
+    # Always enable sample data as internal fallback
+    params["use_sample_data"] = True
 
     log.info("Backtest: Request received with params=%s — starting in background thread", params)
 
-    # The backtest needs a valid Kite token to fetch real data.
-    # If use_sample_data is True, we allow the backtest to proceed even
-    # without a valid token (it will fall back to synthetic data).
-    # If use_sample_data is False, we require a valid token.
-    if not use_sample_data:
-        try:
-            from engine.token_manager import token_status
-            token_info = token_status()
-            if not token_info.get("valid", False):
-                return {
-                    "status": "error",
-                    "message": "Kite token is not valid and sample data is disabled. "
-                               "Please exchange a fresh token via the Token page, "
-                               "or set use_sample_data=True to run with synthetic data.",
-                    "hint": "Tokens expire daily — visit the Token page to get a new one. "
-                            "Alternatively, enable use_sample_data for a demo run.",
-                }
-        except Exception as e:
-            log.warning("Backtest: Could not check token status: %s", e)
-    else:
-        # Even with sample data, log the token status for awareness
-        try:
-            from engine.token_manager import token_status
-            token_info = token_status()
-            if not token_info.get("valid", False):
-                log.info("Backtest: Kite token is invalid, but use_sample_data=True — "
-                         "backtest will use synthetic data as fallback.")
-        except Exception:
-            log.info("Backtest: Could not check token status — "
-                     "use_sample_data=True, so backtest will use synthetic data as fallback.")
+    # Log the token status for awareness (non-blocking — backtest proceeds regardless)
+    try:
+        from engine.token_manager import token_status
+        token_info = token_status()
+        if not token_info.get("valid", False):
+            log.info("Backtest: Kite token is invalid — "
+                     "backtest will attempt API first, then use synthetic data as fallback.")
+        else:
+            log.info("Backtest: Kite token is valid — will fetch real market data.")
+    except Exception:
+        log.info("Backtest: Could not check token status — "
+                 "will attempt API, then use synthetic data as fallback.")
 
     # Update global state to "running"
     _backtest_state["status"] = "running"
@@ -375,7 +360,7 @@ async def run_backtest(request: BacktestRunRequest = None):
         "data_fetched": False,
         "candle_counts": {},
         "pct": 0,
-        "message": "Initializing backtest..." + (" (sample data mode)" if use_sample_data else ""),
+        "message": "Initializing backtest...",
     }
 
     def _update_progress(**kwargs):
@@ -441,8 +426,8 @@ async def run_backtest(request: BacktestRunRequest = None):
 
     return {
         "status": "started",
-        "message": "Backtest is running in the background with your parameters."
-                   + (" Using sample data as fallback if Kite API is unavailable." if use_sample_data else ""),
+        "message": "Backtest is running in the background with your parameters. "
+                   "Uses real Kite data when available, with synthetic data as fallback.",
         "params": params,
         "note": "Results will be available at GET /backtest/status. Typically takes 2-5 minutes.",
         "progress_endpoint": "/backtest/progress (SSE stream)",
