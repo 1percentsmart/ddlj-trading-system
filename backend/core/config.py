@@ -223,6 +223,7 @@ CORS_ORIGINS = [
     "https://ddlj-trading-system.vercel.app",  # Actual Vercel production frontend
     "https://ddlj-trading-system-1percentsmarts-projects.vercel.app",  # Vercel org deployment
     "https://ddlj-trading-system-git-main-1percentsmarts-projects.vercel.app",  # Vercel branch deployment
+    "https://ddlj-trading-system-1du5m5pms-1percentsmarts-projects.vercel.app",  # Latest Vercel deployment
 ]
 # Add production frontend URL from env var (default: actual Vercel URL)
 _frontend_url = os.getenv("FRONTEND_URL", "https://ddlj-trading-system.vercel.app").strip()

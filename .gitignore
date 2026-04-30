@@ -69,3 +69,4 @@ upload/
 # ── Database files ──
 backend/data/
 prisma/
+.vercel
