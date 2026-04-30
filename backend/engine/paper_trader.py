@@ -344,6 +344,16 @@ class PaperTrader:
         # ── Session control ──
         self._running = False
 
+        # ── Connection state ──
+        # _connected tracks whether the Kite API is reachable.
+        # _last_connect_attempt tracks when we last tried to connect
+        # so we can retry periodically without hammering the API.
+        self._connected = False
+        self._last_connect_attempt = 0
+
+        # ── Reconnect interval (seconds) ──
+        self._reconnect_interval = self._config.get("RECONNECT_INTERVAL_SECONDS", 60)
+
         # ── Kite API interval mapping ──
         # Maps our internal TF notation ("15m") to Kite API strings ("15minute")
         self._kite_interval_map = {
@@ -385,16 +395,38 @@ class PaperTrader:
         4. Loads any previous session state
         5. Enters the main trading loop
 
+        RESILIENCE: If the Kite API connection fails (e.g. expired token),
+        the engine does NOT crash. Instead, it sets _connected = False and
+        enters the main loop in a "disconnected" state. The main loop will
+        periodically attempt to reconnect every _reconnect_interval seconds.
+
         The loop runs continuously during market hours, checking for new
         candles and processing them through the strategy pipeline.
 
         Press Ctrl+C to stop gracefully.
         """
-        self._connect_api()
-        self._init_engines()
-        self._warmup()  # BUG FIX #8: Preload historical data
-        self._load_state()
-        self._refresh_vix()  # Fetch current VIX value
+        # Try to connect to the API — but don't crash if it fails.
+        # The main loop will retry periodically.
+        try:
+            connected = self._connect_api()
+        except Exception as e:
+            log.error("API connection failed on start: %s", e, exc_info=True)
+            connected = False
+
+        if connected:
+            self._init_engines()
+            self._warmup()  # BUG FIX #8: Preload historical data
+            self._load_state()
+            self._refresh_vix()  # Fetch current VIX value
+        else:
+            # Initialize engines anyway so get_status() doesn't crash
+            # and we can still report the "disconnected" state.
+            self._init_engines()
+            self._load_state()
+            self._notify("⚠ API connection FAILED — engine running in DISCONNECTED state")
+            self._notify("  The engine will retry connecting every "
+                         f"{self._reconnect_interval}s in the main loop.")
+            self._notify("  Fix the token and the engine will auto-reconnect.")
 
         self._running = True
         self._notify("=" * 65)
@@ -409,7 +441,8 @@ class PaperTrader:
         self._notify(f"DD Breaker: {self.dd_circuit_breaker:.0%} | "
                      f"Floor: {self.capital_floor_pct:.0%} | "
                      f"Max Candles: {self._max_candles}")
-        self._notify(f"Live VIX: {self._live_vix or 'N/A'} | "
+        self._notify(f"Connected: {self._connected} | "
+                     f"Live VIX: {self._live_vix or 'N/A'} | "
                      f"Open positions from previous session: {len(self.open_positions)}")
         self._notify("Press Ctrl+C to stop gracefully")
         self._notify("=" * 65)
@@ -433,10 +466,12 @@ class PaperTrader:
         Return current status as a dictionary.
 
         Returns:
-            dict: Current trading status including positions, P&L, bias.
+            dict: Current trading status including positions, P&L, bias,
+                  and connection state.
         """
         return {
             "running": self._running,
+            "connected": self._connected,
             "capital": round(self.current_capital, 2),
             "peak_capital": round(self.peak_capital, 2),
             "daily_pnl": round(self.daily_pnl, 2),
@@ -454,8 +489,19 @@ class PaperTrader:
     # CONNECTION & INITIALIZATION
     # ══════════════════════════════════════════════════════════════════
 
-    def _connect_api(self):
-        """Connect to Kite API and initialize data fetcher."""
+    def _connect_api(self) -> bool:
+        """
+        Connect to Kite API and initialize data fetcher.
+
+        Returns:
+            bool: True if connection succeeded, False otherwise.
+
+        RESILIENCE: On failure, this method does NOT raise an exception.
+        Instead, it returns False and sets self._connected = False.
+        The caller (start() or _main_loop()) can then decide what to do.
+        On success, sets self._connected = True and returns True.
+        """
+        self._last_connect_attempt = time.time()
         self._notify("Connecting to Kite API...")
         try:
             self.kite = get_kite_session()
@@ -466,10 +512,13 @@ class PaperTrader:
             )
             profile = self.kite.profile()
             self._notify(f"Connected as {profile.get('user_name', 'unknown')}")
+            self._connected = True
+            return True
         except Exception as e:
             self._notify(f"API connection failed: {e}")
             self._notify("Run token_manager.exchange_request_token('YOUR_TOKEN') first")
-            raise
+            self._connected = False
+            return False
 
     def _init_engines(self):
         """Initialize the three strategy engines."""
@@ -590,11 +639,17 @@ class PaperTrader:
 
         Every poll_interval seconds, it:
         1. Checks if we're within market hours
-        2. Fetches the latest candle data
-        3. Processes new candles through the strategy
-        4. Manages open positions (exits, trailing stops)
-        5. Periodically refreshes VIX data
-        6. Saves state periodically
+        2. If disconnected, attempts to reconnect periodically
+        3. Fetches the latest candle data
+        4. Processes new candles through the strategy
+        5. Manages open positions (exits, trailing stops)
+        6. Periodically refreshes VIX data
+        7. Saves state periodically
+
+        RESILIENCE: If _connected is False, the loop skips candle fetching
+        and strategy processing, and instead tries to reconnect every
+        _reconnect_interval seconds (default 60s). Once reconnected, it
+        performs warmup and resumes normal operation.
         """
         last_candle_time_entry = None
         last_candle_time_bias = None
@@ -606,6 +661,54 @@ class PaperTrader:
                 now = datetime.now(IST)
                 current_time = now.time()
                 today = now.date()
+
+                # ── DISCONNECTED: Try to reconnect periodically ──
+                if not self._connected:
+                    elapsed = time.time() - self._last_connect_attempt
+                    if elapsed >= self._reconnect_interval:
+                        log.info("Disconnected — attempting reconnect "
+                                 "(last attempt %.0fs ago)...", elapsed)
+                        try:
+                            reconnected = self._connect_api()
+                        except Exception as e:
+                            log.error("Reconnect attempt failed: %s", e)
+                            reconnected = False
+
+                        if reconnected:
+                            self._notify("✓ Reconnected to Kite API — resuming trading")
+                            # Re-initialize engines and warmup since we now have API access
+                            self._warmup()
+                            self._refresh_vix()
+                        else:
+                            self._notify(
+                                f"⚠ Reconnect failed — will retry in "
+                                f"{self._reconnect_interval}s"
+                            )
+
+                    # While disconnected, still do day resets and state saves
+                    # so we don't lose track of time/positions.
+                    if self.today != today:
+                        if self.today is not None:
+                            self._notify(
+                                f"Day {self.today} Summary: "
+                                f"P&L=₹{self.daily_pnl:,.0f} | "
+                                f"Trades={self.daily_trade_count} | "
+                                f"Capital=₹{self.current_capital:,.0f}"
+                            )
+                        self.today = today
+                        self.daily_pnl = 0
+                        self.daily_start_capital = self.current_capital
+                        self.daily_trade_count = 0
+                        self._notify(f"New trading day: {today} (disconnected)")
+
+                    # Periodic state save even when disconnected
+                    if time.time() - last_save_time > 60:
+                        self._save_state()
+                        last_save_time = time.time()
+
+                    # Wait before next check (use longer interval when disconnected)
+                    time.sleep(min(self._reconnect_interval, self.poll_interval * 10))
+                    continue
 
                 # ── NEW DAY RESET ──
                 if self.today != today:
@@ -650,6 +753,10 @@ class PaperTrader:
                 except Exception as e:
                     log.warning("Failed to fetch entry candle: %s", e)
                     entry_candle = None
+                    # If the fetch fails with an auth error, mark as disconnected
+                    if "token" in str(e).lower() or "auth" in str(e).lower():
+                        log.warning("API auth error detected — marking as disconnected")
+                        self._connected = False
 
                 # BUG FIX #9: Fetch bias candle INDEPENDENTLY
                 # Old code only pushed bias candle when a new entry candle arrived.
@@ -662,6 +769,9 @@ class PaperTrader:
                 except Exception as e:
                     log.warning("Failed to fetch bias candle: %s", e)
                     bias_candle = None
+                    if "token" in str(e).lower() or "auth" in str(e).lower():
+                        log.warning("API auth error detected — marking as disconnected")
+                        self._connected = False
 
                 # ── PROCESS BIAS CANDLE INDEPENDENTLY (BUG FIX #9) ──
                 if bias_candle:

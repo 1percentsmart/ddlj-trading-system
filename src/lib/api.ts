@@ -23,8 +23,10 @@ export interface EngineStatus {
     user: string | null;
   };
   last_heartbeat: string | null;
+  last_error: string | null;
   // Fields from PaperTrader.get_status()
   running?: boolean;
+  connected?: boolean;
   capital?: number;
   peak_capital?: number;
   daily_pnl?: number;
@@ -316,6 +318,7 @@ export interface BacktestRunParams {
   daily_risk_pct?: number;
   max_open_positions?: number;
   max_daily_trades?: number;
+  use_sample_data?: boolean;
 }
 
 export const backtestApi = {

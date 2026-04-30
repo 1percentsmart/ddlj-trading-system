@@ -69,6 +69,7 @@ class EngineManager:
         self._error_count = 0        # Number of errors since startup
         self._start_time = None      # When the engine was started
         self._stop_time = None       # When the engine was stopped
+        self._last_error = None      # Last error message (why the engine stopped/crashed)
 
         # ── Config ──
         self._config_override = {}   # User-provided config overrides
@@ -165,6 +166,7 @@ class EngineManager:
             self._start_time = datetime.now(IST)
             self._stop_time = None
             self._error_count = 0
+            self._last_error = None  # Clear any previous error on new start
 
             # Start the engine in a background daemon thread
             # daemon=True means the thread will be killed when the main
@@ -192,12 +194,20 @@ class EngineManager:
 
         This method wraps PaperTrader.start() with error handling
         so that crashes in the engine don't bring down the API server.
+
+        RESILIENCE: If the engine thread crashes for any reason, we:
+        1. Log the crash with full traceback
+        2. Set _running = False so the status endpoint reports correctly
+        3. Store the error in _last_error so the status endpoint can
+           report WHY the engine stopped
+        4. Record the stop time
         """
         try:
             log.info("Engine thread: Starting PaperTrader.start()...")
             self._trader.start()
         except Exception as e:
             self._error_count += 1
+            self._last_error = str(e)
             log.error("Engine thread: CRASHED — %s", e, exc_info=True)
             self._running = False
             self._stop_time = datetime.now(IST)
@@ -247,6 +257,7 @@ class EngineManager:
             "engine_running": self._running,
             "initialized": self._initialized,
             "error_count": self._error_count,
+            "last_error": self._last_error,
             "start_time": self._start_time.isoformat() if self._start_time else None,
             "stop_time": self._stop_time.isoformat() if self._stop_time else None,
         }

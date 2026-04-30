@@ -608,6 +608,7 @@ export default function BacktestPage() {
         daily_risk_pct: parseFloat(dailyRiskPct) || DEFAULT_PARAMS.daily_risk_pct,
         max_open_positions: parseInt(maxOpenPositions) || DEFAULT_PARAMS.max_open_positions,
         max_daily_trades: parseInt(maxDailyTrades) || DEFAULT_PARAMS.max_daily_trades,
+        use_sample_data: !tokenValid, // Auto-enable sample data when token is invalid
       };
 
       const result = await backtestApi.run(params);
@@ -656,7 +657,8 @@ export default function BacktestPage() {
       capital, slAtr, minRr, moneyness, dailyRiskPct, maxOpenPositions, maxDailyTrades, isRunning]);
 
   // ── Run button disabled logic ────────────────────────────────
-  const runDisabled = !tokenValid || !isConnected || isRunning;
+  // Allow running even without valid token (sample data mode available)
+  const runDisabled = !isConnected || isRunning;
 
   // ── Params used in last backtest ─────────────────────────────
   const paramsUsed = backtestStatus?.last_results?.params_used;
@@ -1026,11 +1028,17 @@ export default function BacktestPage() {
                   <AlertTriangle className="size-3" /> Not connected to backend
                 </Badge>
               )}
-              {!tokenValid && (
-                <Badge variant="destructive" className="text-[10px] gap-1">
-                  <AlertTriangle className="size-3" /> Token is invalid or missing
-                </Badge>
-              )}
+            </div>
+          )}
+
+          {/* ── Sample data mode indicator ──────────────────────── */}
+          {!tokenValid && !isRunning && isConnected && (
+            <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5">
+              <AlertTriangle className="size-4 text-amber-400 flex-shrink-0" />
+              <span className="text-xs text-amber-300">
+                Token invalid — backtest will use <strong>sample data</strong> for demonstration. 
+                Exchange a valid Kite token for real market data.
+              </span>
             </div>
           )}
 

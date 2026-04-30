@@ -311,8 +311,8 @@ export default function EnginePage() {
 
           <Separator />
 
-          {/* Status Grid — 4 cells */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Status Grid — 5 cells */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Uptime */}
             <div className="p-4 rounded-lg bg-secondary/30 border border-border">
               <div className="text-xs text-muted-foreground flex items-center gap-1.5 mb-1.5">
@@ -367,7 +367,32 @@ export default function EnginePage() {
                 {engineStatus.token.valid ? 'Valid' : 'Invalid'}
               </div>
             </div>
+
+            {/* Connected */}
+            <div className="p-4 rounded-lg bg-secondary/30 border border-border">
+              <div className="text-xs text-muted-foreground flex items-center gap-1.5 mb-1.5">
+                <Activity className="size-3" /> API
+              </div>
+              <div
+                className={cn(
+                  'font-mono text-lg',
+                  engineStatus.connected ? 'text-emerald-400' : 'text-amber-400'
+                )}
+              >
+                {engineStatus.connected ? 'Connected' : 'Disconnected'}
+              </div>
+            </div>
           </div>
+
+          {/* Last Error */}
+          {engineStatus.last_error && (
+            <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+              <AlertTriangle className="size-4 text-red-400 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-red-300">
+                <span className="font-semibold">Engine Error:</span> {engineStatus.last_error}
+              </div>
+            </div>
+          )}
 
           {/* Start / Stop timestamps */}
           {(engineStatus.start_time || engineStatus.stop_time) && (

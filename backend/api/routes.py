@@ -7,6 +7,7 @@ All REST API endpoints for controlling and monitoring the trading engine.
 """
 
 import logging
+import traceback
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -256,6 +257,7 @@ class BacktestRunRequest(BaseModel):
     daily_risk_pct: Optional[float] = None
     max_open_positions: Optional[int] = None
     max_daily_trades: Optional[int] = None
+    use_sample_data: Optional[bool] = True
 
 
 # ── Global backtest state tracker ─────────────────────────────────────
@@ -317,25 +319,46 @@ async def run_backtest(request: BacktestRunRequest = None):
     if request:
         for key in ["symbol", "timeframe", "method", "from_date", "to_date",
                      "capital", "sl_atr", "min_rr", "moneyness",
-                     "daily_risk_pct", "max_open_positions", "max_daily_trades"]:
+                     "daily_risk_pct", "max_open_positions", "max_daily_trades",
+                     "use_sample_data"]:
             val = getattr(request, key, None)
             if val is not None:
                 params[key] = val
 
+    use_sample_data = params.get("use_sample_data", True)
+
     log.info("Backtest: Request received with params=%s — starting in background thread", params)
 
-    # The backtest needs a valid Kite token to fetch data
-    try:
-        from engine.token_manager import token_status
-        token_info = token_status()
-        if not token_info.get("valid", False):
-            return {
-                "status": "error",
-                "message": "Kite token is not valid. Please exchange a fresh token first via the Token page.",
-                "hint": "Tokens expire daily — visit the Token page to get a new one.",
-            }
-    except Exception as e:
-        log.warning("Backtest: Could not check token status: %s", e)
+    # The backtest needs a valid Kite token to fetch real data.
+    # If use_sample_data is True, we allow the backtest to proceed even
+    # without a valid token (it will fall back to synthetic data).
+    # If use_sample_data is False, we require a valid token.
+    if not use_sample_data:
+        try:
+            from engine.token_manager import token_status
+            token_info = token_status()
+            if not token_info.get("valid", False):
+                return {
+                    "status": "error",
+                    "message": "Kite token is not valid and sample data is disabled. "
+                               "Please exchange a fresh token via the Token page, "
+                               "or set use_sample_data=True to run with synthetic data.",
+                    "hint": "Tokens expire daily — visit the Token page to get a new one. "
+                            "Alternatively, enable use_sample_data for a demo run.",
+                }
+        except Exception as e:
+            log.warning("Backtest: Could not check token status: %s", e)
+    else:
+        # Even with sample data, log the token status for awareness
+        try:
+            from engine.token_manager import token_status
+            token_info = token_status()
+            if not token_info.get("valid", False):
+                log.info("Backtest: Kite token is invalid, but use_sample_data=True — "
+                         "backtest will use synthetic data as fallback.")
+        except Exception:
+            log.info("Backtest: Could not check token status — "
+                     "use_sample_data=True, so backtest will use synthetic data as fallback.")
 
     # Update global state to "running"
     _backtest_state["status"] = "running"
@@ -350,7 +373,7 @@ async def run_backtest(request: BacktestRunRequest = None):
         "data_fetched": False,
         "candle_counts": {},
         "pct": 0,
-        "message": "Initializing backtest...",
+        "message": "Initializing backtest..." + (" (sample data mode)" if use_sample_data else ""),
     }
 
     def _update_progress(**kwargs):
@@ -368,18 +391,47 @@ async def run_backtest(request: BacktestRunRequest = None):
         try:
             from engine.run_backtest import main as run_bt
             result = run_bt(bt_params, progress_callback=_update_progress)
-            _backtest_state["status"] = "completed"
-            _backtest_state["error_message"] = None
-            _backtest_state["progress"]["phase"] = "done"
-            _backtest_state["progress"]["pct"] = 100
-            _backtest_state["progress"]["message"] = "Backtest completed successfully!"
-            log.info("Backtest: Completed successfully")
+
+            # Check if the result is essentially empty (no trades produced)
+            method_a = result.get("method_a_compounding", {})
+            method_b = result.get("method_b_monthly_batch", {})
+            total_trades = sum(r.get("total_trades", 0) for r in method_a.values())
+            total_trades += sum(r.get("total_trades", 0) for r in method_b.values())
+
+            if total_trades == 0 and not method_a and not method_b:
+                # Backtest completed but produced no results — likely a data issue
+                _backtest_state["status"] = "completed"
+                _backtest_state["error_message"] = None
+                _backtest_state["progress"]["phase"] = "done"
+                _backtest_state["progress"]["pct"] = 100
+                _backtest_state["progress"]["message"] = (
+                    "Backtest completed but produced no trades. "
+                    "This usually means insufficient candle data (< 50 candles per timeframe). "
+                    "Try extending the date range or enable use_sample_data=True."
+                )
+                log.warning("Backtest: Completed with no trades produced — likely insufficient data")
+            else:
+                _backtest_state["status"] = "completed"
+                _backtest_state["error_message"] = None
+                _backtest_state["progress"]["phase"] = "done"
+                _backtest_state["progress"]["pct"] = 100
+                _backtest_state["progress"]["message"] = "Backtest completed successfully!"
+                log.info("Backtest: Completed successfully")
         except Exception as e:
+            error_detail = f"{type(e).__name__}: {e}"
+            tb_summary = traceback.format_exc()
+            # Include last few lines of traceback for context
+            tb_lines = tb_summary.strip().split("\n")
+            if len(tb_lines) > 3:
+                tb_hint = "\n".join(tb_lines[-3:])
+            else:
+                tb_hint = tb_summary
+
             _backtest_state["status"] = "error"
-            _backtest_state["error_message"] = f"Backtest failed: {e}"
+            _backtest_state["error_message"] = f"{error_detail}\n{tb_hint}"
             _backtest_state["progress"]["phase"] = "error"
-            _backtest_state["progress"]["message"] = f"Error: {e}"
-            log.error("Backtest: Failed — %s", e, exc_info=True)
+            _backtest_state["progress"]["message"] = f"Error: {error_detail}"
+            log.error("Backtest: Failed — %s\n%s", error_detail, tb_summary)
 
     # Start backtest in background
     bt_thread = threading.Thread(target=_run_backtest_thread, args=(params,), name="DDLJ-Backtest", daemon=True)
@@ -387,7 +439,8 @@ async def run_backtest(request: BacktestRunRequest = None):
 
     return {
         "status": "started",
-        "message": "Backtest is running in the background with your parameters.",
+        "message": "Backtest is running in the background with your parameters."
+                   + (" Using sample data as fallback if Kite API is unavailable." if use_sample_data else ""),
         "params": params,
         "note": "Results will be available at GET /backtest/status. Typically takes 2-5 minutes.",
         "progress_endpoint": "/backtest/progress (SSE stream)",
