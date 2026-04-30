@@ -159,10 +159,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // ── Engine ──────────────────────────────────────────────────────
+export interface EngineActionResponse {
+  status: string;
+  message: string;
+}
+
 export const engineApi = {
   getStatus: () => request<EngineStatus>('/status'),
-  start: () => request<{ ok: boolean }>('/start', { method: 'POST' }),
-  stop: () => request<{ ok: boolean }>('/stop', { method: 'POST' }),
+  start: () => request<EngineActionResponse>('/start', { method: 'POST' }),
+  stop: () => request<EngineActionResponse>('/stop', { method: 'POST' }),
   getReadiness: () => request<ReadinessCheck>('/readiness'),
 };
 
@@ -200,8 +205,39 @@ export const tokenApi = {
 };
 
 // ── Backtest ──────────────────────────────────────────────────────
+export interface BacktestRunParams {
+  symbol?: string;
+  timeframe?: string;
+  method?: string;
+}
+
 export const backtestApi = {
-  run: () =>
-    request<BacktestRunResult>('/backtest/run', { method: 'POST' }),
+  run: (params?: BacktestRunParams) =>
+    request<BacktestRunResult>('/backtest/run', {
+      method: 'POST',
+      ...(params ? { body: JSON.stringify(params) } : {}),
+    }),
   getStatus: () => request<BacktestStatusResult>('/backtest/status'),
+};
+
+// ── Live Safety ──────────────────────────────────────────────────
+export interface LiveReadinessCheck {
+  status: 'ready' | 'not_ready';
+  checks: Record<string, boolean>;
+  blockers: string[];
+  message?: string;
+}
+
+export interface KillSwitchResult {
+  status: string;
+  message: string;
+  timestamp: string;
+}
+
+export const liveSafetyApi = {
+  getReadiness: () => request<LiveReadinessCheck>('/live/readiness'),
+  activateKillSwitch: () =>
+    request<KillSwitchResult>('/live/kill-switch', { method: 'POST' }),
+  resetKillSwitch: () =>
+    request<KillSwitchResult>('/live/kill-switch/reset', { method: 'POST' }),
 };

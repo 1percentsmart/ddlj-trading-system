@@ -218,9 +218,6 @@ function DesktopSidebar() {
   const { activePage, setActivePage, sidebarCollapsed, toggleSidebar, engineStatus } =
     useDDLJStore();
 
-  const _engineRunning = engineStatus.engine_running;
-  const _tokenValid = engineStatus.token?.valid;
-
   return (
     <aside
       className={`
@@ -307,9 +304,6 @@ function DesktopSidebar() {
 function MobileSidebar() {
   const { activePage, setActivePage, mobileMenuOpen, setMobileMenuOpen, engineStatus } =
     useDDLJStore();
-
-  const _engineRunning = engineStatus.engine_running;
-  const _tokenValid = engineStatus.token?.valid;
 
   const handleNav = useCallback(
     (page: PageId) => {

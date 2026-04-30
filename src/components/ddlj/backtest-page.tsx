@@ -284,7 +284,8 @@ export default function BacktestPage() {
   const btStatus: BtStatus = useMemo(() => {
     if (errorFlag) return 'error';
     if (isRunning) return 'running';
-    if (backtestStatus?.status === 'running') return 'running';
+    // Backend never returns 'running' from /backtest/status — it returns
+    // 'completed', 'error', or 'no_results'. Use isRunning flag instead.
     if (backtestStatus?.last_results) return 'completed';
     return 'idle';
   }, [isRunning, errorFlag, backtestStatus]);
@@ -302,13 +303,15 @@ export default function BacktestPage() {
         await fetchBacktestStatus();
         // Check if status changed to completed
         const latest = await backtestApi.getStatus();
-        if (latest.status !== 'running') {
+        if (latest.status === 'completed' || latest.status === 'error' || latest.status === 'no_results') {
           setIsRunning(false);
-          setErrorFlag(false);
+          setErrorFlag(latest.status === 'error');
           if (pollRef.current) clearInterval(pollRef.current);
           pollRef.current = null;
           if (latest.last_results) {
             toast.success('Backtest completed! Results are ready.');
+          } else if (latest.status === 'error') {
+            toast.error('Backtest failed. Check backend logs.');
           } else {
             toast.info('Backtest finished with no results.');
           }
@@ -337,7 +340,7 @@ export default function BacktestPage() {
       setIsRunning(true);
       setErrorFlag(false);
       toast.info('Backtest started. This may take a few minutes...');
-      await backtestApi.run();
+      await backtestApi.run({ symbol, timeframe, method });
       startPolling();
     } catch (err) {
       setIsRunning(false);
@@ -347,7 +350,7 @@ export default function BacktestPage() {
       );
       stopPolling();
     }
-  }, [startPolling, stopPolling]);
+  }, [startPolling, stopPolling, symbol, timeframe, method]);
 
   // ── Run button disabled logic ────────────────────────────────
   const runDisabled = !tokenValid || !isConnected || isRunning;

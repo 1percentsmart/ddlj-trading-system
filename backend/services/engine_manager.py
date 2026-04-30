@@ -326,7 +326,7 @@ class EngineManager:
             # These can be changed while engine is running
             live_params = {
                 "DAILY_RISK_PCT", "MAX_OPEN_POSITIONS", "MAX_DAILY_TRADES",
-                "NOTIFY_ON_TRADE", "NOTIFY_ON_DIAS_CHANGE",
+                "NOTIFY_ON_TRADE", "NOTIFY_ON_BIAS_CHANGE",
             }
             for key, value in updates.items():
                 if key in live_params and hasattr(self._trader, key.lower()):

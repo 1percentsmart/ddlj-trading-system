@@ -119,9 +119,17 @@ async def stop_engine(mgr: EngineManager = Depends(get_engine_manager)):
     return mgr.stop_engine()
 
 
+# Sensitive keys that should never be exposed via the API
+_SENSITIVE_KEYS = frozenset({
+    "KITE_API_KEY", "KITE_API_SECRET", "AUTH_SECRET_KEY",
+    "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
+})
+
 @router.get("/config")
 async def get_config(mgr: EngineManager = Depends(get_engine_manager)):
-    return mgr.get_config()
+    config = mgr.get_config()
+    # Filter out sensitive values before returning
+    return {k: ("***" if k in _SENSITIVE_KEYS else v) for k, v in config.items()}
 
 
 @router.put("/config")

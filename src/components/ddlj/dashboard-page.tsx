@@ -236,7 +236,7 @@ export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // FIX: Use dataFetched flag instead of checking if arrays are empty
+  // Use dataFetched flag instead of checking if arrays are empty
   const isLoading = !dataFetched;
 
   // ── IST clock ────────────────────────────────────────────────
@@ -262,15 +262,9 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, [fetchStatus, fetchTrades, fetchPositions, setFetched]);
 
-  // ── Auto-refresh every 30s ───────────────────────────────────
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchStatus();
-      fetchTrades();
-      fetchPositions();
-    }, 30_000);
-    return () => clearInterval(interval);
-  }, [fetchStatus, fetchTrades, fetchPositions]);
+  // Note: Global refreshAll() runs every 30s from page.tsx — no need for
+  // a separate per-page auto-refresh interval here. That was causing 4x
+  // redundant fetches per 30s cycle.
 
   // ── Computed data ────────────────────────────────────────────
   const kpis = useMemo(() => computeKPIs(trades, positions), [trades, positions]);

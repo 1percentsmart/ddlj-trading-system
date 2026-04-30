@@ -275,7 +275,7 @@ export const useDDLJStore = create<DDLJStore>()(
       setNumberFormat: (numberFormat) => set((s) => ({ theme: { ...s.theme, numberFormat } })),
     }),
     {
-      name: 'ddljj-theme',
+      name: 'ddlj-theme',
       partialize: (state) => ({
         theme: state.theme,
         sidebarCollapsed: state.sidebarCollapsed,
