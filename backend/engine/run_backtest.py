@@ -98,6 +98,7 @@ def _fetch_data_if_needed(tokens, interval, from_date, to_date,
 
     # 2. Try fetching from Kite API
     log.warning("No cache for tokens=%s interval=%s. Fetching from API...", tokens, interval)
+    api_fetch_failed = False
     try:
         kite = get_kite_session()
         fetcher = KiteDataFetcher(KITE_API_KEY, kite.access_token)
@@ -111,8 +112,10 @@ def _fetch_data_if_needed(tokens, interval, from_date, to_date,
             return all_data
         else:
             log.warning("API fetch returned 0 candles for tokens=%s interval=%s", tokens, interval)
+            api_fetch_failed = True
     except Exception as e:
         log.error("API fetch failed: %s", e)
+        api_fetch_failed = True
         if progress_callback:
             try:
                 progress_callback(
@@ -123,8 +126,13 @@ def _fetch_data_if_needed(tokens, interval, from_date, to_date,
             except Exception:
                 pass
 
-    # 3. Fall back to sample data if enabled
-    if use_sample_data:
+    # 3. Fall back to sample data — ALWAYS try if API failed, regardless of flag
+    #    WHY: The use_sample_data flag controls whether the user WANTS sample data.
+    #    But if the API fails completely, we should ALWAYS try sample data as a safety net
+    #    rather than returning empty data that causes a RuntimeError crash.
+    #    When use_sample_data=True: user explicitly wants this (log normally)
+    #    When use_sample_data=False but API failed: still try as emergency fallback (log warning)
+    if api_fetch_failed or use_sample_data:
         # Determine which symbol this token list corresponds to
         symbol = None
         for sym, sym_tokens in _TOKEN_SYMBOL_MAP.items():
@@ -133,28 +141,44 @@ def _fetch_data_if_needed(tokens, interval, from_date, to_date,
                 break
 
         if symbol:
-            log.warning("Generating SAMPLE DATA for %s (%s, %s → %s). "
-                        "Results will be based on synthetic data, not real market data.",
-                        symbol, interval, from_date, to_date)
-            if progress_callback:
-                try:
-                    progress_callback(
-                        phase="fetching",
-                        message=f"Generating sample data for {symbol} ({interval}, {from_date} → {to_date}). "
-                                f"Results are based on synthetic data.",
-                    )
-                except Exception:
-                    pass
-
-            from .sample_data import generate_sample_data_kite_format
-            sample = generate_sample_data_kite_format(
-                symbol, from_date, to_date, kite_interval=interval
-            )
-            if sample:
-                log.info("Generated %d sample candles for %s (%s)", len(sample), symbol, interval)
-                return sample
+            if not use_sample_data:
+                log.warning("API fetch failed and use_sample_data=False, but attempting "
+                            "sample data as EMERGENCY FALLBACK for %s to prevent crash.", symbol)
+                if progress_callback:
+                    try:
+                        progress_callback(
+                            phase="fetching",
+                            message=f"Kite API failed — using sample data as emergency fallback for {symbol}. "
+                                    f"Enable 'Sample Data Fallback' toggle to suppress this warning.",
+                        )
+                    except Exception:
+                        pass
             else:
-                log.error("Sample data generation returned empty for %s (%s)", symbol, interval)
+                log.warning("Generating SAMPLE DATA for %s (%s, %s → %s). "
+                            "Results will be based on synthetic data, not real market data.",
+                            symbol, interval, from_date, to_date)
+                if progress_callback:
+                    try:
+                        progress_callback(
+                            phase="fetching",
+                            message=f"Generating sample data for {symbol} ({interval}, {from_date} → {to_date}). "
+                                    f"Results are based on synthetic data.",
+                        )
+                    except Exception:
+                        pass
+
+            try:
+                from .sample_data import generate_sample_data_kite_format
+                sample = generate_sample_data_kite_format(
+                    symbol, from_date, to_date, kite_interval=interval
+                )
+                if sample:
+                    log.info("Generated %d sample candles for %s (%s)", len(sample), symbol, interval)
+                    return sample
+                else:
+                    log.error("Sample data generation returned empty for %s (%s)", symbol, interval)
+            except Exception as e:
+                log.error("Sample data generation FAILED for %s (%s): %s", symbol, interval, e)
         else:
             log.warning("Could not determine symbol for tokens=%s; cannot generate sample data", tokens)
 
