@@ -29,7 +29,6 @@ import {
 } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   FlaskConical,
   Play,
@@ -44,11 +43,13 @@ import {
   Settings2,
   Calendar,
   RotateCcw,
+  Database,
+  Cpu,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDDLJStore } from '@/lib/store';
 import { cn, formatCurrency, pnlColor } from '@/lib/utils';
-import { backtestApi, type BacktestConfigResult, type BacktestRunParams } from '@/lib/api';
+import { backtestApi, type BacktestConfigResult, type BacktestRunParams, type BacktestProgressEvent } from '@/lib/api';
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -80,6 +81,12 @@ const DEFAULT_TO_DATE = '2026-04-25';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
+/** Safely get a number from config result, defaulting to 0 if missing */
+function safeNum(val: unknown, fallback = 0): number {
+  if (typeof val === 'number' && !isNaN(val)) return val;
+  return fallback;
+}
+
 function flattenResults(
   methodATop: Record<string, BacktestConfigResult>,
   methodBTop: Record<string, BacktestConfigResult>
@@ -94,7 +101,7 @@ function flattenResults(
     method: 'Monthly Batch (B)',
     config,
   }));
-  return [...a, ...b].sort((a, b) => b.config.net_pnl - a.config.net_pnl);
+  return [...a, ...b].sort((a, b) => safeNum(b.config.net_pnl) - safeNum(a.config.net_pnl));
 }
 
 function sharpeColor(val: number): string {
@@ -108,6 +115,29 @@ function ddColor(val: number): string {
   if (val <= 5) return 'text-emerald-400';
   if (val <= 15) return 'text-amber-400';
   return 'text-red-400';
+}
+
+function phaseLabel(phase: string): string {
+  switch (phase) {
+    case 'starting': return 'Initializing...';
+    case 'fetching': return 'Fetching market data...';
+    case 'running': return 'Running backtest configs...';
+    case 'analyzing': return 'Analyzing results...';
+    case 'saving': return 'Saving results...';
+    case 'done': return 'Completed!';
+    case 'error': return 'Error';
+    default: return 'Preparing...';
+  }
+}
+
+function phaseIcon(phase: string) {
+  switch (phase) {
+    case 'fetching': return <Database className="size-5 text-blue-400 animate-pulse" />;
+    case 'running': return <Cpu className="size-5 text-amber-400 animate-pulse" />;
+    case 'done': return <CheckCircle2 className="size-5 text-emerald-400" />;
+    case 'error': return <AlertTriangle className="size-5 text-red-400" />;
+    default: return <Loader2 className="size-5 text-amber-400 animate-spin" />;
+  }
 }
 
 // ── No Results State ─────────────────────────────────────────────
@@ -129,9 +159,15 @@ function NoResultsState() {
   );
 }
 
-// ── Running State ────────────────────────────────────────────────
+// ── Running State with real progress ──────────────────────────────
 
-function RunningState({ startTime }: { startTime: number | null }) {
+function RunningState({
+  startTime,
+  progress,
+}: {
+  startTime: number | null;
+  progress: BacktestProgressEvent | null;
+}) {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
@@ -144,20 +180,58 @@ function RunningState({ startTime }: { startTime: number | null }) {
 
   const minutes = Math.floor(elapsed / 60);
   const seconds = elapsed % 60;
+  const pct = progress?.pct ?? 0;
+  const phase = progress?.phase ?? 'starting';
+  const message = progress?.message ?? 'Preparing...';
 
   return (
     <Card className="border-amber-500/30 bg-amber-500/5">
-      <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="relative mb-4">
-          <Loader2 className="size-10 animate-spin text-amber-400" />
+      <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+        <div className="mb-3">
+          {phaseIcon(phase)}
         </div>
         <h3 className="text-lg font-semibold text-amber-400">
           Backtest is running...
         </h3>
         <p className="mt-1 max-w-md text-sm text-muted-foreground">
-          The engine is processing historical data with your parameters.
-          Results will appear automatically once complete.
+          {message}
         </p>
+
+        {/* Progress bar */}
+        <div className="mt-4 w-full max-w-md space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">{phaseLabel(phase)}</span>
+            <span className="font-mono text-muted-foreground">{pct}%</span>
+          </div>
+          <Progress className="h-2.5" value={pct} />
+        </div>
+
+        {/* Config progress */}
+        {progress && progress.total_configs > 0 && (
+          <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+            <span>
+              Config {progress.current_config}/{progress.total_configs}
+            </span>
+            {progress.current_label && (
+              <Badge variant="outline" className="text-[10px] border-0 bg-muted/50 font-mono">
+                {progress.current_label}
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {/* Candle counts */}
+        {progress && progress.data_fetched && Object.keys(progress.candle_counts).length > 0 && (
+          <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+            {Object.entries(progress.candle_counts).map(([key, count]) => (
+              <Badge key={key} variant="outline" className="text-[10px] border-0 bg-muted/40 font-mono">
+                {key}: {count.toLocaleString()}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* Elapsed time */}
         {startTime && (
           <div className="mt-3 flex items-center gap-2 text-sm">
             <Clock className="size-3.5 text-muted-foreground" />
@@ -166,10 +240,6 @@ function RunningState({ startTime }: { startTime: number | null }) {
             </span>
           </div>
         )}
-        <Progress className="mt-4 h-1.5 w-64" value={undefined} />
-        <p className="mt-2 text-xs text-muted-foreground/60">
-          Polling for status every 10 seconds
-        </p>
       </CardContent>
     </Card>
   );
@@ -211,6 +281,14 @@ function ResultsTable({ results }: { results: FlattenedResult[] }) {
             <TableBody>
               {results.map((r) => {
                 const c = r.config;
+                const netPnl = safeNum(c.net_pnl);
+                const netPnlPct = safeNum(c.net_pnl_pct);
+                const winRate = safeNum(c.win_rate);
+                const profitFactor = safeNum(c.profit_factor);
+                const totalTrades = safeNum(c.total_trades, 0);
+                const maxDdPct = safeNum(c.max_dd_pct);
+                const sharpe = safeNum(c.sharpe_approx);
+
                 return (
                   <TableRow key={r.key}>
                     <TableCell className="pl-4 font-medium text-sm">
@@ -232,54 +310,54 @@ function ResultsTable({ results }: { results: FlattenedResult[] }) {
                     <TableCell
                       className={cn(
                         'text-right font-semibold tabular-nums',
-                        pnlColor(c.net_pnl)
+                        pnlColor(netPnl)
                       )}
                     >
-                      {c.net_pnl >= 0 ? '+' : ''}
-                      {formatCurrency(c.net_pnl)}
+                      {netPnl >= 0 ? '+' : ''}
+                      {formatCurrency(netPnl)}
                     </TableCell>
                     <TableCell
                       className={cn(
                         'text-right tabular-nums',
-                        pnlColor(c.net_pnl_pct)
+                        pnlColor(netPnlPct)
                       )}
                     >
-                      {c.net_pnl_pct >= 0 ? '+' : ''}
-                      {c.net_pnl_pct.toFixed(2)}%
+                      {netPnlPct >= 0 ? '+' : ''}
+                      {netPnlPct.toFixed(2)}%
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {c.win_rate.toFixed(1)}%
+                      {winRate.toFixed(1)}%
                     </TableCell>
                     <TableCell
                       className={cn(
                         'text-right tabular-nums',
-                        c.profit_factor >= 1.5
+                        profitFactor >= 1.5
                           ? 'text-emerald-400'
-                          : c.profit_factor >= 1
+                          : profitFactor >= 1
                             ? 'text-amber-400'
                             : 'text-red-400'
                       )}
                     >
-                      {c.profit_factor.toFixed(2)}
+                      {profitFactor.toFixed(2)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {c.total_trades}
+                      {totalTrades}
                     </TableCell>
                     <TableCell
                       className={cn(
                         'text-right tabular-nums',
-                        ddColor(c.max_dd_pct)
+                        ddColor(maxDdPct)
                       )}
                     >
-                      {c.max_dd_pct.toFixed(2)}%
+                      {maxDdPct.toFixed(2)}%
                     </TableCell>
                     <TableCell
                       className={cn(
                         'text-right tabular-nums pr-4',
-                        sharpeColor(c.sharpe_approx)
+                        sharpeColor(sharpe)
                       )}
                     >
-                      {c.sharpe_approx.toFixed(2)}
+                      {sharpe.toFixed(2)}
                     </TableCell>
                   </TableRow>
                 );
@@ -319,9 +397,12 @@ export default function BacktestPage() {
 
   const [isRunning, setIsRunning] = useState(false);
   const [errorFlag, setErrorFlag] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [runStartTime, setRunStartTime] = useState<number | null>(null);
+  const [progress, setProgress] = useState<BacktestProgressEvent | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sseRef = useRef<EventSource | null>(null);
 
   // ── Token validity ───────────────────────────────────────────
   const tokenValid = engineStatus.token.valid;
@@ -350,19 +431,84 @@ export default function BacktestPage() {
     fetchBacktestStatus();
   }, [fetchBacktestStatus]);
 
-  // ── Polling logic ────────────────────────────────────────────
-  // WHY: Previously, polling stopped on "no_results" because the
-  //      backend couldn't distinguish "running" from "never run".
-  //      Now the backend returns "running" while the backtest is
-  //      in progress, so we only stop polling on terminal states.
+  // ── SSE Progress Streaming ────────────────────────────────────
+  const startProgressStream = useCallback(() => {
+    // Close any existing SSE connection
+    if (sseRef.current) {
+      sseRef.current.close();
+      sseRef.current = null;
+    }
+
+    try {
+      const es = backtestApi.progressStream();
+      sseRef.current = es;
+
+      es.onmessage = (e) => {
+        try {
+          const data: BacktestProgressEvent = JSON.parse(e.data);
+          setProgress(data);
+
+          // Handle terminal states from SSE
+          if (data.status === 'completed') {
+            setIsRunning(false);
+            setErrorFlag(false);
+            setProgress(data);
+            es.close();
+            sseRef.current = null;
+            // Fetch final results
+            fetchBacktestStatus().then(() => {
+              toast.success('Backtest completed! Results are ready.');
+            });
+          } else if (data.status === 'error') {
+            setIsRunning(false);
+            setErrorFlag(true);
+            setErrorMessage(data.error_message || data.message || 'Backtest failed');
+            setProgress(data);
+            es.close();
+            sseRef.current = null;
+            toast.error(`Backtest failed: ${data.error_message || data.message || 'Unknown error'}`);
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      };
+
+      es.onerror = () => {
+        // SSE connection failed — fall back to polling
+        es.close();
+        sseRef.current = null;
+      };
+    } catch {
+      // SSE not supported — fall back to polling
+    }
+  }, [fetchBacktestStatus]);
+
+  // ── Fallback Polling logic ────────────────────────────────────
   const startPolling = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
       try {
         const latest = await backtestApi.getStatus();
+
+        // Update progress from polling response too
+        if (latest.progress) {
+          const p = latest.progress;
+          setProgress(prev => ({
+            status: p.status ?? prev?.status ?? 'running',
+            phase: p.phase ?? prev?.phase ?? 'running',
+            current_config: p.current_config ?? prev?.current_config ?? 0,
+            total_configs: p.total_configs ?? prev?.total_configs ?? 0,
+            current_label: p.current_label ?? prev?.current_label ?? '',
+            data_fetched: p.data_fetched ?? prev?.data_fetched ?? false,
+            candle_counts: p.candle_counts ?? prev?.candle_counts ?? {},
+            pct: p.pct ?? prev?.pct ?? 0,
+            message: p.message ?? prev?.message ?? '',
+            error_message: p.error_message ?? null,
+          }));
+        }
+
         // Update store with latest data
         if (latest.last_results) {
-          // Sync store so the UI updates
           await fetchBacktestStatus();
         }
 
@@ -372,7 +518,7 @@ export default function BacktestPage() {
           setErrorFlag(false);
           if (pollRef.current) clearInterval(pollRef.current);
           pollRef.current = null;
-          await fetchBacktestStatus(); // Final sync
+          await fetchBacktestStatus();
           if (latest.last_results) {
             toast.success('Backtest completed! Results are ready.');
           } else {
@@ -381,16 +527,15 @@ export default function BacktestPage() {
         } else if (latest.status === 'error') {
           setIsRunning(false);
           setErrorFlag(true);
+          setErrorMessage(latest.message || 'Check backend logs.');
           if (pollRef.current) clearInterval(pollRef.current);
           pollRef.current = null;
           toast.error(`Backtest failed: ${latest.message || 'Check backend logs.'}`);
         }
-        // "running" → keep polling (don't stop!)
-        // "no_results" → keep polling if isRunning (backtest might still be starting up)
       } catch {
-        // Silently ignore polling errors — keep polling
+        // Silently ignore polling errors
       }
-    }, 10_000); // Poll every 10s for faster feedback
+    }, 5_000); // Poll every 5s for faster feedback
   }, [fetchBacktestStatus]);
 
   const stopPolling = useCallback(() => {
@@ -401,6 +546,10 @@ export default function BacktestPage() {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
+    }
+    if (sseRef.current) {
+      sseRef.current.close();
+      sseRef.current = null;
     }
   }, []);
 
@@ -431,7 +580,20 @@ export default function BacktestPage() {
     try {
       setIsRunning(true);
       setErrorFlag(false);
+      setErrorMessage('');
       setRunStartTime(Date.now());
+      setProgress({
+        status: 'running',
+        phase: 'starting',
+        current_config: 0,
+        total_configs: 0,
+        current_label: '',
+        data_fetched: false,
+        candle_counts: {},
+        pct: 0,
+        message: 'Starting backtest...',
+        error_message: null,
+      });
 
       const params: BacktestRunParams = {
         symbol,
@@ -448,41 +610,55 @@ export default function BacktestPage() {
         max_daily_trades: parseInt(maxDailyTrades) || DEFAULT_PARAMS.max_daily_trades,
       };
 
-      toast.info('Backtest started. This may take a few minutes...');
       const result = await backtestApi.run(params);
+
+      // Handle error response from run endpoint
+      if (result.status === 'error') {
+        setIsRunning(false);
+        setErrorFlag(true);
+        setErrorMessage(result.message || 'Unknown error');
+        toast.error(result.message || 'Backtest failed to start');
+        return;
+      }
 
       // Handle case where backtest was already running
       if (result.status === 'already_running') {
-        toast.info('A backtest is already running. Continuing to poll for results.');
+        toast.info('A backtest is already running. Continuing to monitor progress.');
+      } else {
+        toast.info('Backtest started! Real-time progress updates are streaming...');
       }
 
+      // Start SSE progress streaming (primary)
+      startProgressStream();
+      // Also start polling as fallback (secondary)
       startPolling();
 
-      // Safety timeout: stop polling after 10 minutes max
+      // Safety timeout: stop after 15 minutes
       timeoutRef.current = setTimeout(() => {
-        if (pollRef.current) {
+        if (isRunning) {
           toast.warning('Backtest is taking longer than expected. It may still be running on the backend.');
           setIsRunning(false);
           stopPolling();
-          fetchBacktestStatus(); // Check one last time
+          fetchBacktestStatus();
         }
-      }, 600_000); // 10 minutes
+      }, 900_000); // 15 minutes
     } catch (err) {
       setIsRunning(false);
       setErrorFlag(true);
+      setErrorMessage(err instanceof Error ? err.message : 'Unknown error');
       setRunStartTime(null);
       toast.error(
         `Backtest failed: ${err instanceof Error ? err.message : 'Unknown error'}`
       );
       stopPolling();
     }
-  }, [startPolling, stopPolling, fetchBacktestStatus, symbol, timeframe, method, fromDate, toDate,
-      capital, slAtr, minRr, moneyness, dailyRiskPct, maxOpenPositions, maxDailyTrades]);
+  }, [startProgressStream, startPolling, stopPolling, fetchBacktestStatus, symbol, timeframe, method, fromDate, toDate,
+      capital, slAtr, minRr, moneyness, dailyRiskPct, maxOpenPositions, maxDailyTrades, isRunning]);
 
   // ── Run button disabled logic ────────────────────────────────
   const runDisabled = !tokenValid || !isConnected || isRunning;
 
-  // ── Params used in last backtest (from backend response) ────
+  // ── Params used in last backtest ─────────────────────────────
   const paramsUsed = backtestStatus?.last_results?.params_used;
 
   return (
@@ -864,15 +1040,17 @@ export default function BacktestPage() {
               The backtest replays historical candle data for the selected symbol and timeframe,
               applying the DDLJ strategy with both Compounding (Method A) and Monthly Batch
               (Method B) approaches. All parameters above are passed directly to the engine.
-              Ensure your Kite token is valid before running.
+              Ensure your Kite token is valid before running. Real-time progress updates
+              are streamed via SSE.
             </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* ── Results Section ──────────────────────────────────────── */}
-      {btStatus === 'running' && !hasResults && <RunningState startTime={runStartTime} />}
+      {/* ── Running State with progress ───────────────────────────── */}
+      {btStatus === 'running' && <RunningState startTime={runStartTime} progress={progress} />}
 
+      {/* ── Results Section ──────────────────────────────────────── */}
       {btStatus !== 'running' && hasResults && (
         <ResultsTable results={flattenedResults} />
       )}
@@ -896,13 +1074,13 @@ export default function BacktestPage() {
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Best Net P&L</p>
                 <div className="flex items-center gap-1.5">
-                  {flattenedResults[0].config.net_pnl >= 0 ? (
-                    <TrendingUp className={cn('size-4', pnlColor(flattenedResults[0].config.net_pnl))} />
+                  {safeNum(flattenedResults[0]?.config?.net_pnl) >= 0 ? (
+                    <TrendingUp className={cn('size-4', pnlColor(safeNum(flattenedResults[0]?.config?.net_pnl)))} />
                   ) : (
-                    <TrendingDown className={cn('size-4', pnlColor(flattenedResults[0].config.net_pnl))} />
+                    <TrendingDown className={cn('size-4', pnlColor(safeNum(flattenedResults[0]?.config?.net_pnl)))} />
                   )}
-                  <span className={cn('text-lg font-bold', pnlColor(flattenedResults[0].config.net_pnl))}>
-                    {formatCurrency(flattenedResults[0].config.net_pnl)}
+                  <span className={cn('text-lg font-bold', pnlColor(safeNum(flattenedResults[0]?.config?.net_pnl)))}>
+                    {formatCurrency(safeNum(flattenedResults[0]?.config?.net_pnl))}
                   </span>
                 </div>
               </div>
@@ -920,7 +1098,7 @@ export default function BacktestPage() {
                 <p className="text-xs text-muted-foreground">Best Win Rate</p>
                 <span className="text-lg font-bold text-emerald-400">
                   {flattenedResults.length > 0
-                    ? Math.max(...flattenedResults.map((r) => r.config.win_rate)).toFixed(1)
+                    ? Math.max(...flattenedResults.map((r) => safeNum(r.config.win_rate))).toFixed(1)
                     : '—'}%
                 </span>
               </div>
@@ -930,11 +1108,11 @@ export default function BacktestPage() {
                 <p className="text-xs text-muted-foreground">Best Sharpe</p>
                 <span className={cn('text-lg font-bold', sharpeColor(
                   flattenedResults.length > 0
-                    ? Math.max(...flattenedResults.map((r) => r.config.sharpe_approx))
+                    ? Math.max(...flattenedResults.map((r) => safeNum(r.config.sharpe_approx)))
                     : 0
                 ))}>
                   {flattenedResults.length > 0
-                    ? Math.max(...flattenedResults.map((r) => r.config.sharpe_approx)).toFixed(2)
+                    ? Math.max(...flattenedResults.map((r) => safeNum(r.config.sharpe_approx))).toFixed(2)
                     : '—'}
                 </span>
               </div>
@@ -959,14 +1137,18 @@ export default function BacktestPage() {
       {/* ── Error state ──────────────────────────────────────────── */}
       {btStatus === 'error' && (
         <Card className="border-red-500/30 bg-red-500/5">
-          <CardContent className="flex items-center gap-3 py-4">
-            <AlertTriangle className="size-5 text-red-400 shrink-0" />
+          <CardContent className="flex items-start gap-3 py-4">
+            <AlertTriangle className="size-5 text-red-400 shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-red-400">Backtest Failed</p>
-              <p className="text-xs text-muted-foreground">
-                The backtest encountered an error. Check the backend logs for details
-                and ensure your token is valid.
+              <p className="text-xs text-muted-foreground mt-1">
+                {errorMessage || 'The backtest encountered an error. Check the backend logs for details and ensure your token is valid.'}
               </p>
+              {!tokenValid && (
+                <p className="text-xs text-red-400/80 mt-2">
+                  Your Kite token is invalid or expired. Visit the Token page to get a fresh token, then try again.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

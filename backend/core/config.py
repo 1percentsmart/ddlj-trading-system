@@ -166,6 +166,9 @@ SESSION_DIR = Path(os.getenv("SESSION_DIR", str(PROJECT_ROOT / "sessions")))
 TRADE_LOG_DIR = Path(os.getenv("TRADE_LOG_DIR", str(PROJECT_ROOT / "logs")))
 """Directory for trade log files."""
 
+DOWNLOAD_DIR = Path(os.getenv("DOWNLOAD_DIR", str(PROJECT_ROOT / "download")))
+"""Directory for backtest result files and other downloads."""
+
 
 def ensure_directories():
     """
@@ -173,7 +176,7 @@ def ensure_directories():
 
     Called once at application startup to prevent file-not-found errors.
     """
-    for dir_path in [CACHE_DIR, SESSION_DIR, TRADE_LOG_DIR, DATA_DIR]:
+    for dir_path in [CACHE_DIR, SESSION_DIR, TRADE_LOG_DIR, DATA_DIR, DOWNLOAD_DIR]:
         dir_path.mkdir(parents=True, exist_ok=True)
 
 

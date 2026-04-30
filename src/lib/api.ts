@@ -137,20 +137,6 @@ export interface BacktestRunResult {
   started_at?: string | null;
 }
 
-export interface BacktestStatusResult {
-  status: 'idle' | 'running' | 'completed' | 'error' | 'no_results';
-  message?: string;
-  started_at?: string | null;
-  params?: Record<string, unknown> | null;
-  last_results?: {
-    version: string;
-    params_used?: Record<string, unknown>;
-    configs_tested: number;
-    method_a_top: Record<string, BacktestConfigResult>;
-    method_b_top: Record<string, BacktestConfigResult>;
-  };
-}
-
 export interface BacktestConfigResult {
   label: string;
   net_pnl: number;
@@ -161,6 +147,34 @@ export interface BacktestConfigResult {
   max_dd_pct: number;
   sharpe_approx: number;
   avg_trade: number;
+}
+
+export interface BacktestProgressEvent {
+  status: 'idle' | 'running' | 'completed' | 'error';
+  phase: 'idle' | 'starting' | 'fetching' | 'running' | 'analyzing' | 'saving' | 'done' | 'error';
+  current_config: number;
+  total_configs: number;
+  current_label: string;
+  data_fetched: boolean;
+  candle_counts: Record<string, number>;
+  pct: number;
+  message: string;
+  error_message: string | null;
+}
+
+export interface BacktestStatusResult {
+  status: 'idle' | 'running' | 'completed' | 'error' | 'no_results';
+  message?: string;
+  started_at?: string | null;
+  params?: Record<string, unknown> | null;
+  progress?: BacktestProgressEvent;
+  last_results?: {
+    version: string;
+    params_used?: Record<string, unknown>;
+    configs_tested: number;
+    method_a_top: Record<string, BacktestConfigResult>;
+    method_b_top: Record<string, BacktestConfigResult>;
+  };
 }
 
 export interface ReadinessCheck {
@@ -311,6 +325,13 @@ export const backtestApi = {
       ...(params ? { body: JSON.stringify(params) } : {}),
     }),
   getStatus: () => request<BacktestStatusResult>('/backtest/status'),
+  /**
+   * Open an SSE connection for real-time backtest progress updates.
+   * Returns an EventSource that the caller owns (must close it).
+   */
+  progressStream: (): EventSource => {
+    return new EventSource(`${API_BASE}/backtest/progress`);
+  },
 };
 
 // ── Live Safety ──────────────────────────────────────────────────

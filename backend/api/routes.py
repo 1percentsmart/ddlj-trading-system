@@ -268,6 +268,16 @@ _backtest_state = {
     "started_at": None,        # ISO timestamp when backtest started
     "error_message": None,     # Error message if backtest failed
     "params": None,            # Parameters used for the current/last run
+    "progress": {              # Real-time progress info
+        "phase": "idle",       # "idle" | "fetching" | "running" | "analyzing" | "saving" | "done"
+        "current_config": 0,   # Current config being tested
+        "total_configs": 0,    # Total configs to test
+        "current_label": "",   # Label of current config (e.g. "BN_15mx60m_sl2.0_RR1.5_ITM")
+        "data_fetched": False,  # Whether candle data was fetched
+        "candle_counts": {},   # Candle counts per symbol+interval
+        "pct": 0,             # Overall progress percentage (0-100)
+        "message": "",        # Human-readable progress message
+    },
 }
 
 
@@ -276,12 +286,12 @@ def _get_results_path():
 
     WHY: Previously, routes.py and run_backtest.py used DIFFERENT path
     resolution logic, which could cause the status endpoint to look in
-    the wrong directory. Now we use the same PROJECT_ROOT derivation.
+    the wrong directory. Now we use the same DOWNLOAD_DIR from core.config.
     """
     from pathlib import Path
     try:
-        from core.config import PROJECT_ROOT
-        return PROJECT_ROOT / "download" / "v9_backtest_results.json"
+        from core.config import DOWNLOAD_DIR
+        return DOWNLOAD_DIR / "v9_backtest_results.json"
     except Exception:
         return Path("/app/download/v9_backtest_results.json")
 
@@ -332,18 +342,43 @@ async def run_backtest(request: BacktestRunRequest = None):
     _backtest_state["started_at"] = datetime.now(timezone.utc).isoformat()
     _backtest_state["error_message"] = None
     _backtest_state["params"] = params
+    _backtest_state["progress"] = {
+        "phase": "starting",
+        "current_config": 0,
+        "total_configs": 0,
+        "current_label": "",
+        "data_fetched": False,
+        "candle_counts": {},
+        "pct": 0,
+        "message": "Initializing backtest...",
+    }
+
+    def _update_progress(**kwargs):
+        """Thread-safe progress update helper."""
+        _backtest_state["progress"].update(kwargs)
+        # Auto-calculate percentage from current_config/total_configs if not explicit
+        if "pct" not in kwargs:
+            total = _backtest_state["progress"].get("total_configs", 0)
+            current = _backtest_state["progress"].get("current_config", 0)
+            if total > 0:
+                _backtest_state["progress"]["pct"] = min(int(current / total * 100), 99)
 
     def _run_backtest_thread(bt_params):
-        """Run backtest in a background thread and update global state."""
+        """Run backtest in a background thread and update global state with progress."""
         try:
             from engine.run_backtest import main as run_bt
-            result = run_bt(bt_params)
+            result = run_bt(bt_params, progress_callback=_update_progress)
             _backtest_state["status"] = "completed"
             _backtest_state["error_message"] = None
+            _backtest_state["progress"]["phase"] = "done"
+            _backtest_state["progress"]["pct"] = 100
+            _backtest_state["progress"]["message"] = "Backtest completed successfully!"
             log.info("Backtest: Completed successfully")
         except Exception as e:
             _backtest_state["status"] = "error"
             _backtest_state["error_message"] = f"Backtest failed: {e}"
+            _backtest_state["progress"]["phase"] = "error"
+            _backtest_state["progress"]["message"] = f"Error: {e}"
             log.error("Backtest: Failed — %s", e, exc_info=True)
 
     # Start backtest in background
@@ -355,6 +390,7 @@ async def run_backtest(request: BacktestRunRequest = None):
         "message": "Backtest is running in the background with your parameters.",
         "params": params,
         "note": "Results will be available at GET /backtest/status. Typically takes 2-5 minutes.",
+        "progress_endpoint": "/backtest/progress (SSE stream)",
     }
 
 
@@ -365,13 +401,15 @@ async def backtest_status():
 
     current_status = _backtest_state["status"]
 
-    # If currently running, return running status immediately
+    # If currently running, return running status with progress info
     if current_status == "running":
+        progress = _backtest_state.get("progress", {})
         return {
             "status": "running",
             "message": "Backtest is currently in progress.",
             "started_at": _backtest_state["started_at"],
             "params": _backtest_state["params"],
+            "progress": progress,
         }
 
     # If error, return error details
@@ -408,6 +446,70 @@ async def backtest_status():
 
     # No results file and not running
     return {"status": "no_results", "message": "No backtest results found. Run POST /backtest/run first."}
+
+
+@router.get("/backtest/progress")
+async def backtest_progress():
+    """SSE endpoint for real-time backtest progress updates.
+
+    WHY: The regular status endpoint requires polling every N seconds,
+    which means the user sees updates with delay. SSE (Server-Sent Events)
+    pushes updates instantly as they happen, giving a real-time progress bar.
+
+    Usage:
+        const es = new EventSource('/api/v1/backtest/progress');
+        es.onmessage = (e) => console.log(JSON.parse(e.data));
+    """
+    import asyncio
+    from starlette.responses import StreamingResponse
+
+    async def event_generator():
+        """Generate SSE events from backtest progress state."""
+        last_pct = -1
+        idle_count = 0
+        while True:
+            progress = _backtest_state.get("progress", {})
+            status = _backtest_state.get("status", "idle")
+            pct = progress.get("pct", 0)
+
+            # Always send an update (even if pct unchanged, phase might have)
+            data = {
+                "status": status,
+                "phase": progress.get("phase", "idle"),
+                "current_config": progress.get("current_config", 0),
+                "total_configs": progress.get("total_configs", 0),
+                "current_label": progress.get("current_label", ""),
+                "data_fetched": progress.get("data_fetched", False),
+                "candle_counts": progress.get("candle_counts", {}),
+                "pct": pct,
+                "message": progress.get("message", ""),
+                "error_message": _backtest_state.get("error_message"),
+            }
+            yield f"data: {json.dumps(data)}\n\n"
+
+            # Terminal state — send final update and close
+            if status in ("completed", "error"):
+                yield f"event: done\ndata: {json.dumps(data)}\n\n"
+                return
+
+            # Idle for too long — stop streaming
+            if status == "idle":
+                idle_count += 1
+                if idle_count > 3:
+                    return
+
+            last_pct = pct
+            await asyncio.sleep(1)  # Push updates every second
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        },
+    )
 
 
 # ============================================================================

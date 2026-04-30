@@ -28,7 +28,49 @@ def analyze(trades, label="", capital=50000):
         dict: Comprehensive dictionary of performance metrics.
     """
     if not trades:
-        return {"label": label, "total_trades": 0, "net_pnl": 0, "capital": capital}
+        return {
+            "label": label,
+            "total_trades": 0,
+            "net_pnl": 0,
+            "net_pnl_pct": 0.0,
+            "capital": capital,
+            "win_rate": 0.0,
+            "profit_factor": 0.0,
+            "max_dd_pct": 0.0,
+            "sharpe_approx": 0.0,
+            "avg_trade": 0.0,
+            "wins": 0,
+            "losses": 0,
+            "gross_profit": 0.0,
+            "gross_loss": 0.0,
+            "total_costs": 0.0,
+            "avg_win": 0.0,
+            "avg_loss": 0.0,
+            "avg_rr": 0.0,
+            "avg_held": 0.0,
+            "max_dd": 0.0,
+            "long_trades": 0,
+            "short_trades": 0,
+            "long_wr": 0.0,
+            "short_wr": 0.0,
+            "long_pnl": 0.0,
+            "short_pnl": 0.0,
+            "exit_reasons": {},
+            "monthly_pnl": {},
+            "cost_per_trade": 0.0,
+            "avg_spread_cost": 0.0,
+            "avg_delta": 0.0,
+            "opt_trades": 0,
+            "fut_trades": 0,
+            "largest_win": 0.0,
+            "largest_loss": 0.0,
+            "max_win_streak": 0,
+            "max_loss_streak": 0,
+            "trading_days": 0,
+            "avg_daily_pnl": 0.0,
+            "final_capital": capital,
+            "starting_capital": capital,
+        }
 
     wins = [t for t in trades if t.net > 0]
     losses = [t for t in trades if t.net <= 0]

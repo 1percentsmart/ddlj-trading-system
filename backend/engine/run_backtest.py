@@ -81,7 +81,7 @@ def _fetch_data_if_needed(tokens, interval, from_date, to_date):
         return []
 
 
-def main(params: Optional[Dict[str, Any]] = None):
+def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
     """
     Run the complete DDLJ v9 backtest with all bug fixes.
 
@@ -129,14 +129,24 @@ def main(params: Optional[Dict[str, Any]] = None):
     except (ValueError, TypeError):
         to_date = date(TEST_END_YEAR, TEST_END_MONTH, TEST_END_DAY)
 
+    def _progress(**kwargs):
+        """Send progress update to callback if provided."""
+        if progress_callback:
+            try:
+                progress_callback(**kwargs)
+            except Exception:
+                pass  # Never let progress updates crash the backtest
+
     log.info("=" * 70)
     log.info("DDLJ v9 BACKTEST — All Bug Fixes Applied")
     log.info("=" * 70)
     log.info("Period: %s → %s | Capital: ₹%s", from_date, to_date, f"{capital:,}")
     log.info("Symbol: %s | TF: %s | Method: %s | SL_ATR: %s | Min_RR: %s | Moneyness: %s",
              symbol, timeframe, method, sl_atr, min_rr, moneyness)
+    _progress(phase="fetching", message=f"Fetching data for {symbol} ({from_date} → {to_date})...", pct=5)
 
     # Load data
+    _progress(phase="fetching", message="Resolving futures tokens...", pct=8)
     bn_fut_token = BN_FUT_TOKEN
     nf_fut_token = NF_FUT_TOKEN
     try:
@@ -146,31 +156,50 @@ def main(params: Optional[Dict[str, Any]] = None):
         resolved_nf = fetcher.resolve_future_token("NIFTY")
         if resolved_bn: bn_fut_token = resolved_bn
         if resolved_nf: nf_fut_token = resolved_nf
+        _progress(message="Futures tokens resolved from API")
     except Exception:
         log.warning("Using default futures tokens from config")
+        _progress(message="Using default futures tokens (API unavailable)")
 
     # Only fetch data for the symbols we need
     data_cache = {}
 
+    candle_counts = {}
+
     if symbol in ("BANKNIFTY", "both"):
+        _progress(phase="fetching", message="Fetching BANKNIFTY candle data...", pct=10)
         bn_5m_raw = _fetch_data_if_needed([BN_INDEX_TOKEN, bn_fut_token], "5minute", from_date, to_date)
+        _progress(phase="fetching", message="Fetching BANKNIFTY 15m data...", pct=15)
         bn_15m_raw = _fetch_data_if_needed([BN_INDEX_TOKEN, bn_fut_token], "15minute", from_date, to_date)
+        _progress(phase="fetching", message="Fetching BANKNIFTY 60m data...", pct=20)
         bn_60m_raw = _fetch_data_if_needed([BN_INDEX_TOKEN, bn_fut_token], "60minute", from_date, to_date)
         bn_5m = filter_candles_by_date(parse_candles(bn_5m_raw, "BANKNIFTY", "5m"), from_date, to_date)
         bn_15m = filter_candles_by_date(parse_candles(bn_15m_raw, "BANKNIFTY", "15m"), from_date, to_date)
         bn_60m = filter_candles_by_date(parse_candles(bn_60m_raw, "BANKNIFTY", "60m"), from_date, to_date)
         data_cache["BANKNIFTY"] = ("BN", bn_5m, bn_15m, bn_60m)
+        candle_counts["BN_5m"] = len(bn_5m)
+        candle_counts["BN_15m"] = len(bn_15m)
+        candle_counts["BN_60m"] = len(bn_60m)
         log.info("  BN 5m: %d | BN 15m: %d | BN 60m: %d", len(bn_5m), len(bn_15m), len(bn_60m))
 
     if symbol in ("NIFTY", "both"):
+        _progress(phase="fetching", message="Fetching NIFTY candle data...", pct=25)
         nf_5m_raw = _fetch_data_if_needed([NF_INDEX_TOKEN, nf_fut_token], "5minute", from_date, to_date)
+        _progress(phase="fetching", message="Fetching NIFTY 15m data...", pct=30)
         nf_15m_raw = _fetch_data_if_needed([NF_INDEX_TOKEN, nf_fut_token], "15minute", from_date, to_date)
+        _progress(phase="fetching", message="Fetching NIFTY 60m data...", pct=35)
         nf_60m_raw = _fetch_data_if_needed([NF_INDEX_TOKEN, nf_fut_token], "60minute", from_date, to_date)
         nf_5m = filter_candles_by_date(parse_candles(nf_5m_raw, "NIFTY", "5m"), from_date, to_date)
         nf_15m = filter_candles_by_date(parse_candles(nf_15m_raw, "NIFTY", "15m"), from_date, to_date)
         nf_60m = filter_candles_by_date(parse_candles(nf_60m_raw, "NIFTY", "60m"), from_date, to_date)
         data_cache["NIFTY"] = ("NF", nf_5m, nf_15m, nf_60m)
+        candle_counts["NF_5m"] = len(nf_5m)
+        candle_counts["NF_15m"] = len(nf_15m)
+        candle_counts["NF_60m"] = len(nf_60m)
         log.info("  NF 5m: %d | NF 15m: %d | NF 60m: %d", len(nf_5m), len(nf_15m), len(nf_60m))
+
+    _progress(phase="running", data_fetched=True, candle_counts=candle_counts,
+              message=f"Data fetched: {sum(candle_counts.values())} candles total. Starting backtest...", pct=40)
 
     # ── Build instrument list based on symbol filter ──
     INSTRUMENTS = []
@@ -197,12 +226,19 @@ def main(params: Optional[Dict[str, Any]] = None):
     results_b = {}
     config_num = 0
     total = len(INSTRUMENTS) * len(TF_CONFIGS) * len(SIGNAL_CONFIGS) * len(OPTION_MODES)
+    _progress(phase="running", total_configs=total, message=f"Running {total} config combinations...", pct=40)
 
     for inst_name, inst_short, data_5m, data_15m, data_60m in INSTRUMENTS:
         for entry_tf, bias_tf, entry_tf_min in TF_CONFIGS:
             for sl_atr_val, min_rr_val, sig_label in SIGNAL_CONFIGS:
                 for moneyness_val, spread_regime_val in OPTION_MODES:
                     config_num += 1
+                    _progress(
+                        phase="running",
+                        current_config=config_num,
+                        current_label=f"{inst_short}_{entry_tf}x{bias_tf}_{sig_label}_{moneyness_val}",
+                        message=f"Config {config_num}/{total}: {inst_short} {entry_tf}x{bias_tf} {sig_label} {moneyness_val}",
+                    )
                     entry_candles = data_15m if entry_tf == "15m" else data_5m
                     bias_candles = data_60m if bias_tf == "60m" else data_15m if bias_tf == "15m" else data_5m
                     if not entry_candles or not bias_candles:
@@ -235,6 +271,7 @@ def main(params: Optional[Dict[str, Any]] = None):
                     log.info("[%d/%d] %s: A=₹%.0f B=₹%.0f", config_num, total, label, pnl_a, pnl_b)
 
     # Save results
+    _progress(phase="saving", message="Saving results...", pct=95)
     output = {
         "version": "v10.2_ALL_BUGS_FIXED",
         "params_used": {
@@ -255,14 +292,26 @@ def main(params: Optional[Dict[str, Any]] = None):
         "method_b_monthly_batch": results_b,
     }
 
-    # Resolve output path dynamically (works on both local dev and Railway)
-    _project_root = os.getenv("PROJECT_ROOT", os.path.join(os.path.dirname(__file__), "..", ".."))
-    output_dir = os.path.join(_project_root, "download")
+    # Resolve output path using core.config.DOWNLOAD_DIR for consistency with routes.py
+    # WHY: Previously, run_backtest.py used os.path.dirname(__file__)+"../.."
+    #      which resolves to the PROJECT ROOT (parent of backend/).
+    #      But routes.py uses core.config.PROJECT_ROOT which on local dev
+    #      resolves to backend/ (because it finds main.py there).
+    #      This PATH MISMATCH caused the status endpoint to look in the wrong
+    #      directory for results, showing "no_results" even after backtest completed.
+    try:
+        from core.config import DOWNLOAD_DIR as _download_dir
+        output_dir = str(_download_dir)
+    except ImportError:
+        _project_root = os.getenv("PROJECT_ROOT", os.path.join(os.path.dirname(__file__), "..", ".."))
+        output_dir = os.path.join(_project_root, "download")
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, "v9_backtest_results.json")
     with open(output_path, "w") as f:
         json.dump(output, f, indent=2, default=str)
     log.info("Results saved to %s", output_path)
+
+    _progress(phase="done", pct=100, message="Backtest completed!")
 
     # Print summary
     log.info("\n" + "=" * 70)
