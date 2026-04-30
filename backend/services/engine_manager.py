@@ -73,6 +73,11 @@ class EngineManager:
         # ── Config ──
         self._config_override = {}   # User-provided config overrides
 
+        # ── Token status cache ──
+        # Avoids hitting Kite API on every status poll (every 30s from frontend)
+        self._token_cache = None     # Cached token status dict
+        self._token_cache_time = 0   # Epoch time when cache was last updated
+
     def initialize(self):
         """
         Initialize the engine manager.
@@ -142,7 +147,8 @@ class EngineManager:
             RuntimeError: If the engine is already running.
         """
         if self._running and self._trader is not None:
-            raise RuntimeError("Engine is already running. Stop it first.")
+            from core.exceptions import EngineAlreadyRunningError
+            raise EngineAlreadyRunningError()
 
         self._config_override = config_override or {}
 
@@ -255,10 +261,17 @@ class EngineManager:
                 log.warning("EngineManager: Could not get trader status: %s", e)
                 status["trader_error"] = str(e)
 
-        # Token status
+        # Token status (with 5-minute cache to avoid Kite API rate limits)
+        # get_status() is called every 30s by the frontend, but token_status()
+        # calls kite.profile() which is rate-limited. Cache for 300 seconds.
+        import time as _time
         try:
-            from engine.token_manager import token_status
-            token_info = token_status()
+            now = _time.time()
+            if self._token_cache is None or (now - self._token_cache_time) > 300:
+                from engine.token_manager import token_status
+                self._token_cache = token_status()
+                self._token_cache_time = now
+            token_info = self._token_cache
             status["token"] = {
                 "stored": token_info["stored"],
                 "valid": token_info["valid"],
@@ -359,6 +372,10 @@ class EngineManager:
             from engine.token_manager import exchange_request_token
             kite = exchange_request_token(request_token)
             profile = kite.profile()
+
+            # Invalidate token cache on successful exchange
+            self._token_cache = None
+            self._token_cache_time = 0
 
             # If engine is running, reconnect with new token
             if self._running and self._trader is not None:

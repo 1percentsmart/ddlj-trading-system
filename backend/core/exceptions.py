@@ -61,8 +61,8 @@ class DDLJError(Exception):
 class EngineError(DDLJError):
     """Base exception for trading engine errors."""
 
-    def __init__(self, message: str, details: dict = None):
-        super().__init__(message, code="ENGINE_ERROR", details=details)
+    def __init__(self, message: str, code: str = "ENGINE_ERROR", details: dict = None):
+        super().__init__(message, code=code, details=details)
 
 
 class EngineNotRunningError(EngineError):

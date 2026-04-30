@@ -20,11 +20,13 @@ from .config import KITE_API_KEY, KITE_API_SECRET, KITE_TOKEN_FILE
 logger = logging.getLogger("kite_token_manager")
 logger.setLevel(logging.DEBUG)
 
-_handler = logging.StreamHandler(sys.stdout)
-_handler.setFormatter(
-    logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
-)
-logger.addHandler(_handler)
+# Only add handler if none exist (prevent duplicates on re-import)
+if not logger.handlers:
+    _handler = logging.StreamHandler(sys.stdout)
+    _handler.setFormatter(
+        logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
+    )
+    logger.addHandler(_handler)
 
 LOGIN_URL = f"https://kite.trade/connect/login?api_key={KITE_API_KEY}&v=3"
 

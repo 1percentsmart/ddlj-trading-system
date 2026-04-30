@@ -9,7 +9,7 @@ All REST API endpoints for controlling and monitoring the trading engine.
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
 
 from api.deps import get_engine_manager
@@ -80,7 +80,18 @@ async def readiness(mgr: EngineManager = Depends(get_engine_manager)):
 
 
 @router.get("/health")
-async def health_check(mgr: EngineManager = Depends(get_engine_manager)):
+async def health_check(request: Request, mgr: EngineManager = Depends(get_engine_manager)):
+    """Return health status using the registered HealthMonitor checks."""
+    try:
+        # Access health_monitor via Request object to avoid circular import
+        # (main imports routes, so routes must NOT import main)
+        health_monitor = getattr(request.app.state, "health_monitor", None)
+        if health_monitor:
+            return health_monitor.get_health()
+    except Exception:
+        pass
+
+    # Fallback: simple health check
     try:
         status = mgr.get_status()
         if not status.get("initialized", False):
@@ -310,3 +321,140 @@ async def backtest_status():
             return {"status": "error", "message": f"Could not read results: {e}"}
 
     return {"status": "no_results", "message": "No backtest results found. Run POST /backtest/run first."}
+
+
+# ============================================================================
+# DATABASE-PERSISTED ENDPOINTS — Survive server restarts
+# ============================================================================
+
+@router.get("/db/trades")
+async def get_db_trades(limit: int = 50, offset: int = 0, symbol: Optional[str] = None):
+    """Get trades from the persistent database (survives restarts)."""
+    try:
+        from database.connection import get_session
+        from database.crud import get_trades as db_get_trades
+
+        async for session in get_session():
+            trades = await db_get_trades(session, limit=limit, offset=offset, symbol=symbol)
+            trade_list = []
+            for t in trades:
+                trade_list.append({
+                    "id": t.id,
+                    "session_id": t.session_id,
+                    "symbol": t.symbol,
+                    "direction": t.direction,
+                    "entry_price": t.entry_price,
+                    "exit_price": t.exit_price,
+                    "entry_time": str(t.entry_time),
+                    "exit_time": str(t.exit_time),
+                    "sl": t.sl,
+                    "target": t.target,
+                    "qty": t.qty,
+                    "gross_pnl": t.gross_pnl,
+                    "costs": t.costs,
+                    "net_pnl": t.net_pnl,
+                    "exit_reason": t.exit_reason,
+                    "rr": t.rr,
+                    "option_strike": t.option_strike,
+                    "option_type": t.option_type,
+                    "option_entry_premium": t.option_entry_premium,
+                    "option_exit_premium": t.option_exit_premium,
+                    "option_delta": t.option_delta,
+                    "option_iv_entry": t.option_iv_entry,
+                    "mode": t.mode,
+                    "created_at": str(t.created_at),
+                })
+            return {"total": len(trade_list), "limit": limit, "offset": offset, "trades": trade_list}
+    except Exception as e:
+        log.warning("DB trades endpoint failed: %s — returning empty", e)
+        return {"total": 0, "limit": limit, "offset": offset, "trades": [], "error": str(e)}
+
+
+@router.get("/db/positions")
+async def get_db_positions():
+    """Get open positions from the persistent database."""
+    try:
+        from database.connection import get_session
+        from database.crud import get_open_positions as db_get_positions
+
+        async for session in get_session():
+            positions = await db_get_positions(session)
+            pos_list = []
+            for p in positions:
+                pos_list.append({
+                    "id": p.id,
+                    "session_id": p.session_id,
+                    "symbol": p.symbol,
+                    "direction": p.direction,
+                    "entry_price": p.entry_price,
+                    "entry_time": str(p.entry_time),
+                    "qty": p.qty,
+                    "sl": p.sl,
+                    "target": p.target,
+                    "rr": p.rr,
+                    "held": p.held,
+                    "be_done": p.be_done,
+                    "atr_at_entry": p.atr_at_entry,
+                    "status": p.status,
+                    "created_at": str(p.created_at),
+                    "updated_at": str(p.updated_at),
+                })
+            return {"count": len(pos_list), "positions": pos_list}
+    except Exception as e:
+        log.warning("DB positions endpoint failed: %s — returning empty", e)
+        return {"count": 0, "positions": [], "error": str(e)}
+
+
+@router.get("/db/sessions")
+async def get_db_sessions(limit: int = 20, offset: int = 0):
+    """Get trading sessions from the persistent database."""
+    try:
+        from database.connection import get_session
+        from database.crud import get_sessions as db_get_sessions
+
+        async for session in get_session():
+            sessions = await db_get_sessions(session, limit=limit, offset=offset)
+            session_list = []
+            for s in sessions:
+                session_list.append({
+                    "id": s.id,
+                    "session_id": s.session_id,
+                    "start_time": str(s.start_time),
+                    "end_time": str(s.end_time) if s.end_time else None,
+                    "starting_capital": s.starting_capital,
+                    "ending_capital": s.ending_capital,
+                    "total_trades": s.total_trades,
+                    "total_pnl": s.total_pnl,
+                    "status": s.status,
+                    "created_at": str(s.created_at),
+                })
+            return {"total": len(session_list), "sessions": session_list}
+    except Exception as e:
+        log.warning("DB sessions endpoint failed: %s — returning empty", e)
+        return {"total": 0, "sessions": [], "error": str(e)}
+
+
+@router.get("/db/errors")
+async def get_db_errors(limit: int = 50, severity: Optional[str] = None):
+    """Get error log from the persistent database."""
+    try:
+        from database.connection import get_session
+        from database.crud import get_errors as db_get_errors
+
+        async for session in get_session():
+            errors = await db_get_errors(session, limit=limit, severity=severity)
+            error_list = []
+            for e in errors:
+                error_list.append({
+                    "id": e.id,
+                    "error_type": e.error_type,
+                    "error_message": e.error_message,
+                    "module": e.module,
+                    "severity": e.severity,
+                    "resolved": e.resolved,
+                    "created_at": str(e.created_at),
+                })
+            return {"total": len(error_list), "errors": error_list}
+    except Exception as e:
+        log.warning("DB errors endpoint failed: %s — returning empty", e)
+        return {"total": 0, "errors": [], "error": str(e)}

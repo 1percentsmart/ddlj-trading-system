@@ -248,8 +248,58 @@ async def lifespan(app: FastAPI):
     yield  # ← Server is running here
 
     # ── SHUTDOWN ──
+    # We are inside an async context here, so we CAN await directly.
+    # This is safer than _graceful_shutdown() which must handle sync signal handlers.
     log.info("Server shutting down...")
-    _graceful_shutdown()
+
+    # Stop sync services
+    if market_guard:
+        try:
+            market_guard.stop()
+            log.info("Market hours guard stopped")
+        except Exception as e:
+            log.error("Error stopping market guard: %s", e)
+
+    if token_service:
+        try:
+            token_service.stop()
+            log.info("Token refresh service stopped")
+        except Exception as e:
+            log.error("Error stopping token service: %s", e)
+
+    try:
+        engine_manager.graceful_shutdown()
+        log.info("Engine manager shut down")
+    except Exception as e:
+        log.error("Error shutting down engine: %s", e)
+
+    # Save session state
+    if session_recovery and engine_manager._trader:
+        try:
+            session_recovery.save_session(
+                capital=engine_manager._trader.current_capital,
+                daily_pnl=engine_manager._trader.daily_pnl,
+                open_positions=engine_manager._trader.open_positions,
+                closed_trades=engine_manager._trader.closed_trades,
+                config=engine_manager._trader._config,
+                clean_shutdown=True,
+            )
+            log.info("Session state saved")
+        except Exception as e:
+            log.error("Error saving session: %s", e)
+
+    # Async cleanup — safe to await since we're inside the lifespan async context
+    await close_db()
+    log.info("Database closed")
+
+    if telegram_notifier:
+        try:
+            await telegram_notifier.send_system_alert(
+                "Backend Shutdown", "DDLJ v10.1 backend is going offline"
+            )
+        except Exception:
+            pass  # Best effort
+
     log.info("Shutdown complete")
 
 
@@ -305,35 +355,70 @@ def _on_market_close():
 def _register_health_checks():
     """Register all health check functions with the health monitor."""
 
+    from services.health_monitor import HealthCheckResult, HealthStatus
+
     async def check_engine_heartbeat():
         """Check if the trading engine is alive and reporting."""
         status = engine_manager.get_status()
         if not status.get("engine_running", False):
-            return "degraded", "Engine is not running"
-        return "healthy", "Engine is running"
+            return HealthCheckResult(
+                name="engine_heartbeat",
+                status=HealthStatus.DEGRADED,
+                message="Engine is not running",
+            )
+        return HealthCheckResult(
+            name="engine_heartbeat",
+            status=HealthStatus.HEALTHY,
+            message="Engine is running",
+        )
 
     async def check_token_validity():
         """Check if the Kite API token is valid."""
         status = engine_manager.get_status()
         token = status.get("token", {})
         if not token.get("stored", False):
-            return "degraded", "No Kite token stored"
+            return HealthCheckResult(
+                name="token_validity",
+                status=HealthStatus.DEGRADED,
+                message="No Kite token stored",
+            )
         if not token.get("valid", False):
-            return "unhealthy", "Kite token is expired or invalid"
-        return "healthy", "Token is valid"
+            return HealthCheckResult(
+                name="token_validity",
+                status=HealthStatus.UNHEALTHY,
+                message="Kite token is expired or invalid",
+            )
+        return HealthCheckResult(
+            name="token_validity",
+            status=HealthStatus.HEALTHY,
+            message="Token is valid",
+        )
 
     async def check_database():
         """Check if the database is accessible."""
         try:
             from database.connection import get_engine
+            from sqlalchemy import text
             engine = get_engine()
             if engine is None:
-                return "degraded", "Database not configured"
+                return HealthCheckResult(
+                    name="database",
+                    status=HealthStatus.DEGRADED,
+                    message="Database not configured",
+                )
             async with engine.connect() as conn:
-                await conn.execute(type(conn).text("SELECT 1") if hasattr(type(conn), 'text') else __import__('sqlalchemy').text("SELECT 1"))
-            return "healthy", "Database is accessible"
+                await conn.execute(text("SELECT 1"))
+            return HealthCheckResult(
+                name="database",
+                status=HealthStatus.HEALTHY,
+                message="Database is accessible",
+            )
         except Exception as e:
-            return "unhealthy", f"Database error: {e}"
+            return HealthCheckResult(
+                name="database",
+                status=HealthStatus.UNHEALTHY,
+                message=f"Database error: {e}",
+            )
 
     health_monitor.register_check("engine_heartbeat", check_engine_heartbeat)
     health_monitor.register_check("token_validity", check_token_validity)
@@ -341,8 +426,13 @@ def _register_health_checks():
 
 
 def _graceful_shutdown():
-    """Perform graceful shutdown of all services."""
-    log.info("Initiating graceful shutdown...")
+    """Perform graceful shutdown of all services.
+
+    Called from signal handlers (SIGTERM/SIGINT) which are sync contexts.
+    For the lifespan shutdown (async context), we await directly instead
+    of using this function — see the lifespan's shutdown section above.
+    """
+    log.info("Initiating graceful shutdown (signal handler)...")
 
     # 1. Stop market hours guard
     if market_guard:
@@ -382,24 +472,42 @@ def _graceful_shutdown():
         except Exception as e:
             log.error("Error saving session: %s", e)
 
-    # 5. Close database
+    # 5. Close database — best effort from sync signal handler
+    # We can't simply await here (sync context), so try to run in the
+    # existing event loop or create a new one as fallback.
     try:
-        # Can't await in sync context, schedule it
-        asyncio.ensure_future(close_db())
-        log.info("Database closed")
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # Loop is running — schedule the coroutine (fire-and-forget)
+            asyncio.ensure_future(close_db())
+        else:
+            # Loop exists but not running — run to completion
+            loop.run_until_complete(close_db())
+    except RuntimeError:
+        # No event loop at all — create one and run
+        try:
+            asyncio.run(close_db())
+        except Exception as e:
+            log.error("Could not close database from signal handler: %s", e)
     except Exception as e:
         log.error("Error closing database: %s", e)
+    else:
+        log.info("Database closed")
 
-    # 6. Send Telegram notification
+    # 6. Send Telegram notification (fire-and-forget)
     if telegram_notifier:
         try:
-            asyncio.ensure_future(
-                telegram_notifier.send_system_alert(
-                    "Backend Shutdown", "DDLJ v10.1 backend is going offline"
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(
+                    telegram_notifier.send_system_alert(
+                        "Backend Shutdown", "DDLJ v10.1 backend is going offline"
+                    )
                 )
-            )
         except Exception:
             pass  # Best effort
+
+    log.info("Graceful shutdown complete")
 
 
 # ══════════════════════════════════════════════════════════════════

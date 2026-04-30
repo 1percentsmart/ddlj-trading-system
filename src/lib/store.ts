@@ -67,6 +67,19 @@ const defaultEngineStatus: EngineStatus = {
   stop_time: null,
   token: { stored: false, valid: false, user: null },
   last_heartbeat: null,
+  running: false,
+  capital: 0,
+  peak_capital: 0,
+  daily_pnl: 0,
+  daily_trade_count: 0,
+  open_positions: 0,
+  total_closed_trades: 0,
+  last_bias: 'NEUTRAL',
+  index: 'BANKNIFTY',
+  entry_tf: '15m',
+  bias_tf: '60m',
+  live_vix: null,
+  uptime_seconds: 0,
 };
 
 // ── Store ────────────────────────────────────────────────────────
@@ -260,6 +273,7 @@ export const useDDLJStore = create<DDLJStore>()(
           get().fetchConfig(),
           get().fetchHealth(),
           get().fetchTokenStatus(),
+          get().fetchLoginUrl(),
           get().fetchReadiness(),
           get().fetchBacktestStatus(),
         ]);

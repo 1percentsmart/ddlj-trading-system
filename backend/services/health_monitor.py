@@ -334,10 +334,28 @@ class HealthMonitor:
         all_results.append(self._check_last_trade())
 
         # ── Run custom checks ──
+        import asyncio
         for name, check_fn in self._custom_checks.items():
             try:
                 start = time.monotonic()
                 result = check_fn()
+                # Handle async check functions — run them in an event loop
+                if asyncio.iscoroutine(result):
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            # Already in an async context — use thread pool
+                            import concurrent.futures
+                            with concurrent.futures.ThreadPoolExecutor() as pool:
+                                result = pool.submit(asyncio.run, result).result(timeout=10)
+                        else:
+                            result = loop.run_until_complete(result)
+                    except RuntimeError:
+                        result = asyncio.run(result)
+                # Handle tuple returns (status, message) — backward compat
+                if isinstance(result, tuple):
+                    status_val, message_val = result[0], result[1] if len(result) > 1 else ""
+                    result = HealthCheckResult(name=name, status=status_val, message=message_val)
                 result.duration_ms = (time.monotonic() - start) * 1000
                 all_results.append(result)
             except Exception as e:

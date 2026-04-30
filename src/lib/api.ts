@@ -23,6 +23,20 @@ export interface EngineStatus {
     user: string | null;
   };
   last_heartbeat: string | null;
+  // Fields from PaperTrader.get_status()
+  running?: boolean;
+  capital?: number;
+  peak_capital?: number;
+  daily_pnl?: number;
+  daily_trade_count?: number;
+  open_positions?: number;
+  total_closed_trades?: number;
+  last_bias?: string;
+  index?: string;
+  entry_tf?: string;
+  bias_tf?: string;
+  live_vix?: number | null;
+  uptime_seconds?: number;
 }
 
 export interface HealthStatus {
@@ -44,16 +58,22 @@ export interface Trade {
   id?: string;
   symbol: string;
   direction: 'LONG' | 'SHORT';
+  // In-memory endpoint uses entry/exit, DB endpoint uses entry_price/exit_price
   entry: number;
   exit: number;
+  entry_price?: number;  // DB endpoint alias
+  exit_price?: number;   // DB endpoint alias
   entry_time: string;
   exit_time: string;
   sl: number;
   target: number;
   qty: number;
+  // In-memory: gross/costs/net, DB: gross_pnl/costs/net_pnl
   gross: number;
   costs: number;
   net: number;
+  gross_pnl?: number;  // DB endpoint alias
+  net_pnl?: number;    // DB endpoint alias
   exit_reason: string;
   rr: number;
   held: string;
@@ -77,6 +97,7 @@ export interface Position {
   symbol: string;
   direction: 'LONG' | 'SHORT';
   entry: number;
+  entry_price?: number;  // DB endpoint alias
   entry_time: string;
   qty: number;
   sl: number;
@@ -143,6 +164,64 @@ export interface ReadinessCheck {
   blockers: string[];
   engine_running: boolean;
   next_actions: string[];
+}
+
+// ── Normalizers ────────────────────────────────────────────────
+/** Normalize trade data from either endpoint format (in-memory or DB). */
+export function normalizeTrade(raw: Record<string, unknown>): Trade {
+  return {
+    id: (raw.id ?? raw.session_id)?.toString(),
+    symbol: raw.symbol as string,
+    direction: raw.direction as 'LONG' | 'SHORT',
+    entry: (raw.entry ?? raw.entry_price) as number,
+    exit: (raw.exit ?? raw.exit_price) as number,
+    entry_price: raw.entry_price as number | undefined,
+    exit_price: raw.exit_price as number | undefined,
+    entry_time: raw.entry_time as string,
+    exit_time: raw.exit_time as string,
+    sl: raw.sl as number,
+    target: raw.target as number,
+    qty: raw.qty as number,
+    gross: (raw.gross ?? raw.gross_pnl) as number,
+    costs: raw.costs as number,
+    net: (raw.net ?? raw.net_pnl) as number,
+    gross_pnl: raw.gross_pnl as number | undefined,
+    net_pnl: raw.net_pnl as number | undefined,
+    exit_reason: raw.exit_reason as string,
+    rr: raw.rr as number,
+    held: (raw.held ?? '') as string,
+    mode: (raw.mode ?? 'futures') as string,
+    option_strike: raw.option_strike as number | undefined,
+    option_type: raw.option_type as 'CE' | 'PE' | undefined,
+    option_entry_premium: raw.option_entry_premium as number | undefined,
+    option_exit_premium: raw.option_exit_premium as number | undefined,
+    option_delta: raw.option_delta as number | undefined,
+    option_iv_entry: raw.option_iv_entry as number | undefined,
+    option_iv_exit: raw.option_iv_exit as number | undefined,
+  };
+}
+
+/** Normalize position data from either endpoint format (in-memory or DB). */
+export function normalizePosition(raw: Record<string, unknown>): Position {
+  return {
+    id: raw.id?.toString(),
+    symbol: raw.symbol as string,
+    direction: raw.direction as 'LONG' | 'SHORT',
+    entry: (raw.entry ?? raw.entry_price) as number,
+    entry_price: raw.entry_price as number | undefined,
+    entry_time: raw.entry_time as string,
+    qty: raw.qty as number,
+    sl: raw.sl as number,
+    target: raw.target as number,
+    rr: raw.rr as number,
+    held: (raw.held ?? '') as string,
+    be_done: (raw.be_done ?? false) as boolean,
+    atr_at_entry: (raw.atr_at_entry ?? 0) as number,
+    current_premium: raw.current_premium as number | undefined,
+    unrealized_pnl: raw.unrealized_pnl as number | undefined,
+    option_strike: raw.option_strike as number | undefined,
+    option_type: raw.option_type as 'CE' | 'PE' | undefined,
+  };
 }
 
 // ── Helper ─────────────────────────────────────────────────────
