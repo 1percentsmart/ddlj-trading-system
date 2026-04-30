@@ -377,6 +377,14 @@ export default function BacktestPage() {
     });
   }, []);
 
+  // Filter results by method
+  const filteredResults = results.filter(r => {
+    if (activeMethod === 'all') return true;
+    if (activeMethod === 'a') return r._method === 'a';
+    if (activeMethod === 'b') return r._method === 'b';
+    return true;
+  });
+
   // Expand / collapse all
   const expandAll = useCallback(() => {
     setExpandedRows(new Set(filteredResults.map(r => r._key)));
@@ -385,14 +393,6 @@ export default function BacktestPage() {
   const collapseAll = useCallback(() => {
     setExpandedRows(new Set());
   }, []);
-
-  // Filter results by method
-  const filteredResults = results.filter(r => {
-    if (activeMethod === 'all') return true;
-    if (activeMethod === 'a') return r._method === 'a';
-    if (activeMethod === 'b') return r._method === 'b';
-    return true;
-  });
 
   // Compute summary stats from top config or overall
   const bestResult = results.length > 0 ? results[0] : null;
