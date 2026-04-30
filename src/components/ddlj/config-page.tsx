@@ -4,14 +4,13 @@
  * DDLJ Strategy Configuration Page
  * ==================================
  * Groups config keys by prefix, supports search, inline editing,
- * change tracking with reset, and correct save format
- * (sends `{ updates: { key: value } }` via configApi.update).
+ * change tracking with reset, strategy presets, and correct save format.
  */
 
 import { useState, useEffect, useMemo } from 'react';
 import { useDDLJStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,29 +30,40 @@ import {
   Download,
   Search,
   Loader2,
+  BookmarkPlus,
+  Bookmark,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
-// ── Config Group Definitions ─────────────────────────────────────
+// ── Config Group Definitions (Strategy Alter Mode) ────────────────
 
 interface ConfigGroup {
   title: string;
+  icon: string;
   keys: string[];
   collapsible?: boolean;
   defaultCollapsed?: boolean;
 }
 
-const GROUP_DEFS: { title: string; prefixes: string[]; collapsible?: boolean; defaultCollapsed?: boolean }[] = [
-  { title: 'Index Settings', prefixes: ['BANKNIFTY_', 'NIFTY_', 'TRADE_INDEX', 'STARTING_CAPITAL', 'LOT_SIZE', 'NUM_LOTS'] },
-  { title: 'EMA Settings', prefixes: ['EMA_'] },
-  { title: 'Bias Settings', prefixes: ['BIAS_', 'BIAS_TIMEFRAME', 'ENTRY_TIMEFRAME'] },
-  { title: 'Risk Management', prefixes: ['DAILY_RISK_', 'DRAWDOWN_', 'CAPITAL_FLOOR_', 'RISK_PER_POSITION', 'MAX_OPEN_POSITIONS'] },
-  { title: 'Entry Rules', prefixes: ['ENTRY_', 'ATR_SL_', 'ATR_TARGET_'] },
-  { title: 'Exit Rules', prefixes: ['FORCE_CLOSE_', 'MAX_TRADE_', 'BE_TRIGGER_', 'TRAILING_', 'NEAR_TARGET_', 'BIAS_FLIP_'] },
-  { title: 'Position Limits', prefixes: ['MAX_'] },
-  { title: 'Options Settings', prefixes: ['OPTION_', 'IV_', 'STRIKE_OFFSET_'] },
-  { title: 'Notifications', prefixes: ['NOTIFY_', 'TELEGRAM_', 'ALERT_'] },
-  { title: 'Advanced', prefixes: ['POLL_', 'CACHE_', 'LOG_', 'KITE_', 'WARMUP_', 'SAVE_', 'COST_', 'USE_REAL_', 'VIX_', 'RSI_'], collapsible: true, defaultCollapsed: true },
+const GROUP_DEFS: { title: string; icon: string; prefixes: string[]; collapsible?: boolean; defaultCollapsed?: boolean }[] = [
+  { title: 'Entry Rules', icon: '🎯', prefixes: ['ENTRY_', 'ATR_SL_', 'ATR_TARGET_'] },
+  { title: 'Exit Rules', icon: '🚪', prefixes: ['FORCE_CLOSE_', 'MAX_TRADE_', 'BE_TRIGGER_', 'TRAILING_', 'NEAR_TARGET_', 'BIAS_FLIP_'] },
+  { title: 'Risk Management', icon: '🛡️', prefixes: ['DAILY_RISK_', 'DRAWDOWN_', 'CAPITAL_FLOOR_', 'RISK_PER_POSITION', 'MAX_OPEN_POSITIONS', 'STARTING_CAPITAL', 'CAPITAL', 'LOT_SIZE', 'NUM_LOTS'] },
+  { title: 'Options Selection', icon: '📊', prefixes: ['OPTION_', 'IV_', 'STRIKE_OFFSET_'] },
+  { title: 'Index Settings', icon: '📈', prefixes: ['BANKNIFTY_', 'NIFTY_', 'TRADE_INDEX'] },
+  { title: 'EMA Settings', icon: '〰️', prefixes: ['EMA_'] },
+  { title: 'Bias Settings', icon: '🧭', prefixes: ['BIAS_', 'BIAS_TIMEFRAME', 'ENTRY_TIMEFRAME'] },
+  { title: 'Notifications', icon: '🔔', prefixes: ['NOTIFY_', 'TELEGRAM_', 'ALERT_'] },
+  { title: 'Position Limits', icon: '📏', prefixes: ['MAX_'] },
+  { title: 'Advanced', icon: '⚙️', prefixes: ['POLL_', 'CACHE_', 'LOG_', 'KITE_', 'WARMUP_', 'SAVE_', 'COST_', 'USE_REAL_', 'VIX_', 'RSI_'], collapsible: true, defaultCollapsed: true },
 ];
 
 function buildGroups(allKeys: string[]): ConfigGroup[] {
@@ -69,6 +79,7 @@ function buildGroups(allKeys: string[]): ConfigGroup[] {
       matchingKeys.forEach((k) => assigned.add(k));
       groups.push({
         title: def.title,
+        icon: def.icon,
         keys: matchingKeys,
         collapsible: def.collapsible,
         defaultCollapsed: def.defaultCollapsed,
@@ -81,6 +92,7 @@ function buildGroups(allKeys: string[]): ConfigGroup[] {
   if (remaining.length > 0) {
     groups.push({
       title: 'Other',
+      icon: '📦',
       keys: remaining,
       collapsible: true,
       defaultCollapsed: true,
@@ -114,25 +126,52 @@ function parseValue(value: unknown): boolean | number | string {
   return String(value);
 }
 
+// ── Strategy Preset Type ──────────────────────────────────────────
+
+interface StrategyPreset {
+  name: string;
+  config: Record<string, unknown>;
+  createdAt: string;
+}
+
+function loadPresets(): StrategyPreset[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem('ddljj-presets');
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePresets(presets: StrategyPreset[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('ddljj-presets', JSON.stringify(presets));
+}
+
 // ── Component ────────────────────────────────────────────────────
 
 export function ConfigPage() {
   const { config, fetchConfig, updateConfig } = useDDLJStore();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [localConfig, setLocalConfig] = useState<Record<string, unknown>>({});
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [presets, setPresets] = useState<StrategyPreset[]>(() => loadPresets());
+  const [presetName, setPresetName] = useState('');
+  const [presetDialogOpen, setPresetDialogOpen] = useState(false);
+
+  // Derive localConfig from remote config + local edits
+  // "edits" tracks only keys the user has changed locally
+  const [edits, setEdits] = useState<Record<string, unknown>>({});
+
+  // Merge remote config with local edits
+  const localConfig = useMemo(() => ({ ...config, ...edits }), [config, edits]);
 
   // Fetch config on mount
   useEffect(() => {
     fetchConfig();
   }, [fetchConfig]);
-
-  // Sync local state when remote config changes
-  useEffect(() => {
-    setLocalConfig(config);
-  }, [config]);
 
   // ── Derived data ─────────────────────────────────────────────
   const keys = useMemo(() => Object.keys(localConfig).sort(), [localConfig]);
@@ -165,11 +204,25 @@ export function ConfigPage() {
 
   // ── Handlers ─────────────────────────────────────────────────
   const handleLocalChange = (key: string, value: boolean | number | string) => {
-    setLocalConfig((prev) => ({ ...prev, [key]: value }));
+    setEdits((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleResetKey = (key: string) => {
-    setLocalConfig((prev) => ({ ...prev, [key]: config[key] }));
+    setEdits((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const handleResetGroup = (groupKeys: string[]) => {
+    setEdits((prev) => {
+      const next = { ...prev };
+      for (const key of groupKeys) {
+        delete next[key];
+      }
+      return next;
+    });
   };
 
   const handleSave = async () => {
@@ -180,12 +233,12 @@ export function ConfigPage() {
 
     setIsSaving(true);
     try {
-      // Collect only changed keys — updateConfig sends { updates } correctly
       const changes: Record<string, unknown> = {};
       for (const key of changedKeys) {
-        changes[key] = localConfig[key];
+        changes[key] = edits[key] ?? localConfig[key];
       }
       await updateConfig(changes);
+      setEdits({}); // Clear edits after save
       toast.success(`${changedKeys.size} parameter${changedKeys.size !== 1 ? 's' : ''} saved`);
     } catch (err) {
       toast.error(
@@ -211,6 +264,45 @@ export function ConfigPage() {
 
   const toggleGroup = (title: string) => {
     setCollapsedGroups((prev) => ({ ...prev, [title]: !prev[title] }));
+  };
+
+  // ── Preset handlers ──────────────────────────────────────────
+  const handleSavePreset = () => {
+    const name = presetName.trim();
+    if (!name) {
+      toast.error('Please enter a preset name');
+      return;
+    }
+    const newPreset: StrategyPreset = {
+      name,
+      config: { ...localConfig },
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...presets, newPreset];
+    savePresets(updated);
+    setPresets(updated);
+    setPresetName('');
+    setPresetDialogOpen(false);
+    toast.success(`Preset "${name}" saved`);
+  };
+
+  const handleLoadPreset = (preset: StrategyPreset) => {
+    // Set edits to the delta between current config and preset
+    const newEdits: Record<string, unknown> = {};
+    for (const key of Object.keys(preset.config)) {
+      if (JSON.stringify(preset.config[key]) !== JSON.stringify(config[key])) {
+        newEdits[key] = preset.config[key];
+      }
+    }
+    setEdits(newEdits);
+    toast.success(`Preset "${preset.name}" loaded (unsaved)`);
+  };
+
+  const handleDeletePreset = (name: string) => {
+    const updated = presets.filter((p) => p.name !== name);
+    savePresets(updated);
+    setPresets(updated);
+    toast.success(`Preset "${name}" deleted`);
   };
 
   // ── Render Parameter Editor ──────────────────────────────────
@@ -293,6 +385,7 @@ export function ConfigPage() {
   const renderGroup = (group: ConfigGroup) => {
     const isCollapsed =
       collapsedGroups[group.title] ?? group.defaultCollapsed ?? false;
+    const groupChangedKeys = group.keys.filter((k) => changedKeys.has(k));
 
     const content = (
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -300,57 +393,59 @@ export function ConfigPage() {
       </div>
     );
 
-    // Advanced / Other groups use Collapsible
-    if (group.collapsible) {
-      return (
-        <Collapsible
-          key={group.title}
-          open={!isCollapsed}
-          onOpenChange={() => toggleGroup(group.title)}
-        >
-          <Card className="bg-card/60 border-border">
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer pb-2 transition-colors hover:bg-secondary/20">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Settings className="h-4 w-4 text-muted-foreground" />
-                    <CardTitle className="text-sm font-medium">
-                      {group.title}
-                    </CardTitle>
-                    <Badge variant="outline" className="text-[10px]">
-                      {group.keys.length}
+    // All groups use Collapsible
+    return (
+      <Collapsible
+        key={group.title}
+        open={!isCollapsed}
+        onOpenChange={() => toggleGroup(group.title)}
+      >
+        <Card className="bg-card/60 border-border">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer pb-2 transition-colors hover:bg-secondary/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">{group.icon}</span>
+                  <CardTitle className="text-sm font-medium">
+                    {group.title}
+                  </CardTitle>
+                  <Badge variant="outline" className="text-[10px]">
+                    {group.keys.length}
+                  </Badge>
+                  {groupChangedKeys.length > 0 && (
+                    <Badge variant="default" className="text-[9px] h-4 px-1.5 bg-primary/80">
+                      {groupChangedKeys.length} changed
                     </Badge>
-                  </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {groupChangedKeys.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 gap-1 text-[10px] text-muted-foreground hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleResetGroup(group.keys);
+                      }}
+                    >
+                      <RotateCcw className="size-3" /> Reset section
+                    </Button>
+                  )}
                   {isCollapsed ? (
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   ) : (
                     <ChevronDown className="h-4 w-4 text-muted-foreground" />
                   )}
                 </div>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent>{content}</CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
-      );
-    }
-
-    // Normal groups: always visible Card
-    return (
-      <Card key={group.title} className="bg-card/60 border-border">
-        <CardHeader className="pb-2">
-          <div className="flex items-center gap-2">
-            <Settings className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm font-medium">{group.title}</CardTitle>
-            <Badge variant="outline" className="text-[10px]">
-              {group.keys.length}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>{content}</CardContent>
-      </Card>
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>{content}</CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
     );
   };
 
@@ -362,7 +457,10 @@ export function ConfigPage() {
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <CardTitle className="text-lg">Strategy Configuration</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Settings className="size-5 text-muted-foreground" />
+                Strategy Configuration
+              </CardTitle>
               <p className="mt-1 text-xs text-muted-foreground">
                 {keys.length} parameter{keys.length !== 1 ? 's' : ''} — edit and save to apply
                 {changedKeys.size > 0 && (
@@ -373,6 +471,80 @@ export function ConfigPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {/* Preset Dialog */}
+              <Dialog open={presetDialogOpen} onOpenChange={setPresetDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                  >
+                    <BookmarkPlus className="h-3.5 w-3.5" /> Presets
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Strategy Presets</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-2">
+                    {/* Save new preset */}
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="Preset name..."
+                        value={presetName}
+                        onChange={(e) => setPresetName(e.target.value)}
+                        className="h-8 text-xs"
+                        onKeyDown={(e) => e.key === 'Enter' && handleSavePreset()}
+                      />
+                      <Button size="sm" onClick={handleSavePreset} className="gap-1.5 text-xs shrink-0">
+                        <Bookmark className="size-3.5" /> Save
+                      </Button>
+                    </div>
+
+                    {/* Existing presets */}
+                    {presets.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-4">
+                        No saved presets yet. Save your current config as a preset.
+                      </p>
+                    ) : (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {presets.map((preset) => (
+                          <div
+                            key={preset.name}
+                            className="flex items-center justify-between rounded-lg border bg-secondary/30 px-3 py-2"
+                          >
+                            <div>
+                              <p className="text-sm font-medium">{preset.name}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {new Date(preset.createdAt).toLocaleDateString('en-IN')}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs gap-1"
+                                onClick={() => handleLoadPreset(preset)}
+                              >
+                                Load
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs text-red-400 hover:text-red-300"
+                                onClick={() => handleDeletePreset(preset.name)}
+                              >
+                                <Trash2 className="size-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -385,7 +557,10 @@ export function ConfigPage() {
                 size="sm"
                 onClick={handleSave}
                 disabled={!hasChanges || isSaving}
-                className="gap-1.5 text-xs"
+                className={cn(
+                  'gap-1.5 text-xs',
+                  hasChanges && 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                )}
               >
                 {isSaving ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />

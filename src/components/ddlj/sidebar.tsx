@@ -17,8 +17,9 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Clock,
+  Search,
 } from 'lucide-react';
-import { useDDLJStore, type PageId } from '@/lib/store';
+import { useDDLJStore, type PageId, PAGE_LABELS } from '@/lib/store';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -217,7 +218,6 @@ function DesktopSidebar() {
   const { activePage, setActivePage, sidebarCollapsed, toggleSidebar, engineStatus } =
     useDDLJStore();
 
-  // Re-render badge on engine status change — subscribe engineStatus to make badges reactive
   const _engineRunning = engineStatus.engine_running;
   const _tokenValid = engineStatus.token?.valid;
 

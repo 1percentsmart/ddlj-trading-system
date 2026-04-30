@@ -7,7 +7,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
 } from 'recharts';
 import {
@@ -31,6 +31,10 @@ import {
   ChevronRight,
   RefreshCw,
   Loader2,
+  Rocket,
+  Zap,
+  Settings,
+  BarChart3,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDDLJStore } from '@/lib/store';
@@ -107,78 +111,6 @@ function buildEquityCurve(trades: Trade[]): EquityPoint[] {
       label: formatDateTime(t.exit_time),
     };
   });
-}
-
-// ── Skeleton Loader ──────────────────────────────────────────────
-
-function DashboardSkeleton() {
-  return (
-    <div className="page-enter space-y-6">
-      {/* Header skeleton */}
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-8 w-52" />
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-6 w-20" />
-          <Skeleton className="h-6 w-24" />
-          <Skeleton className="h-6 w-20" />
-          <Skeleton className="h-6 w-16" />
-        </div>
-      </div>
-
-      {/* KPI cards skeleton */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i}>
-            <CardHeader>
-              <Skeleton className="h-4 w-24" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-8 w-32" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Engine card skeleton */}
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-36" />
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <Skeleton className="h-10 w-28" />
-            <Skeleton className="h-4 w-40" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Equity curve skeleton */}
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-28" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-64 w-full" />
-        </CardContent>
-      </Card>
-
-      {/* Two-column skeleton */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <Card key={i}>
-            <CardHeader>
-              <Skeleton className="h-5 w-32" />
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {Array.from({ length: 5 }).map((_, j) => (
-                <Skeleton key={j} className="h-12 w-full" />
-              ))}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 // ── Custom Tooltip for Equity Chart ──────────────────────────────
@@ -290,6 +222,8 @@ export default function DashboardPage() {
     positions,
     isConnected,
     isEngineLoading,
+    dataFetched,
+    setFetched,
     fetchStatus,
     fetchTrades,
     fetchPositions,
@@ -302,11 +236,12 @@ export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const isLoading = trades.length === 0 && positions.length === 0;
+  // FIX: Use dataFetched flag instead of checking if arrays are empty
+  const isLoading = !dataFetched;
 
   // ── IST clock ────────────────────────────────────────────────
   useEffect(() => {
-    const interval = setInterval(() => setIstTime(getISTTime()), 1000);
+    const interval = setInterval(() => setIstTime(getISTTime), 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -317,6 +252,7 @@ export default function DashboardPage() {
     async function load() {
       try {
         await Promise.allSettled([fetchStatus(), fetchTrades(), fetchPositions()]);
+        if (!cancelled) setFetched();
       } catch {
         if (!cancelled) setLoadError('Failed to load dashboard data. Please try again.');
       }
@@ -324,7 +260,7 @@ export default function DashboardPage() {
 
     load();
     return () => { cancelled = true; };
-  }, [fetchStatus, fetchTrades, fetchPositions]);
+  }, [fetchStatus, fetchTrades, fetchPositions, setFetched]);
 
   // ── Auto-refresh every 30s ───────────────────────────────────
   useEffect(() => {
@@ -346,6 +282,11 @@ export default function DashboardPage() {
     return sorted.slice(0, 8);
   }, [trades]);
   const openPositions = useMemo(() => positions.slice(0, 8), [positions]);
+
+  // Determine equity curve gradient color based on latest P&L
+  const isProfitable = equityData.length > 0 ? equityData[equityData.length - 1].pnl >= 0 : true;
+  const gradientId = isProfitable ? 'equityGradientProfit' : 'equityGradientLoss';
+  const strokeColor = isProfitable ? '#10b981' : '#ef4444';
 
   // ── Handlers ─────────────────────────────────────────────────
   const handleRefresh = useCallback(async () => {
@@ -376,9 +317,48 @@ export default function DashboardPage() {
     }
   }, [engineStatus.engine_running, startEngine, stopEngine]);
 
-  // ── Skeleton loading ─────────────────────────────────────────
+  // ── Skeleton loading (only during first fetch) ──────────────
   if (isLoading) {
-    return <DashboardSkeleton />;
+    return (
+      <div className="page-enter space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-52" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-6 w-20" />
+            <Skeleton className="h-6 w-24" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader><Skeleton className="h-4 w-24" /></CardHeader>
+              <CardContent><Skeleton className="h-8 w-32" /></CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardHeader><Skeleton className="h-5 w-36" /></CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-10 w-28" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+          </CardContent>
+        </Card>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader><Skeleton className="h-5 w-32" /></CardHeader>
+              <CardContent className="space-y-3">
+                {Array.from({ length: 4 }).map((_, j) => (
+                  <Skeleton key={j} className="h-12 w-full" />
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   // ── Render ───────────────────────────────────────────────────
@@ -405,7 +385,6 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold tracking-tight">Trading Dashboard</h1>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Connected badge */}
           <Badge
             variant="outline"
             className={cn(
@@ -415,16 +394,10 @@ export default function DashboardPage() {
                 : 'bg-red-500/10 text-red-400'
             )}
           >
-            <Circle
-              className={cn(
-                'size-2',
-                isConnected ? 'fill-emerald-400' : 'fill-red-400'
-              )}
-            />
+            <Circle className={cn('size-2', isConnected ? 'fill-emerald-400' : 'fill-red-400')} />
             {isConnected ? 'Connected' : 'Disconnected'}
           </Badge>
 
-          {/* Engine status badge */}
           <Badge
             variant="outline"
             className={cn(
@@ -442,34 +415,11 @@ export default function DashboardPage() {
             {engineStatus.engine_running ? 'Engine Running' : 'Engine Stopped'}
           </Badge>
 
-          {/* Token valid badge */}
-          <Badge
-            variant="outline"
-            className={cn(
-              'gap-1.5 border-0',
-              engineStatus.token.valid
-                ? 'bg-emerald-500/10 text-emerald-400'
-                : 'bg-amber-500/10 text-amber-400'
-            )}
-          >
-            <Circle
-              className={cn(
-                'size-2',
-                engineStatus.token.valid
-                  ? 'fill-emerald-400'
-                  : 'fill-amber-400'
-              )}
-            />
-            {engineStatus.token.valid ? 'Token Valid' : 'Token Invalid'}
-          </Badge>
-
-          {/* IST time badge */}
           <Badge variant="outline" className="gap-1.5 border-0 bg-zinc-500/10 text-zinc-400">
             <Clock className="size-3" />
             {istTime} IST
           </Badge>
 
-          {/* Refresh button */}
           <Button
             variant="outline"
             size="sm"
@@ -489,7 +439,6 @@ export default function DashboardPage() {
 
       {/* ── KPI Cards ────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total P&L */}
         <Card>
           <CardHeader>
             <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -513,7 +462,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Day P&L */}
         <Card>
           <CardHeader>
             <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -537,7 +485,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Win Rate */}
         <Card>
           <CardHeader>
             <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -561,7 +508,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Open Positions */}
         <Card>
           <CardHeader>
             <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -574,9 +520,7 @@ export default function DashboardPage() {
                 {kpis.openPositions}
               </span>
               {kpis.openPositions > 0 && (
-                <Badge variant="secondary" className="text-[10px]">
-                  Active
-                </Badge>
+                <Badge variant="secondary" className="text-[10px]">Active</Badge>
               )}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -586,121 +530,163 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* ── Engine Control Card ──────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">Engine Control</CardTitle>
-          <CardAction>
-            <div className="flex items-center gap-3">
-              {/* Token status */}
-              <div className="flex items-center gap-1.5">
-                <Circle
-                  className={cn(
-                    'size-2',
-                    engineStatus.token.valid ? 'fill-emerald-400 text-emerald-400' : 'fill-amber-400 text-amber-400'
+      {/* ── Engine Control + Quick Actions ────────────────────── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Engine Control */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Engine Control</CardTitle>
+            <CardAction>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <Circle
+                    className={cn(
+                      'size-2',
+                      engineStatus.token.valid ? 'fill-emerald-400 text-emerald-400' : 'fill-amber-400 text-amber-400'
+                    )}
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {engineStatus.token.valid ? 'Token Valid' : 'Token Invalid'}
+                  </span>
+                </div>
+                {engineStatus.error_count > 0 && (
+                  <>
+                    <Separator orientation="vertical" className="h-4" />
+                    <Badge variant="destructive" className="text-[10px]">
+                      {engineStatus.error_count} error{engineStatus.error_count !== 1 ? 's' : ''}
+                    </Badge>
+                  </>
+                )}
+              </div>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <Button
+                variant={engineStatus.engine_running ? 'destructive' : 'default'}
+                className={cn(
+                  'gap-2 min-w-[120px]',
+                  !engineStatus.engine_running && 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                )}
+                onClick={handleEngineToggle}
+                disabled={isEngineLoading}
+              >
+                {isEngineLoading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : engineStatus.engine_running ? (
+                  <Square className="size-4" />
+                ) : (
+                  <Play className="size-4 fill-current" />
+                )}
+                {isEngineLoading
+                  ? 'Loading...'
+                  : engineStatus.engine_running
+                    ? 'Stop Engine'
+                    : 'Start Engine'}
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Circle
+                    className={cn(
+                      'size-3',
+                      engineStatus.engine_running
+                        ? 'fill-emerald-400 text-emerald-400'
+                        : 'fill-zinc-500 text-zinc-500'
+                    )}
+                  />
+                  {engineStatus.engine_running && (
+                    <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/50" />
                   )}
-                />
-                <span className="text-xs text-muted-foreground">
-                  {engineStatus.token.valid
-                    ? engineStatus.token.user
-                      ? `Token: ${engineStatus.token.user}`
-                      : 'Token Valid'
-                    : 'Token Invalid'}
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  {engineStatus.engine_running ? 'Running' : 'Stopped'}
+                  {engineStatus.last_heartbeat && (
+                    <> &middot; Last heartbeat {formatDateTime(engineStatus.last_heartbeat)}</>
+                  )}
                 </span>
               </div>
-
-              <Separator orientation="vertical" className="h-4" />
-
-              {/* Error count */}
-              {engineStatus.error_count > 0 && (
-                <>
-                  <Badge variant="destructive" className="text-[10px]">
-                    {engineStatus.error_count} error{engineStatus.error_count !== 1 ? 's' : ''}
-                  </Badge>
-                  <Separator orientation="vertical" className="h-4" />
-                </>
-              )}
-
-              {/* Trades badge */}
-              <Badge variant="secondary" className="text-[10px] gap-1">
-                {trades.length} trades
-              </Badge>
-
-              {/* Positions badge */}
-              <Badge variant="secondary" className="text-[10px] gap-1">
-                {positions.length} positions
-              </Badge>
             </div>
-          </CardAction>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <Button
-              variant={engineStatus.engine_running ? 'destructive' : 'default'}
-              className={cn(
-                'gap-2 min-w-[120px]',
-                !engineStatus.engine_running && 'bg-emerald-600 hover:bg-emerald-700 text-white'
-              )}
-              onClick={handleEngineToggle}
-              disabled={isEngineLoading}
-            >
-              {isEngineLoading ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : engineStatus.engine_running ? (
-                <Square className="size-4" />
-              ) : (
-                <Play className="size-4 fill-current" />
-              )}
-              {isEngineLoading
-                ? 'Loading...'
-                : engineStatus.engine_running
-                  ? 'Stop Engine'
-                  : 'Start Engine'}
-            </Button>
 
-            {/* Status indicator */}
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Circle
-                  className={cn(
-                    'size-3',
-                    engineStatus.engine_running
-                      ? 'fill-emerald-400 text-emerald-400'
-                      : 'fill-zinc-500 text-zinc-500'
-                  )}
-                />
-                {engineStatus.engine_running && (
-                  <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/50" />
-                )}
+            {/* FIX: Empty state CTA when engine is off and no data */}
+            {!engineStatus.engine_running && trades.length === 0 && positions.length === 0 && (
+              <div className="mt-4 flex items-center gap-3 rounded-lg border border-dashed border-border/60 bg-secondary/20 px-4 py-3">
+                <Rocket className="size-4 text-muted-foreground shrink-0" />
+                <p className="text-xs text-muted-foreground">
+                  Start the engine with a valid Kite token to begin paper trading.
+                  Trades and positions will appear here automatically.
+                </p>
               </div>
-              <span className="text-sm text-muted-foreground">
-                {engineStatus.engine_running ? 'Running' : 'Stopped'}
-                {engineStatus.last_heartbeat && (
-                  <> &middot; Last heartbeat {formatDateTime(engineStatus.last_heartbeat)}</>
-                )}
-              </span>
-            </div>
+            )}
+          </CardContent>
+        </Card>
 
-            {/* Start time */}
-            {engineStatus.start_time && engineStatus.engine_running && (
-              <span className="text-xs text-muted-foreground">
-                Started {formatDateTime(engineStatus.start_time)}
-              </span>
-            )}
-            {engineStatus.stop_time && !engineStatus.engine_running && (
-              <span className="text-xs text-muted-foreground">
-                Stopped {formatDateTime(engineStatus.stop_time)}
-              </span>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-2 text-xs"
+              onClick={() => setActivePage('engine')}
+            >
+              <Zap className="size-3.5 text-amber-400" />
+              Engine Control
+              <ChevronRight className="size-3 ml-auto text-muted-foreground" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-2 text-xs"
+              onClick={() => setActivePage('trades')}
+            >
+              <BarChart3 className="size-3.5 text-emerald-400" />
+              View All Trades
+              <ChevronRight className="size-3 ml-auto text-muted-foreground" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-2 text-xs"
+              onClick={() => setActivePage('config')}
+            >
+              <Settings className="size-3.5 text-zinc-400" />
+              Edit Configuration
+              <ChevronRight className="size-3 ml-auto text-muted-foreground" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-2 text-xs"
+              onClick={() => setActivePage('risk')}
+            >
+              <TrendingDown className="size-3.5 text-red-400" />
+              Risk Dashboard
+              <ChevronRight className="size-3 ml-auto text-muted-foreground" />
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* ── Equity Curve ─────────────────────────────────────── */}
       {equityData.length >= 2 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Equity Curve</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Equity Curve
+              <Badge
+                variant="outline"
+                className={cn(
+                  'ml-2 text-[10px] border-0',
+                  isProfitable ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                )}
+              >
+                {isProfitable ? 'Profitable' : 'In Loss'}
+              </Badge>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64 w-full">
@@ -710,7 +696,7 @@ export default function DashboardPage() {
                   margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
                 >
                   <defs>
-                    <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="equityGradientProfit" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#10b981" stopOpacity={0.3} />
                       <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
                     </linearGradient>
@@ -737,15 +723,15 @@ export default function DashboardPage() {
                     tickLine={false}
                     width={80}
                   />
-                  <Tooltip content={<EquityTooltip />} />
+                  <RechartsTooltip content={<EquityTooltip />} />
                   <Area
                     type="monotone"
                     dataKey="pnl"
-                    stroke="#10b981"
+                    stroke={strokeColor}
                     strokeWidth={2}
-                    fill="url(#equityGradient)"
+                    fill={`url(#${gradientId})`}
                     dot={false}
-                    activeDot={{ r: 4, fill: '#10b981', stroke: '#10b981' }}
+                    activeDot={{ r: 4, fill: strokeColor, stroke: strokeColor }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -762,9 +748,7 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium">
               Open Positions
               {positions.length > 0 && (
-                <Badge variant="secondary" className="ml-2 text-[10px]">
-                  {positions.length}
-                </Badge>
+                <Badge variant="secondary" className="ml-2 text-[10px]">{positions.length}</Badge>
               )}
             </CardTitle>
             <CardAction>
@@ -775,8 +759,7 @@ export default function DashboardPage() {
                   className="gap-1 text-xs text-muted-foreground"
                   onClick={() => setActivePage('trades')}
                 >
-                  View All
-                  <ChevronRight className="size-3" />
+                  View All <ChevronRight className="size-3" />
                 </Button>
               )}
             </CardAction>
@@ -791,7 +774,7 @@ export default function DashboardPage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto pr-1 custom-scrollbar">
+              <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                 {openPositions.map((pos) => (
                   <PositionRow key={pos.id ?? `${pos.symbol}-${pos.entry_time}`} position={pos} />
                 ))}
@@ -806,9 +789,7 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium">
               Recent Trades
               {trades.length > 0 && (
-                <Badge variant="secondary" className="ml-2 text-[10px]">
-                  {trades.length}
-                </Badge>
+                <Badge variant="secondary" className="ml-2 text-[10px]">{trades.length}</Badge>
               )}
             </CardTitle>
             <CardAction>
@@ -819,8 +800,7 @@ export default function DashboardPage() {
                   className="gap-1 text-xs text-muted-foreground"
                   onClick={() => setActivePage('trades')}
                 >
-                  View All
-                  <ChevronRight className="size-3" />
+                  View All <ChevronRight className="size-3" />
                 </Button>
               )}
             </CardAction>
@@ -835,7 +815,7 @@ export default function DashboardPage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto pr-1 custom-scrollbar">
+              <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                 {recentTrades.map((trade) => (
                   <TradeRow key={trade.id ?? `${trade.symbol}-${trade.exit_time}`} trade={trade} />
                 ))}

@@ -164,14 +164,6 @@
   animation: flash-red 0.5s ease-out;
 }
 
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-.pulse-dot {
-  animation: pulse-dot 2s ease-in-out infinite;
-}
-
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }

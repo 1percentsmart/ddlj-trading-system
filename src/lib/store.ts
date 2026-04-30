@@ -1,6 +1,6 @@
 /**
  * DDLJ Trading System — Global State Store (Zustand)
- * Central state management with hash-based routing for URL sub-links.
+ * Central state management with hash-based SPA routing.
  */
 
 import { create } from 'zustand';
@@ -45,6 +45,20 @@ export type PageId =
   | 'alerts'
   | 'journal';
 
+export const PAGE_LABELS: Record<PageId, string> = {
+  dashboard: 'Dashboard',
+  engine: 'Engine',
+  trades: 'Trades',
+  config: 'Configuration',
+  token: 'Token',
+  health: 'Health',
+  backtest: 'Backtest',
+  options: 'Options Chain',
+  risk: 'Risk',
+  alerts: 'Alerts',
+  journal: 'Journal',
+};
+
 const defaultEngineStatus: EngineStatus = {
   engine_running: false,
   initialized: false,
@@ -75,6 +89,10 @@ interface DDLJStore {
   tokenStatus: TokenStatus | null;
   loginUrl: string | null;
   readiness: ReadinessCheck | null;
+
+  // Track whether initial data fetch completed (even if empty)
+  dataFetched: boolean;
+  setFetched: () => void;
 
   isConnected: boolean;
   setConnected: (connected: boolean) => void;
@@ -134,6 +152,8 @@ export const useDDLJStore = create<DDLJStore>()(
       tokenStatus: null,
       loginUrl: null,
       readiness: null,
+      dataFetched: false,
+      setFetched: () => set({ dataFetched: true }),
       backtestStatus: null,
       isConnected: false,
       setConnected: (connected) => set({ isConnected: connected }),
@@ -243,6 +263,7 @@ export const useDDLJStore = create<DDLJStore>()(
           get().fetchReadiness(),
           get().fetchBacktestStatus(),
         ]);
+        set({ dataFetched: true });
       },
 
       theme: defaultTheme,

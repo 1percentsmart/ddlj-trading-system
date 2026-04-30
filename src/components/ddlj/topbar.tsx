@@ -1,7 +1,7 @@
 'use client';
 
-import { Wifi, WifiOff, Sun, Moon, Monitor, Menu, Settings, Circle } from 'lucide-react';
-import { useDDLJStore } from '@/lib/store';
+import { Wifi, WifiOff, Sun, Moon, Monitor, Menu, Settings, Circle, ChevronRight } from 'lucide-react';
+import { useDDLJStore, type PageId, PAGE_LABELS } from '@/lib/store';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,6 +18,20 @@ import {
   DropdownMenuLabel,
   DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
+
+// ── Breadcrumb ────────────────────────────────────────────────────
+
+function BreadcrumbNav() {
+  const { activePage } = useDDLJStore();
+
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span className="font-medium text-foreground/70">DDLJ</span>
+      <ChevronRight className="size-3" />
+      <span className="font-medium">{PAGE_LABELS[activePage]}</span>
+    </div>
+  );
+}
 
 // ── Theme Toggle ───────────────────────────────────────────────
 
@@ -183,7 +197,7 @@ export function DDLJTopbar() {
             <Menu className="size-4" />
           </Button>
         )}
-        <span className="text-sm font-bold tracking-tight">DDLJ</span>
+        <BreadcrumbNav />
       </div>
 
       {/* Center Section — Connection Status */}

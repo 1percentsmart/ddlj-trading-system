@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { DDLJSidebar } from '@/components/ddlj/sidebar';
 import { DDLJTopbar } from '@/components/ddlj/topbar';
 import { ThemeInitializer } from '@/components/ddlj/theme-initializer';
+import { CommandPalette } from '@/components/ddlj/command-palette';
 import DashboardPage from '@/components/ddlj/dashboard-page';
 import EnginePage from '@/components/ddlj/engine-page';
 import { TradesPage } from '@/components/ddlj/trades-page';
@@ -59,17 +60,14 @@ export default function Home() {
 
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activePage, setActivePage]);
 
   // Initial data fetch
   useEffect(() => {
     refreshAll();
-    // Auto-refresh every 30 seconds
     const interval = setInterval(refreshAll, 30000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refreshAll]);
 
   const renderPage = () => {
     switch (activePage) {
@@ -91,6 +89,7 @@ export default function Home() {
   return (
     <>
       <ThemeInitializer />
+      <CommandPalette />
       <div className={cn('flex h-dvh overflow-hidden bg-background', theme.compactMode && 'compact')}>
         {!sidebarOnRight && <DDLJSidebar />}
 
