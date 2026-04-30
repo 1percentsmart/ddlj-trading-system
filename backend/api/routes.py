@@ -199,7 +199,7 @@ async def get_positions(mgr: EngineManager = Depends(get_engine_manager)):
     if mgr._trader is not None and hasattr(mgr._trader, 'open_positions'):
         positions = []
         for idx, pos in enumerate(mgr._trader.open_positions):
-            positions.append({
+            pos_dict = {
                 "id": str(idx),
                 "symbol": pos.symbol,
                 "direction": pos.direction,
@@ -212,7 +212,13 @@ async def get_positions(mgr: EngineManager = Depends(get_engine_manager)):
                 "held": pos.held,
                 "be_done": pos.be_done,
                 "atr_at_entry": pos.atr_at_entry,
-            })
+                # Option fields — extracted from opt_entry dict if available
+                "option_strike": getattr(pos, "opt_entry", {}).get("strike") if getattr(pos, "opt_entry", None) else None,
+                "option_type": getattr(pos, "opt_entry", {}).get("option_type") if getattr(pos, "opt_entry", None) else None,
+                "current_premium": getattr(pos, "current_premium", None),
+                "unrealized_pnl": getattr(pos, "unrealized_pnl", None),
+            }
+            positions.append(pos_dict)
         return {"count": len(positions), "positions": positions}
     return {"count": 0, "positions": []}
 

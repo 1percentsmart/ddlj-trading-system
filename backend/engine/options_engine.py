@@ -285,7 +285,8 @@ class OptionsMimicryEngine:
 
         if vix_value is None:
             if VIX_DATA:
-                vix_value = list(VIX_DATA.values())[-1]
+                # Sort by date key to get the most recent VIX value (not dict insertion order)
+                vix_value = sorted(VIX_DATA.items())[-1][1]
             else:
                 return "normal"
 

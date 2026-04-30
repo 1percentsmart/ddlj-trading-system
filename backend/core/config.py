@@ -215,12 +215,15 @@ AUTH_SECRET_KEY = os.getenv("AUTH_SECRET_KEY", "")
 CORS_ORIGINS = [
     "http://localhost:3000",       # Local Next.js dev server
     "http://localhost:8000",       # Local backend
-    "https://ddlj-dashboard.vercel.app",       # Vercel production frontend
-    "https://ddlj-dashboard-kt8pblyoz-1percentsmarts-projects.vercel.app",  # Vercel deployment URL
+    "https://ddlj-dashboard.vercel.app",       # Old Vercel production frontend
+    "https://ddlj-dashboard-kt8pblyoz-1percentsmarts-projects.vercel.app",  # Old Vercel deployment URL
+    "https://ddlj-trading-system.vercel.app",  # Actual Vercel production frontend
+    "https://ddlj-trading-system-1percentsmarts-projects.vercel.app",  # Vercel org deployment
+    "https://ddlj-trading-system-git-main-1percentsmarts-projects.vercel.app",  # Vercel branch deployment
 ]
-# Add production frontend URL (with https:// prefix if not present)
-_frontend_url = os.getenv("FRONTEND_URL", "").strip()
-if _frontend_url:
+# Add production frontend URL from env var (default: actual Vercel URL)
+_frontend_url = os.getenv("FRONTEND_URL", "https://ddlj-trading-system.vercel.app").strip()
+if _frontend_url and _frontend_url not in CORS_ORIGINS:
     if not _frontend_url.startswith(("http://", "https://")):
         _frontend_url = f"https://{_frontend_url}"
     CORS_ORIGINS.append(_frontend_url)
@@ -230,6 +233,12 @@ if _vercel_url and _vercel_url not in CORS_ORIGINS:
     if not _vercel_url.startswith(("http://", "https://")):
         _vercel_url = f"https://{_vercel_url}"
     CORS_ORIGINS.append(_vercel_url)
+# Also allow all Vercel preview URLs for this project
+_vercel_branch_url = os.getenv("VERCEL_BRANCH_URL", "").strip()
+if _vercel_branch_url and _vercel_branch_url not in CORS_ORIGINS:
+    if not _vercel_branch_url.startswith(("http://", "https://")):
+        _vercel_branch_url = f"https://{_vercel_branch_url}"
+    CORS_ORIGINS.append(_vercel_branch_url)
 """Allowed CORS origins for the frontend."""
 
 

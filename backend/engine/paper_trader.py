@@ -840,10 +840,12 @@ class PaperTrader:
                 max_risk_amount = self.current_capital * self.risk_per_position_pct / 100
                 # Estimate trade risk from signal (risk in points * estimated lot size)
                 # This is a pre-check; the actual check happens after options pricing
-                if sig.risk * 30 > max_risk_amount:  # Rough estimate with 1 lot
+                # Use actual lot_size from options_engine (30 for BANKNIFTY, 65 for NIFTY)
+                lot_size = getattr(self.options_engine, 'lot_size', 30) if self.options_engine else 30
+                if sig.risk * lot_size > max_risk_amount:  # Estimate with 1 lot at correct lot size
                     log.info("Skipping entry — per-position risk limit: "
-                             "risk=%.0f > max=%.0f (%.1f%% of capital)",
-                             sig.risk * 30, max_risk_amount, self.risk_per_position_pct)
+                             "risk=%.0f > max=%.0f (%.1f%% of capital, lot_size=%d)",
+                             sig.risk * lot_size, max_risk_amount, self.risk_per_position_pct, lot_size)
                     return
 
             # Simulate the entry
