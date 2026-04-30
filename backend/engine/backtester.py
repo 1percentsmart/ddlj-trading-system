@@ -31,6 +31,7 @@ from .config import (
     DAILY_RISK_PCT,
     MAX_OPEN_POSITIONS,
     MAX_DAILY_TRADES,       # BUG FIX #3: Separate from max_open_positions
+    MAX_DAILY_TRADES_ENABLED, # Toggle for max daily trades limit
     NO_TRADE_END_HOUR,
     NO_TRADE_END_MINUTE,
     ENTRY_CUTOFF_HOUR,
@@ -64,6 +65,7 @@ def run_backtest_enhanced(
     daily_risk_pct: float = DAILY_RISK_PCT,
     max_open_positions: int = MAX_OPEN_POSITIONS,
     max_daily_trades: int = MAX_DAILY_TRADES,  # BUG FIX #3
+    max_daily_trades_enabled: bool = MAX_DAILY_TRADES_ENABLED,  # Toggle
     compounding: bool = True,
     monthly_reset: bool = False,
 ) -> Tuple[list, list]:
@@ -409,7 +411,8 @@ def run_backtest_enhanced(
             # BUG FIX #3: Daily trade count uses MAX_DAILY_TRADES, not max_open_positions
             # Previously: if daily_count.get(today, 0) >= max_open_positions:
             # Now: if daily_count.get(today, 0) >= max_daily_trades:
-            if daily_count.get(today, 0) >= max_daily_trades:
+            # Toggle: if max_daily_trades_enabled is False, skip this check entirely
+            if max_daily_trades_enabled and daily_count.get(today, 0) >= max_daily_trades:
                 continue
 
             daily_count[today] = daily_count.get(today, 0) + 1

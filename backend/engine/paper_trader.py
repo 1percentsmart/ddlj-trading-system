@@ -248,6 +248,7 @@ class PaperTrader:
         self.daily_risk_pct = self._config["DAILY_RISK_PCT"]
         self.max_open_positions = self._config["MAX_OPEN_POSITIONS"]
         self.max_daily_trades = self._config["MAX_DAILY_TRADES"]
+        self.max_daily_trades_enabled = self._config.get("MAX_DAILY_TRADES_ENABLED", True)
 
         # BUG FIX #12: Read RISK_PER_POSITION_PCT from config (was ignored)
         # If set to None, no per-position risk limit is applied.
@@ -933,8 +934,8 @@ class PaperTrader:
         sig = self.signal_engine.evaluate(self.buf_entry, bias)
 
         if sig.signal in ("LONG", "SHORT"):
-            # Daily trade count check
-            if self.daily_trade_count >= self.max_daily_trades:
+            # Daily trade count check (respects toggle)
+            if self.max_daily_trades_enabled and self.daily_trade_count >= self.max_daily_trades:
                 return
 
             # BUG FIX #14: Capital floor uses config (was hardcoded 0.20)

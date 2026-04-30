@@ -203,6 +203,7 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
     daily_risk_pct = float(p.get("daily_risk_pct", DAILY_RISK_PCT))
     max_open_positions = int(p.get("max_open_positions", MAX_OPEN_POSITIONS))
     max_daily_trades = int(p.get("max_daily_trades", MAX_DAILY_TRADES))
+    max_daily_trades_enabled = bool(p.get("max_daily_trades_enabled", True))
     use_sample_data = bool(p.get("use_sample_data", True))
 
     # ── Parse date range ──
@@ -407,7 +408,9 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
                         be_a = BiasEngine()
                         oe_a = OptionsMimicryEngine(inst_name, moneyness_val, spread_regime_val, capital=capital)
                         trades_a, _ = run_backtest_enhanced(inst_name, entry_candles, bias_candles,
-                                                            se_a, be_a, oe_a, entry_tf_minutes=entry_tf_min)
+                                                            se_a, be_a, oe_a, entry_tf_minutes=entry_tf_min,
+                                                            max_daily_trades=max_daily_trades,
+                                                            max_daily_trades_enabled=max_daily_trades_enabled)
                         results_a[label] = analyze(trades_a, label, capital)
 
                     # Method B (Monthly Batch)
@@ -417,7 +420,9 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
                         oe_b = OptionsMimicryEngine(inst_name, moneyness_val, spread_regime_val, capital=capital)
                         trades_b, _ = run_backtest_enhanced(inst_name, entry_candles, bias_candles,
                                                             se_b, be_b, oe_b, entry_tf_minutes=entry_tf_min,
-                                                            monthly_reset=True)
+                                                            monthly_reset=True,
+                                                            max_daily_trades=max_daily_trades,
+                                                            max_daily_trades_enabled=max_daily_trades_enabled)
                         results_b[label] = analyze(trades_b, label, capital)
 
                     pnl_a = results_a.get(label, {}).get("net_pnl", 0)

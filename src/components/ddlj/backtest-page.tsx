@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import {
   FlaskConical,
   Play,
@@ -392,6 +393,7 @@ export default function BacktestPage() {
   const [dailyRiskPct, setDailyRiskPct] = useState(DEFAULT_PARAMS.daily_risk_pct.toString());
   const [maxOpenPositions, setMaxOpenPositions] = useState(DEFAULT_PARAMS.max_open_positions.toString());
   const [maxDailyTrades, setMaxDailyTrades] = useState(DEFAULT_PARAMS.max_daily_trades.toString());
+  const [maxDailyTradesEnabled, setMaxDailyTradesEnabled] = useState(true);
   const [moneyness, setMoneyness] = useState<MoneynessOption>('ITM');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -568,6 +570,7 @@ export default function BacktestPage() {
     setDailyRiskPct(DEFAULT_PARAMS.daily_risk_pct.toString());
     setMaxOpenPositions(DEFAULT_PARAMS.max_open_positions.toString());
     setMaxDailyTrades(DEFAULT_PARAMS.max_daily_trades.toString());
+    setMaxDailyTradesEnabled(true);
     setMoneyness('ITM');
     setSymbol('BANKNIFTY');
     setTimeframe('15m/60m');
@@ -608,6 +611,7 @@ export default function BacktestPage() {
         daily_risk_pct: parseFloat(dailyRiskPct) || DEFAULT_PARAMS.daily_risk_pct,
         max_open_positions: parseInt(maxOpenPositions) || DEFAULT_PARAMS.max_open_positions,
         max_daily_trades: parseInt(maxDailyTrades) || DEFAULT_PARAMS.max_daily_trades,
+        max_daily_trades_enabled: maxDailyTradesEnabled,
         use_sample_data: !tokenValid, // Auto-enable sample data when token is invalid
       };
 
@@ -654,7 +658,7 @@ export default function BacktestPage() {
       stopPolling();
     }
   }, [startProgressStream, startPolling, stopPolling, fetchBacktestStatus, symbol, timeframe, method, fromDate, toDate,
-      capital, slAtr, minRr, moneyness, dailyRiskPct, maxOpenPositions, maxDailyTrades, isRunning]);
+      capital, slAtr, minRr, moneyness, dailyRiskPct, maxOpenPositions, maxDailyTrades, maxDailyTradesEnabled, isRunning]);
 
   // ── Run button disabled logic ────────────────────────────────
   // Allow running even without valid token (sample data mode available)
@@ -937,14 +941,31 @@ export default function BacktestPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="max-trades" className="text-xs text-muted-foreground">Max Daily Trades</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="max-trades" className="text-xs text-muted-foreground">Max Daily Trades</Label>
+                    <div className="flex items-center gap-1.5">
+                      <Switch
+                        id="max-trades-toggle"
+                        checked={maxDailyTradesEnabled}
+                        onCheckedChange={setMaxDailyTradesEnabled}
+                        disabled={isRunning}
+                        className="scale-75"
+                      />
+                      <span className="text-[10px] text-muted-foreground">
+                        {maxDailyTradesEnabled ? 'ON' : 'OFF'}
+                      </span>
+                    </div>
+                  </div>
                   <Input
                     id="max-trades"
                     type="number"
                     value={maxDailyTrades}
                     onChange={(e) => setMaxDailyTrades(e.target.value)}
-                    disabled={isRunning}
-                    className="font-mono text-sm"
+                    disabled={isRunning || !maxDailyTradesEnabled}
+                    className={cn(
+                      'font-mono text-sm',
+                      !maxDailyTradesEnabled && 'opacity-40'
+                    )}
                     min="1"
                     max="10"
                   />

@@ -113,6 +113,17 @@ MAX_OPEN_POSITIONS = 2
 #          might overtrade and rack up transaction costs.
 MAX_DAILY_TRADES = 4
 
+# --- Max Daily Trades Toggle ---
+# DEFAULT:   True
+# SUGGESTED: True (enabled), False (unlimited trades per day)
+# WHY: When enabled, the strategy limits new entries per day to MAX_DAILY_TRADES.
+#      When disabled, there is no limit on the number of daily trades (still
+#      constrained by MAX_OPEN_POSITIONS and DAILY_RISK_PCT).
+#      Disabling this is useful for strategies that need many quick scalps.
+# EXAMPLE: MAX_DAILY_TRADES_ENABLED = False removes the daily trade count
+#          check entirely. Use with caution — overtrading erodes profits.
+MAX_DAILY_TRADES_ENABLED = True
+
 # --- Risk Per Position Limit ---
 # DEFAULT:   None (OFF / No limit)
 # SUGGESTED: None for this strategy, or 3.0 for extra safety

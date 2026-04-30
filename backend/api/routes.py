@@ -258,6 +258,7 @@ class BacktestRunRequest(BaseModel):
     daily_risk_pct: Optional[float] = None
     max_open_positions: Optional[int] = None
     max_daily_trades: Optional[int] = None
+    max_daily_trades_enabled: Optional[bool] = True
     use_sample_data: Optional[bool] = True
 
 
@@ -321,7 +322,7 @@ async def run_backtest(request: BacktestRunRequest = None):
         for key in ["symbol", "timeframe", "method", "from_date", "to_date",
                      "capital", "sl_atr", "min_rr", "moneyness",
                      "daily_risk_pct", "max_open_positions", "max_daily_trades",
-                     "use_sample_data"]:
+                     "max_daily_trades_enabled", "use_sample_data"]:
             val = getattr(request, key, None)
             if val is not None:
                 params[key] = val

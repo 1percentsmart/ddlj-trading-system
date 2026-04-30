@@ -318,6 +318,7 @@ export interface BacktestRunParams {
   daily_risk_pct?: number;
   max_open_positions?: number;
   max_daily_trades?: number;
+  max_daily_trades_enabled?: boolean;
   use_sample_data?: boolean;
 }
 
