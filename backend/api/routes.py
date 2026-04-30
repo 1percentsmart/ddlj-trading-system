@@ -6,6 +6,7 @@ DDLJ Trading System — REST API Routes
 All REST API endpoints for controlling and monitoring the trading engine.
 """
 
+import json
 import logging
 import traceback
 from typing import Optional

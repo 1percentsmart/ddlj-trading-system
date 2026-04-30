@@ -340,13 +340,13 @@ def _on_market_close():
             if telegram_notifier and engine_manager._trader:
                 status = engine_manager.get_status()
                 asyncio.ensure_future(
-                    telegram_notifier.send_daily_summary(
-                        capital=status.get("capital", 0),
-                        daily_pnl=status.get("daily_pnl", 0),
-                        trade_count=status.get("daily_trade_count", 0),
-                        open_positions=status.get("open_positions", 0),
-                        total_trades=status.get("total_closed_trades", 0),
-                    )
+                    telegram_notifier.send_daily_summary({
+                        "capital": status.get("capital", 0),
+                        "daily_pnl": status.get("daily_pnl", 0),
+                        "total_trades": status.get("daily_trade_count", 0),
+                        "open_positions": status.get("open_positions", 0),
+                        "starting_capital": status.get("starting_capital", 0),
+                    })
                 )
     except Exception as e:
         log.error("Failed to auto-stop engine on market close: %s", e)
