@@ -4,7 +4,7 @@
  * DDLJ Trading System — Main Dashboard Page
  * ============================================
  * Single-page application with sidebar navigation, hash-based URL routing,
- * and content views. Uses LEGO-piece modular architecture.
+ * and content views.
  */
 
 import { useEffect } from 'react';

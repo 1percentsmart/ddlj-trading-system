@@ -4,7 +4,6 @@
 
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { useDDLJStore } from './store';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -13,10 +12,7 @@ export function cn(...inputs: ClassValue[]) {
 export function formatCurrency(value: number, format?: 'indian' | 'international'): string {
   const isNegative = value < 0;
   const abs = Math.abs(value);
-  // If no explicit format passed, read from store preference
-  const numFormat = format ?? (typeof window !== 'undefined'
-    ? useDDLJStore.getState().theme.numberFormat
-    : 'indian');
+  const numFormat = format ?? 'indian';
   if (abs >= 10000000) return `${isNegative ? '-' : ''}₹${(abs / 10000000).toFixed(2)} Cr`;
   if (abs >= 100000) return `${isNegative ? '-' : ''}₹${(abs / 100000).toFixed(2)} L`;
   const locale = numFormat === 'international' ? 'en-US' : 'en-IN';

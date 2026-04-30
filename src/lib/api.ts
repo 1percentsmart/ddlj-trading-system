@@ -5,8 +5,8 @@
  * All endpoints match the real backend at https://ddlj.up.railway.app/api/v1
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://ddlj.up.railway.app/api/v1';
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'wss://ddlj.up.railway.app/ws';
+const API_BASE = '/api/v1';
+const WS_URL = '';
 
 export { API_BASE, WS_URL };
 
@@ -17,27 +17,13 @@ export interface EngineStatus {
   error_count: number;
   start_time: string | null;
   stop_time: string | null;
+  manually_started?: boolean;
   token: {
     stored: boolean;
     valid: boolean;
     user: string | null;
   };
   last_heartbeat: string | null;
-  last_error: string | null;
-  // Fields from PaperTrader.get_status()
-  running?: boolean;
-  connected?: boolean;
-  capital?: number;
-  peak_capital?: number;
-  daily_pnl?: number;
-  daily_trade_count?: number;
-  open_positions?: number;
-  total_closed_trades?: number;
-  last_bias?: string;
-  index?: string;
-  entry_tf?: string;
-  bias_tf?: string;
-  live_vix?: number | null;
   uptime_seconds?: number;
 }
 
@@ -60,22 +46,16 @@ export interface Trade {
   id?: string;
   symbol: string;
   direction: 'LONG' | 'SHORT';
-  // In-memory endpoint uses entry/exit, DB endpoint uses entry_price/exit_price
   entry: number;
   exit: number;
-  entry_price?: number;  // DB endpoint alias
-  exit_price?: number;   // DB endpoint alias
   entry_time: string;
   exit_time: string;
   sl: number;
   target: number;
   qty: number;
-  // In-memory: gross/costs/net, DB: gross_pnl/costs/net_pnl
   gross: number;
   costs: number;
   net: number;
-  gross_pnl?: number;  // DB endpoint alias
-  net_pnl?: number;    // DB endpoint alias
   exit_reason: string;
   rr: number;
   held: string;
@@ -99,7 +79,6 @@ export interface Position {
   symbol: string;
   direction: 'LONG' | 'SHORT';
   entry: number;
-  entry_price?: number;  // DB endpoint alias
   entry_time: string;
   qty: number;
   sl: number;
@@ -131,12 +110,53 @@ export interface TokenLoginUrl {
 }
 
 export interface BacktestRunResult {
-  status: 'started' | 'already_running' | 'error';
+  status: string;
   message: string;
   note?: string;
   hint?: string;
-  params?: Record<string, unknown>;
-  started_at?: string | null;
+}
+
+export interface BacktestStatusResult {
+  status: string;
+  message?: string;
+  progress?: number;
+  elapsed_seconds?: number;
+  last_results?: {
+    version: string;
+    configs_tested: number;
+    method_a_top: Record<string, BacktestConfigResult>;
+    method_b_top: Record<string, BacktestConfigResult>;
+  } | null;
+}
+
+export interface BacktestTradeDetail {
+  id: number;
+  symbol: string;
+  direction: 'LONG' | 'SHORT';
+  entry_time: string;
+  exit_time: string;
+  entry_price: number;
+  exit_price: number;
+  sl: number;
+  target: number;
+  qty: number;
+  gross: number;
+  costs: number;
+  net: number;
+  exit_reason: string;
+  rr: number;
+  risk: number;
+  reward: number;
+  held_bars: number;
+  mode: string;
+  option_strike?: number;
+  option_type?: string;
+  option_entry_premium?: number;
+  option_exit_premium?: number;
+  option_delta?: number;
+  option_iv_entry?: number;
+  option_iv_exit?: number;
+  option_spread_cost?: number;
 }
 
 export interface BacktestConfigResult {
@@ -149,34 +169,26 @@ export interface BacktestConfigResult {
   max_dd_pct: number;
   sharpe_approx: number;
   avg_trade: number;
-}
-
-export interface BacktestProgressEvent {
-  status: 'idle' | 'running' | 'completed' | 'error';
-  phase: 'idle' | 'starting' | 'fetching' | 'running' | 'analyzing' | 'saving' | 'done' | 'error';
-  current_config: number;
-  total_configs: number;
-  current_label: string;
-  data_fetched: boolean;
-  candle_counts: Record<string, number>;
-  pct: number;
-  message: string;
-  error_message: string | null;
-}
-
-export interface BacktestStatusResult {
-  status: 'idle' | 'running' | 'completed' | 'error' | 'no_results';
-  message?: string;
-  started_at?: string | null;
-  params?: Record<string, unknown> | null;
-  progress?: BacktestProgressEvent;
-  last_results?: {
-    version: string;
-    params_used?: Record<string, unknown>;
-    configs_tested: number;
-    method_a_top: Record<string, BacktestConfigResult>;
-    method_b_top: Record<string, BacktestConfigResult>;
-  };
+  // Additional fields from the backend analysis
+  gross_profit?: number;
+  gross_loss?: number;
+  total_costs?: number;
+  avg_win?: number;
+  avg_loss?: number;
+  avg_rr?: number;
+  avg_held?: number;
+  max_dd?: number;
+  long_trades?: number;
+  short_trades?: number;
+  long_wr?: number;
+  short_wr?: number;
+  trading_days?: number;
+  final_capital?: number;
+  starting_capital?: number;
+  exit_reasons?: Record<string, number>;
+  monthly_pnl?: Record<string, number>;
+  // Individual trade details — critical for the trade log view
+  trades?: BacktestTradeDetail[];
 }
 
 export interface ReadinessCheck {
@@ -187,67 +199,11 @@ export interface ReadinessCheck {
   next_actions: string[];
 }
 
-// ── Normalizers ────────────────────────────────────────────────
-/** Normalize trade data from either endpoint format (in-memory or DB). */
-export function normalizeTrade(raw: Record<string, unknown>): Trade {
-  return {
-    id: (raw.id ?? raw.session_id)?.toString(),
-    symbol: raw.symbol as string,
-    direction: raw.direction as 'LONG' | 'SHORT',
-    entry: (raw.entry ?? raw.entry_price) as number,
-    exit: (raw.exit ?? raw.exit_price) as number,
-    entry_price: raw.entry_price as number | undefined,
-    exit_price: raw.exit_price as number | undefined,
-    entry_time: raw.entry_time as string,
-    exit_time: raw.exit_time as string,
-    sl: raw.sl as number,
-    target: raw.target as number,
-    qty: raw.qty as number,
-    gross: (raw.gross ?? raw.gross_pnl) as number,
-    costs: raw.costs as number,
-    net: (raw.net ?? raw.net_pnl) as number,
-    gross_pnl: raw.gross_pnl as number | undefined,
-    net_pnl: raw.net_pnl as number | undefined,
-    exit_reason: raw.exit_reason as string,
-    rr: raw.rr as number,
-    held: (raw.held ?? '') as string,
-    mode: (raw.mode ?? 'futures') as string,
-    option_strike: raw.option_strike as number | undefined,
-    option_type: raw.option_type as 'CE' | 'PE' | undefined,
-    option_entry_premium: raw.option_entry_premium as number | undefined,
-    option_exit_premium: raw.option_exit_premium as number | undefined,
-    option_delta: raw.option_delta as number | undefined,
-    option_iv_entry: raw.option_iv_entry as number | undefined,
-    option_iv_exit: raw.option_iv_exit as number | undefined,
-  };
-}
-
-/** Normalize position data from either endpoint format (in-memory or DB). */
-export function normalizePosition(raw: Record<string, unknown>): Position {
-  return {
-    id: raw.id?.toString(),
-    symbol: raw.symbol as string,
-    direction: raw.direction as 'LONG' | 'SHORT',
-    entry: (raw.entry ?? raw.entry_price) as number,
-    entry_price: raw.entry_price as number | undefined,
-    entry_time: raw.entry_time as string,
-    qty: raw.qty as number,
-    sl: raw.sl as number,
-    target: raw.target as number,
-    rr: raw.rr as number,
-    held: (raw.held ?? '') as string,
-    be_done: (raw.be_done ?? false) as boolean,
-    atr_at_entry: (raw.atr_at_entry ?? 0) as number,
-    current_premium: raw.current_premium as number | undefined,
-    unrealized_pnl: raw.unrealized_pnl as number | undefined,
-    option_strike: raw.option_strike as number | undefined,
-    option_type: raw.option_type as 'CE' | 'PE' | undefined,
-  };
-}
-
 // ── Helper ─────────────────────────────────────────────────────
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  // Use Next.js API proxy route — requests go to /api/v1/* which proxies to the backend
+  const url = `${API_BASE}${path}`;
+  const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     ...options,
   });
@@ -259,15 +215,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // ── Engine ──────────────────────────────────────────────────────
-export interface EngineActionResponse {
-  status: string;
-  message: string;
-}
-
 export const engineApi = {
   getStatus: () => request<EngineStatus>('/status'),
-  start: () => request<EngineActionResponse>('/start', { method: 'POST' }),
-  stop: () => request<EngineActionResponse>('/stop', { method: 'POST' }),
+  start: () => request<{ ok: boolean }>('/start', { method: 'POST' }),
+  stop: () => request<{ ok: boolean }>('/stop', { method: 'POST' }),
   getReadiness: () => request<ReadinessCheck>('/readiness'),
 };
 
@@ -305,57 +256,11 @@ export const tokenApi = {
 };
 
 // ── Backtest ──────────────────────────────────────────────────────
-export interface BacktestRunParams {
-  symbol?: string;
-  timeframe?: string;
-  method?: string;
-  from_date?: string;
-  to_date?: string;
-  capital?: number;
-  sl_atr?: number;
-  min_rr?: number;
-  moneyness?: string;
-  daily_risk_pct?: number;
-  max_open_positions?: number;
-  max_daily_trades?: number;
-  max_daily_trades_enabled?: boolean;
-  // NOTE: use_sample_data removed — always enabled as internal fallback
-}
-
 export const backtestApi = {
-  run: (params?: BacktestRunParams) =>
+  run: (config?: { max_daily_trades_enabled?: boolean }) =>
     request<BacktestRunResult>('/backtest/run', {
       method: 'POST',
-      ...(params ? { body: JSON.stringify(params) } : {}),
+      body: config ? JSON.stringify(config) : undefined,
     }),
   getStatus: () => request<BacktestStatusResult>('/backtest/status'),
-  /**
-   * Open an SSE connection for real-time backtest progress updates.
-   * Returns an EventSource that the caller owns (must close it).
-   */
-  progressStream: (): EventSource => {
-    return new EventSource(`${API_BASE}/backtest/progress`);
-  },
-};
-
-// ── Live Safety ──────────────────────────────────────────────────
-export interface LiveReadinessCheck {
-  status: 'ready' | 'not_ready';
-  checks: Record<string, boolean>;
-  blockers: string[];
-  message?: string;
-}
-
-export interface KillSwitchResult {
-  status: string;
-  message: string;
-  timestamp: string;
-}
-
-export const liveSafetyApi = {
-  getReadiness: () => request<LiveReadinessCheck>('/live/readiness'),
-  activateKillSwitch: () =>
-    request<KillSwitchResult>('/live/kill-switch', { method: 'POST' }),
-  resetKillSwitch: () =>
-    request<KillSwitchResult>('/live/kill-switch/reset', { method: 'POST' }),
 };

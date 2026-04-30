@@ -1,24 +1,27 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+/**
+ * DDLJ Trading System — Backtest Page
+ * ========================================
+ * Professional backtest results viewer with expandable trade details,
+ * summary metric cards, and real-time progress streaming.
+ */
+
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+  type BacktestConfigResult,
+  type BacktestTradeDetail,
+  type BacktestStatusResult,
+  backtestApi,
+} from '@/lib/api';
+import { cn, formatCurrency, pnlColor, formatPercent, formatDuration } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
 import {
   Table,
   TableBody,
@@ -27,1171 +30,854 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
 import {
-  FlaskConical,
   Play,
-  Circle,
   Loader2,
-  BarChart3,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
+  ChevronDown,
+  ChevronRight,
   TrendingUp,
   TrendingDown,
-  Settings2,
-  Calendar,
-  RotateCcw,
-  Cpu,
+  Target,
+  BarChart3,
+  Activity,
+  ShieldAlert,
+  Zap,
+  Clock,
+  AlertTriangle,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useDDLJStore } from '@/lib/store';
-import { cn, formatCurrency, pnlColor } from '@/lib/utils';
-import { backtestApi, type BacktestConfigResult, type BacktestRunParams, type BacktestProgressEvent } from '@/lib/api';
 
-// ── Types ────────────────────────────────────────────────────────
-
-type BtStatus = 'idle' | 'running' | 'completed' | 'error';
-type SymbolOption = 'BANKNIFTY' | 'NIFTY' | 'both';
-type TimeframeOption = '15m/60m' | '15m/15m' | '5m/60m' | 'all';
-type MethodOption = 'method_a' | 'method_b' | 'both';
-type MoneynessOption = 'ITM' | 'ATM' | 'DEEP_ITM';
-
-interface FlattenedResult {
-  key: string;
-  method: string;
-  config: BacktestConfigResult;
+// ── Flattened Result Interface ─────────────────────────────────
+interface FlattenedResult extends BacktestConfigResult {
+  _method: 'a' | 'b';
+  _key: string;
 }
 
-// ── Default backtest params (matching engine/config.py) ───────────
-
-const DEFAULT_PARAMS = {
-  capital: 50000,
-  sl_atr: 2.0,
-  min_rr: 1.5,
-  daily_risk_pct: 6.0,
-  max_open_positions: 2,
-  max_daily_trades: 4,
-};
-
-const DEFAULT_FROM_DATE = '2025-11-01';
-const DEFAULT_TO_DATE = '2026-04-25';
-
-// ── Helpers ──────────────────────────────────────────────────────
-
-/** Safely get a number from config result, defaulting to 0 if missing */
-function safeNum(val: unknown, fallback = 0): number {
-  if (typeof val === 'number' && !isNaN(val)) return val;
-  return fallback;
+// ── Date Formatter ─────────────────────────────────────────────
+function formatTradeDateTime(isoString: string): string {
+  const d = new Date(isoString);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = months[d.getMonth()];
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const mins = String(d.getMinutes()).padStart(2, '0');
+  return `${day} ${month} ${year} ${hours}:${mins}`;
 }
 
-function flattenResults(
-  methodATop: Record<string, BacktestConfigResult>,
-  methodBTop: Record<string, BacktestConfigResult>
-): FlattenedResult[] {
-  const a = Object.entries(methodATop).map(([key, config]) => ({
-    key,
-    method: 'Compounding (A)',
-    config,
-  }));
-  const b = Object.entries(methodBTop).map(([key, config]) => ({
-    key,
-    method: 'Monthly Batch (B)',
-    config,
-  }));
-  return [...a, ...b].sort((a, b) => safeNum(b.config.net_pnl) - safeNum(a.config.net_pnl));
-}
-
-function sharpeColor(val: number): string {
-  if (val >= 2) return 'text-emerald-400';
-  if (val >= 1) return 'text-emerald-300';
-  if (val >= 0.5) return 'text-amber-400';
-  return 'text-red-400';
-}
-
-function ddColor(val: number): string {
-  if (val <= 5) return 'text-emerald-400';
-  if (val <= 15) return 'text-amber-400';
-  return 'text-red-400';
-}
-
-function phaseLabel(phase: string): string {
-  switch (phase) {
-    case 'starting': return 'Initializing...';
-    case 'fetching': return 'Fetching market data...';
-    case 'running': return 'Running backtest configs...';
-    case 'analyzing': return 'Analyzing results...';
-    case 'saving': return 'Saving results...';
-    case 'done': return 'Completed!';
-    case 'error': return 'Error';
-    default: return 'Preparing...';
+// ── Exit Reason Badge Color ────────────────────────────────────
+function exitReasonVariant(reason: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+  switch (reason.toUpperCase()) {
+    case 'TARGET':
+    case 'NEAR_TGT':
+      return 'default';
+    case 'SL':
+      return 'destructive';
+    case 'EOD':
+    case 'BIAS_FLIP':
+      return 'secondary';
+    default:
+      return 'outline';
   }
 }
 
-function phaseIcon(phase: string) {
-  switch (phase) {
-    case 'fetching': return <BarChart3 className="size-5 text-blue-400 animate-pulse" />;
-    case 'running': return <Cpu className="size-5 text-amber-400 animate-pulse" />;
-    case 'done': return <CheckCircle2 className="size-5 text-emerald-400" />;
-    case 'error': return <AlertTriangle className="size-5 text-red-400" />;
-    default: return <Loader2 className="size-5 text-amber-400 animate-spin" />;
-  }
-}
-
-// ── No Results State ─────────────────────────────────────────────
-
-function NoResultsState() {
+// ── Summary Stat Card ──────────────────────────────────────────
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+  sub,
+}: {
+  label: string;
+  value: string;
+  icon: React.ElementType;
+  color: string;
+  sub?: string;
+}) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="mb-4 rounded-full bg-muted/50 p-4">
-        <BarChart3 className="size-10 text-muted-foreground/50" />
+    <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
+            <p className={cn('text-xl font-bold tracking-tight truncate', color)}>{value}</p>
+            {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+          </div>
+          <div className={cn('p-2 rounded-lg shrink-0', color.replace('text-', 'bg-').replace(/-\d+$/, '-500/10'))}>
+            <Icon className={cn('h-4 w-4', color)} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Trade Detail Row ───────────────────────────────────────────
+function TradeDetailTable({ trades }: { trades: BacktestTradeDetail[] }) {
+  if (!trades || trades.length === 0) {
+    return (
+      <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+        No trade details available for this configuration.
       </div>
-      <h3 className="text-lg font-semibold text-muted-foreground">
-        No Backtest Results Yet
-      </h3>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground/70">
-        Configure the backtest parameters above and click &ldquo;Run Backtest&rdquo;
-        to evaluate strategy performance against historical data.
-      </p>
+    );
+  }
+
+  const totalNet = trades.reduce((sum, t) => sum + t.net, 0);
+  const wins = trades.filter(t => t.net > 0).length;
+
+  return (
+    <div className="px-4 py-3">
+      {/* Trade summary bar */}
+      <div className="flex items-center gap-4 mb-3 text-xs">
+        <span className="text-muted-foreground">
+          {trades.length} trades &middot; {wins}W / {trades.length - wins}L
+        </span>
+        <span className={cn('font-semibold', pnlColor(totalNet))}>
+          Net: {formatCurrency(totalNet)}
+        </span>
+        {trades.length > 0 && (
+          <span className="text-muted-foreground">
+            Avg: {formatCurrency(totalNet / trades.length)}
+          </span>
+        )}
+      </div>
+
+      {/* Scrollable trade table */}
+      <div className="max-h-96 overflow-y-auto rounded-md border border-border/50" style={{
+        scrollbarWidth: 'thin',
+        scrollbarColor: 'hsl(var(--border)) transparent',
+      }}>
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="w-10 text-xs h-8">#</TableHead>
+              <TableHead className="text-xs h-8">Date/Time</TableHead>
+              <TableHead className="text-xs h-8">Symbol</TableHead>
+              <TableHead className="text-xs h-8">Dir</TableHead>
+              <TableHead className="text-xs h-8 text-right">Entry</TableHead>
+              <TableHead className="text-xs h-8 text-right">Exit</TableHead>
+              <TableHead className="text-xs h-8 text-right">SL</TableHead>
+              <TableHead className="text-xs h-8 text-right">Target</TableHead>
+              <TableHead className="text-xs h-8 text-right">Qty</TableHead>
+              <TableHead className="text-xs h-8">Trigger</TableHead>
+              <TableHead className="text-xs h-8 text-right">Net P&L</TableHead>
+              <TableHead className="text-xs h-8 text-right">R:R</TableHead>
+              <TableHead className="text-xs h-8 text-right">Bars</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {trades.map((t, i) => (
+              <TableRow key={t.id ?? i} className="text-xs hover:bg-muted/30">
+                <TableCell className="py-1.5 text-muted-foreground">{i + 1}</TableCell>
+                <TableCell className="py-1.5 whitespace-nowrap">
+                  {formatTradeDateTime(t.entry_time)}
+                </TableCell>
+                <TableCell className="py-1.5 font-medium">{t.symbol}</TableCell>
+                <TableCell className="py-1.5">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-[10px] px-1.5 py-0 font-semibold border-0',
+                      t.direction === 'LONG'
+                        ? 'bg-emerald-500/15 text-emerald-400'
+                        : 'bg-red-500/15 text-red-400'
+                    )}
+                  >
+                    {t.direction}
+                  </Badge>
+                </TableCell>
+                <TableCell className="py-1.5 text-right font-mono">
+                  ₹{t.entry_price.toLocaleString('en-IN')}
+                </TableCell>
+                <TableCell className="py-1.5 text-right font-mono">
+                  ₹{t.exit_price.toLocaleString('en-IN')}
+                </TableCell>
+                <TableCell className="py-1.5 text-right font-mono text-red-400/80">
+                  ₹{t.sl.toLocaleString('en-IN')}
+                </TableCell>
+                <TableCell className="py-1.5 text-right font-mono text-emerald-400/80">
+                  ₹{t.target.toLocaleString('en-IN')}
+                </TableCell>
+                <TableCell className="py-1.5 text-right">{t.qty}</TableCell>
+                <TableCell className="py-1.5">
+                  <Badge
+                    variant={exitReasonVariant(t.exit_reason)}
+                    className="text-[10px] px-1.5 py-0"
+                  >
+                    {t.exit_reason}
+                  </Badge>
+                </TableCell>
+                <TableCell className={cn('py-1.5 text-right font-semibold font-mono', pnlColor(t.net))}>
+                  {t.net > 0 ? '+' : ''}{formatCurrency(t.net)}
+                </TableCell>
+                <TableCell className="py-1.5 text-right font-mono">
+                  {t.rr > 0 ? `${t.rr.toFixed(2)}` : '—'}
+                </TableCell>
+                <TableCell className="py-1.5 text-right text-muted-foreground">
+                  {t.held_bars}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
 
-// ── Running State with real progress ──────────────────────────────
-
-function RunningState({
-  startTime,
-  progress,
-}: {
-  startTime: number | null;
-  progress: BacktestProgressEvent | null;
-}) {
-  const [elapsed, setElapsed] = useState(0);
-
-  useEffect(() => {
-    if (!startTime) return;
-    const interval = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startTime) / 1000));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [startTime]);
-
-  const minutes = Math.floor(elapsed / 60);
-  const seconds = elapsed % 60;
-  const pct = progress?.pct ?? 0;
-  const phase = progress?.phase ?? 'starting';
-  const message = progress?.message ?? 'Preparing...';
-
-  return (
-    <Card className="border-amber-500/30 bg-amber-500/5">
-      <CardContent className="flex flex-col items-center justify-center py-10 text-center">
-        <div className="mb-3">
-          {phaseIcon(phase)}
-        </div>
-        <h3 className="text-lg font-semibold text-amber-400">
-          Backtest is running...
-        </h3>
-        <p className="mt-1 max-w-md text-sm text-muted-foreground">
-          {message}
-        </p>
-
-        {/* Progress bar */}
-        <div className="mt-4 w-full max-w-md space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">{phaseLabel(phase)}</span>
-            <span className="font-mono text-muted-foreground">{pct}%</span>
-          </div>
-          <Progress className="h-2.5" value={pct} />
-        </div>
-
-        {/* Config progress */}
-        {progress && progress.total_configs > 0 && (
-          <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
-            <span>
-              Config {progress.current_config}/{progress.total_configs}
-            </span>
-            {progress.current_label && (
-              <Badge variant="outline" className="text-[10px] border-0 bg-muted/50 font-mono">
-                {progress.current_label}
-              </Badge>
-            )}
-          </div>
-        )}
-
-        {/* Candle counts */}
-        {progress && progress.data_fetched && Object.keys(progress.candle_counts).length > 0 && (
-          <div className="mt-2 flex flex-wrap justify-center gap-1.5">
-            {Object.entries(progress.candle_counts).map(([key, count]) => (
-              <Badge key={key} variant="outline" className="text-[10px] border-0 bg-muted/40 font-mono">
-                {key}: {count.toLocaleString()}
-              </Badge>
-            ))}
-          </div>
-        )}
-
-        {/* Elapsed time */}
-        {startTime && (
-          <div className="mt-3 flex items-center gap-2 text-sm">
-            <Clock className="size-3.5 text-muted-foreground" />
-            <span className="font-mono text-muted-foreground">
-              {minutes}:{seconds.toString().padStart(2, '0')} elapsed
-            </span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// ── Results Table ────────────────────────────────────────────────
-
-function ResultsTable({ results }: { results: FlattenedResult[] }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm font-medium">
-          <BarChart3 className="size-4 text-emerald-400" />
-          Backtest Results
-          <Badge variant="secondary" className="ml-1 text-[10px]">
-            {results.length} config{results.length !== 1 ? 's' : ''}
-          </Badge>
-        </CardTitle>
-        <CardDescription className="text-xs">
-          Sorted by Net P&L (descending) across all methods
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="px-0 pb-4">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-4">Config</TableHead>
-                <TableHead>Method</TableHead>
-                <TableHead className="text-right">Net P&L</TableHead>
-                <TableHead className="text-right">P&L %</TableHead>
-                <TableHead className="text-right">Win Rate</TableHead>
-                <TableHead className="text-right">Profit Factor</TableHead>
-                <TableHead className="text-right">Trades</TableHead>
-                <TableHead className="text-right">Max DD %</TableHead>
-                <TableHead className="text-right pr-4">Sharpe</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {results.map((r) => {
-                const c = r.config;
-                const netPnl = safeNum(c.net_pnl);
-                const netPnlPct = safeNum(c.net_pnl_pct);
-                const winRate = safeNum(c.win_rate);
-                const profitFactor = safeNum(c.profit_factor);
-                const totalTrades = safeNum(c.total_trades, 0);
-                const maxDdPct = safeNum(c.max_dd_pct);
-                const sharpe = safeNum(c.sharpe_approx);
-
-                return (
-                  <TableRow key={r.key}>
-                    <TableCell className="pl-4 font-medium text-sm">
-                      {c.label || r.key}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'text-[10px] border-0',
-                          r.method.includes('A')
-                            ? 'bg-emerald-500/10 text-emerald-400'
-                            : 'bg-purple-500/10 text-purple-400'
-                        )}
-                      >
-                        {r.method}
-                      </Badge>
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        'text-right font-semibold tabular-nums',
-                        pnlColor(netPnl)
-                      )}
-                    >
-                      {netPnl >= 0 ? '+' : ''}
-                      {formatCurrency(netPnl)}
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        'text-right tabular-nums',
-                        pnlColor(netPnlPct)
-                      )}
-                    >
-                      {netPnlPct >= 0 ? '+' : ''}
-                      {netPnlPct.toFixed(2)}%
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {winRate.toFixed(1)}%
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        'text-right tabular-nums',
-                        profitFactor >= 1.5
-                          ? 'text-emerald-400'
-                          : profitFactor >= 1
-                            ? 'text-amber-400'
-                            : 'text-red-400'
-                      )}
-                    >
-                      {profitFactor.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {totalTrades}
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        'text-right tabular-nums',
-                        ddColor(maxDdPct)
-                      )}
-                    >
-                      {maxDdPct.toFixed(2)}%
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        'text-right tabular-nums pr-4',
-                        sharpeColor(sharpe)
-                      )}
-                    >
-                      {sharpe.toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ── Main Backtest Page ───────────────────────────────────────────
-
+// ── Main Backtest Page Component ───────────────────────────────
 export default function BacktestPage() {
-  const {
-    engineStatus,
-    isConnected,
-    backtestStatus,
-    fetchBacktestStatus,
-  } = useDDLJStore();
-
-  // ── Local State ──────────────────────────────────────────────
-  const [symbol, setSymbol] = useState<SymbolOption>('BANKNIFTY');
-  const [timeframe, setTimeframe] = useState<TimeframeOption>('15m/60m');
-  const [method, setMethod] = useState<MethodOption>('both');
-  const [fromDate, setFromDate] = useState(DEFAULT_FROM_DATE);
-  const [toDate, setToDate] = useState(DEFAULT_TO_DATE);
-  const [capital, setCapital] = useState(DEFAULT_PARAMS.capital.toString());
-  const [slAtr, setSlAtr] = useState(DEFAULT_PARAMS.sl_atr.toString());
-  const [minRr, setMinRr] = useState(DEFAULT_PARAMS.min_rr.toString());
-  const [dailyRiskPct, setDailyRiskPct] = useState(DEFAULT_PARAMS.daily_risk_pct.toString());
-  const [maxOpenPositions, setMaxOpenPositions] = useState(DEFAULT_PARAMS.max_open_positions.toString());
-  const [maxDailyTrades, setMaxDailyTrades] = useState(DEFAULT_PARAMS.max_daily_trades.toString());
-  const [maxDailyTradesEnabled, setMaxDailyTradesEnabled] = useState(true);
-  const [moneyness, setMoneyness] = useState<MoneynessOption>('ITM');
-  // NOTE: use_sample_data removed from UI — always enabled internally as fallback
-  const [showAdvanced, setShowAdvanced] = useState(false);
-
+  // State
   const [isRunning, setIsRunning] = useState(false);
-  const [errorFlag, setErrorFlag] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [runStartTime, setRunStartTime] = useState<number | null>(null);
-  const [progress, setProgress] = useState<BacktestProgressEvent | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [progressMsg, setProgressMsg] = useState('');
+  const [elapsed, setElapsed] = useState(0);
+  const [results, setResults] = useState<FlattenedResult[]>([]);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [maxDailyTradesEnabled, setMaxDailyTradesEnabled] = useState(true);
+  const [maxDailyTrades, setMaxDailyTrades] = useState(4);
+  const [activeMethod, setActiveMethod] = useState<'all' | 'a' | 'b'>('all');
+  const [hasResults, setHasResults] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
+
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sseRef = useRef<EventSource | null>(null);
+  const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startTimeRef = useRef<number>(0);
 
-  // ── Token validity ───────────────────────────────────────────
-  const tokenValid = engineStatus.token.valid;
+  // Flatten results from the API response
+  const flattenResults = useCallback((data: BacktestStatusResult): FlattenedResult[] => {
+    if (!data.last_results) return [];
+    const flat: FlattenedResult[] = [];
 
-  // ── Computed results ─────────────────────────────────────────
-  const flattenedResults = useMemo(() => {
-    if (!backtestStatus?.last_results) return [];
-    return flattenResults(
-      backtestStatus.last_results.method_a_top,
-      backtestStatus.last_results.method_b_top
-    );
-  }, [backtestStatus]);
+    const methodA = data.last_results.method_a_top || {};
+    const methodB = data.last_results.method_b_top || {};
 
-  const hasResults = flattenedResults.length > 0;
+    for (const [key, val] of Object.entries(methodA)) {
+      flat.push({ ...val, _method: 'a' as const, _key: key });
+    }
+    for (const [key, val] of Object.entries(methodB)) {
+      flat.push({ ...val, _method: 'b' as const, _key: key });
+    }
 
-  // ── Derive btStatus ──
-  const btStatus: BtStatus = useMemo(() => {
-    if (errorFlag) return 'error';
-    if (isRunning) return 'running';
-    if (backtestStatus?.last_results) return 'completed';
-    return 'idle';
-  }, [isRunning, errorFlag, backtestStatus]);
+    // Sort by net P&L descending
+    flat.sort((a, b) => b.net_pnl - a.net_pnl);
+    return flat;
+  }, []);
 
-  // ── Fetch on mount ───────────────────────────────────────────
+  // Check initial status on mount
   useEffect(() => {
-    fetchBacktestStatus();
-  }, [fetchBacktestStatus]);
-
-  // ── SSE Progress Streaming ────────────────────────────────────
-  const startProgressStream = useCallback(() => {
-    // Close any existing SSE connection
-    if (sseRef.current) {
-      sseRef.current.close();
-      sseRef.current = null;
-    }
-
-    try {
-      const es = backtestApi.progressStream();
-      sseRef.current = es;
-
-      es.onmessage = (e) => {
-        try {
-          const data: BacktestProgressEvent = JSON.parse(e.data);
-          setProgress(data);
-
-          // Handle terminal states from SSE
-          if (data.status === 'completed') {
-            setIsRunning(false);
-            setErrorFlag(false);
-            setProgress(data);
-            es.close();
-            sseRef.current = null;
-            // Fetch final results
-            fetchBacktestStatus().then(() => {
-              toast.success('Backtest completed! Results are ready.');
-            });
-          } else if (data.status === 'error') {
-            setIsRunning(false);
-            setErrorFlag(true);
-            setErrorMessage(data.error_message || data.message || 'Backtest failed');
-            setProgress(data);
-            es.close();
-            sseRef.current = null;
-            toast.error(`Backtest failed: ${data.error_message || data.message || 'Unknown error'}`);
-          }
-        } catch {
-          // Ignore parse errors
-        }
-      };
-
-      es.onerror = () => {
-        // SSE connection failed — fall back to polling
-        es.close();
-        sseRef.current = null;
-      };
-    } catch {
-      // SSE not supported — fall back to polling
-    }
-  }, [fetchBacktestStatus]);
-
-  // ── Fallback Polling logic ────────────────────────────────────
-  const startPolling = useCallback(() => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
+    const checkInitial = async () => {
       try {
-        const latest = await backtestApi.getStatus();
-
-        // Update progress from polling response too
-        if (latest.progress) {
-          const p = latest.progress;
-          setProgress(prev => ({
-            status: p.status ?? prev?.status ?? 'running',
-            phase: p.phase ?? prev?.phase ?? 'running',
-            current_config: p.current_config ?? prev?.current_config ?? 0,
-            total_configs: p.total_configs ?? prev?.total_configs ?? 0,
-            current_label: p.current_label ?? prev?.current_label ?? '',
-            data_fetched: p.data_fetched ?? prev?.data_fetched ?? false,
-            candle_counts: p.candle_counts ?? prev?.candle_counts ?? {},
-            pct: p.pct ?? prev?.pct ?? 0,
-            message: p.message ?? prev?.message ?? '',
-            error_message: p.error_message ?? null,
-          }));
-        }
-
-        // Update store with latest data
-        if (latest.last_results) {
-          await fetchBacktestStatus();
-        }
-
-        // Terminal states: stop polling
-        if (latest.status === 'completed') {
-          setIsRunning(false);
-          setErrorFlag(false);
-          if (pollRef.current) clearInterval(pollRef.current);
-          pollRef.current = null;
-          await fetchBacktestStatus();
-          if (latest.last_results) {
-            toast.success('Backtest completed! Results are ready.');
-          } else {
-            toast.info('Backtest finished but produced no results.');
-          }
-        } else if (latest.status === 'error') {
-          setIsRunning(false);
-          setErrorFlag(true);
-          setErrorMessage(latest.message || 'Check backend logs.');
-          if (pollRef.current) clearInterval(pollRef.current);
-          pollRef.current = null;
-          toast.error(`Backtest failed: ${latest.message || 'Check backend logs.'}`);
+        const status = await backtestApi.getStatus();
+        if (status.status === 'completed' && status.last_results) {
+          setResults(flattenResults(status));
+          setHasResults(true);
+          setProgress(100);
+          setProgressMsg('Results loaded from previous run');
+        } else if (status.status === 'running') {
+          setIsRunning(true);
+          setProgress(status.progress || 0);
+          setProgressMsg(status.message || 'Running...');
+          startTimeRef.current = Date.now() - (status.elapsed_seconds || 0) * 1000;
+          startPolling();
         }
       } catch {
-        // Silently ignore polling errors
+        // Silently ignore — backend may be unreachable
+      } finally {
+        setInitialLoad(false);
       }
-    }, 5_000); // Poll every 5s for faster feedback
-  }, [fetchBacktestStatus]);
+    };
+    checkInitial();
+  }, [flattenResults]);
 
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    if (sseRef.current) {
-      sseRef.current.close();
-      sseRef.current = null;
-    }
-  }, []);
-
-  // ── Cleanup polling on unmount ───────────────────────────────
+  // Cleanup on unmount
   useEffect(() => {
-    return () => stopPolling();
-  }, [stopPolling]);
-
-  // ── Reset params to defaults ────────────────────────────────
-  const handleResetParams = useCallback(() => {
-    setFromDate(DEFAULT_FROM_DATE);
-    setToDate(DEFAULT_TO_DATE);
-    setCapital(DEFAULT_PARAMS.capital.toString());
-    setSlAtr(DEFAULT_PARAMS.sl_atr.toString());
-    setMinRr(DEFAULT_PARAMS.min_rr.toString());
-    setDailyRiskPct(DEFAULT_PARAMS.daily_risk_pct.toString());
-    setMaxOpenPositions(DEFAULT_PARAMS.max_open_positions.toString());
-    setMaxDailyTrades(DEFAULT_PARAMS.max_daily_trades.toString());
-    setMaxDailyTradesEnabled(true);
-    setMoneyness('ITM');
-    setSymbol('BANKNIFTY');
-    setTimeframe('15m/60m');
-    setMethod('both');
-    toast.info('Parameters reset to defaults');
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (elapsedRef.current) clearInterval(elapsedRef.current);
+    };
   }, []);
 
-  // ── Handle run backtest ──────────────────────────────────────
-  const handleRunBacktest = useCallback(async () => {
-    try {
-      setIsRunning(true);
-      setErrorFlag(false);
-      setErrorMessage('');
-      setRunStartTime(Date.now());
-      setProgress({
-        status: 'running',
-        phase: 'starting',
-        current_config: 0,
-        total_configs: 0,
-        current_label: '',
-        data_fetched: false,
-        candle_counts: {},
-        pct: 0,
-        message: 'Starting backtest...',
-        error_message: null,
-      });
+  // Start polling for status
+  const startPolling = useCallback(() => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    if (elapsedRef.current) clearInterval(elapsedRef.current);
 
-      const params: BacktestRunParams = {
-        symbol,
-        timeframe,
-        method,
-        from_date: fromDate,
-        to_date: toDate,
-        capital: parseFloat(capital) || DEFAULT_PARAMS.capital,
-        sl_atr: parseFloat(slAtr) || DEFAULT_PARAMS.sl_atr,
-        min_rr: parseFloat(minRr) || DEFAULT_PARAMS.min_rr,
-        moneyness,
-        daily_risk_pct: parseFloat(dailyRiskPct) || DEFAULT_PARAMS.daily_risk_pct,
-        max_open_positions: parseInt(maxOpenPositions) || DEFAULT_PARAMS.max_open_positions,
-        max_daily_trades: parseInt(maxDailyTrades) || DEFAULT_PARAMS.max_daily_trades,
-        max_daily_trades_enabled: maxDailyTradesEnabled,
-        // use_sample_data: always enabled internally as fallback
-      };
+    startTimeRef.current = Date.now();
 
-      const result = await backtestApi.run(params);
+    elapsedRef.current = setInterval(() => {
+      setElapsed(Math.round((Date.now() - startTimeRef.current) / 1000));
+    }, 1000);
 
-      // Handle error response from run endpoint
-      if (result.status === 'error') {
-        setIsRunning(false);
-        setErrorFlag(true);
-        setErrorMessage(result.message || 'Unknown error');
-        toast.error(result.message || 'Backtest failed to start');
-        return;
-      }
+    pollRef.current = setInterval(async () => {
+      try {
+        const status = await backtestApi.getStatus();
+        setProgress(status.progress || 0);
+        setProgressMsg(status.message || '');
 
-      // Handle case where backtest was already running
-      if (result.status === 'already_running') {
-        toast.info('A backtest is already running. Continuing to monitor progress.');
-      } else {
-        toast.info('Backtest started! Real-time progress updates are streaming...');
-      }
-
-      // Start SSE progress streaming (primary)
-      startProgressStream();
-      // Also start polling as fallback (secondary)
-      startPolling();
-
-      // Safety timeout: stop after 15 minutes
-      timeoutRef.current = setTimeout(() => {
-        if (isRunning) {
-          toast.warning('Backtest is taking longer than expected. It may still be running on the backend.');
+        if (status.status === 'completed' && status.last_results) {
+          setResults(flattenResults(status));
+          setHasResults(true);
           setIsRunning(false);
-          stopPolling();
-          fetchBacktestStatus();
+          if (pollRef.current) clearInterval(pollRef.current);
+          if (elapsedRef.current) clearInterval(elapsedRef.current);
+          setProgress(100);
+          toast.success('Backtest completed', {
+            description: `${(status.last_results?.configs_tested || 0)} configurations tested`,
+          });
+        } else if (status.status === 'running') {
+          // Still running, keep polling
+        } else if (status.status === 'no_results') {
+          // Not running and no results — stop
         }
-      }, 900_000); // 15 minutes
+      } catch {
+        // Keep polling on transient errors
+      }
+    }, 1500);
+  }, [flattenResults]);
+
+  // Run backtest
+  const handleRun = useCallback(async () => {
+    if (isRunning) return;
+    setIsRunning(true);
+    setProgress(0);
+    setProgressMsg('Starting backtest...');
+    setElapsed(0);
+    setExpandedRows(new Set());
+
+    try {
+      await backtestApi.run({
+        max_daily_trades_enabled: maxDailyTradesEnabled,
+      });
+      startPolling();
+      toast.info('Backtest started', {
+        description: 'Polling for progress...',
+      });
     } catch (err) {
       setIsRunning(false);
-      setErrorFlag(true);
-      setErrorMessage(err instanceof Error ? err.message : 'Unknown error');
-      setRunStartTime(null);
-      toast.error(
-        `Backtest failed: ${err instanceof Error ? err.message : 'Unknown error'}`
-      );
-      stopPolling();
+      toast.error('Failed to start backtest', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
     }
-  }, [startProgressStream, startPolling, stopPolling, fetchBacktestStatus, symbol, timeframe, method, fromDate, toDate,
-      capital, slAtr, minRr, moneyness, dailyRiskPct, maxOpenPositions, maxDailyTrades, maxDailyTradesEnabled, isRunning]);
+  }, [isRunning, maxDailyTradesEnabled, startPolling]);
 
-  // ── Run button disabled logic ────────────────────────────────
-  // Allow running even without valid token (internal sample data fallback)
-  const runDisabled = !isConnected || isRunning;
+  // Toggle expanded row
+  const toggleExpand = useCallback((key: string) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
 
-  // ── Params used in last backtest ─────────────────────────────
-  const paramsUsed = backtestStatus?.last_results?.params_used;
+  // Expand / collapse all
+  const expandAll = useCallback(() => {
+    setExpandedRows(new Set(filteredResults.map(r => r._key)));
+  }, [filteredResults]);
 
+  const collapseAll = useCallback(() => {
+    setExpandedRows(new Set());
+  }, []);
+
+  // Filter results by method
+  const filteredResults = results.filter(r => {
+    if (activeMethod === 'all') return true;
+    if (activeMethod === 'a') return r._method === 'a';
+    if (activeMethod === 'b') return r._method === 'b';
+    return true;
+  });
+
+  // Compute summary stats from top config or overall
+  const bestResult = results.length > 0 ? results[0] : null;
+  const totalPnl = results.reduce((s, r) => s + r.net_pnl, 0);
+  const avgWinRate = results.length > 0
+    ? results.reduce((s, r) => s + r.win_rate, 0) / results.length
+    : 0;
+  const avgProfitFactor = results.length > 0
+    ? results.reduce((s, r) => s + r.profit_factor, 0) / results.length
+    : 0;
+  const totalTrades = results.reduce((s, r) => s + r.total_trades, 0);
+  const maxDrawdown = results.length > 0
+    ? Math.max(...results.map(r => r.max_dd_pct))
+    : 0;
+  const avgSharpe = results.length > 0
+    ? results.reduce((s, r) => s + r.sharpe_approx, 0) / results.length
+    : 0;
+
+  // ── Render ───────────────────────────────────────────────────
   return (
-    <div className="page-enter space-y-6">
-      {/* ── Page Header ──────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-emerald-500/10 p-2">
-            <FlaskConical className="size-5 text-emerald-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Backtest</h1>
-            <p className="text-xs text-muted-foreground">
-              Evaluate strategy performance against historical data
-            </p>
-          </div>
+    <div className="p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Backtest Engine</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Run strategy backtests across multiple configurations and analyze individual trade details
+          </p>
         </div>
-
-        {/* Status badge */}
-        <Badge
-          variant="outline"
-          className={cn(
-            'gap-1.5 border-0 text-xs',
-            btStatus === 'running'
-              ? 'bg-amber-500/10 text-amber-400'
-              : btStatus === 'completed'
-                ? 'bg-emerald-500/10 text-emerald-400'
-                : btStatus === 'error'
-                  ? 'bg-red-500/10 text-red-400'
-                  : 'bg-zinc-500/10 text-zinc-400'
+        <div className="flex items-center gap-2 shrink-0">
+          {isRunning && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mr-2">
+              <Clock className="h-4 w-4 animate-pulse" />
+              <span>{formatDuration(elapsed)}</span>
+            </div>
           )}
-        >
-          {btStatus === 'running' && <Loader2 className="size-3 animate-spin" />}
-          {btStatus === 'completed' && <CheckCircle2 className="size-3" />}
-          {btStatus === 'error' && <AlertTriangle className="size-3" />}
-          {btStatus === 'idle' && <Clock className="size-3" />}
-          {btStatus === 'idle'
-            ? 'Ready'
-            : btStatus === 'running'
-              ? 'Running'
-              : btStatus === 'completed'
-                ? 'Completed'
-                : 'Error'}
-        </Badge>
+          <Button
+            onClick={handleRun}
+            disabled={isRunning}
+            size="lg"
+            className={cn(
+              'gap-2 font-semibold',
+              isRunning
+                ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+            )}
+          >
+            {isRunning ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Running...
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4" />
+                Run Backtest
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
-      {/* ── Backtest Configuration Card ──────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm font-medium">
-            <FlaskConical className="size-4" />
-            Configuration
-          </CardTitle>
-          <CardDescription>
-            Set up the parameters for the backtest run. Date range, strategy
-            parameters, and risk settings are all configurable.
-          </CardDescription>
+      {/* Configuration Panel */}
+      <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Configuration</CardTitle>
+          <CardDescription>Backtest parameters — changes apply on next run</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
-          {/* ── Row 1: Symbol, Timeframe, Method ─────────────────── */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {/* Symbol */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Symbol
-              </label>
-              <Select
-                value={symbol}
-                onValueChange={(v) => setSymbol(v as SymbolOption)}
-                disabled={isRunning}
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-6">
+            {/* Max Daily Trades Switch */}
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={maxDailyTradesEnabled}
+                onCheckedChange={setMaxDailyTradesEnabled}
+                id="max-daily-trades-switch"
+              />
+              <label
+                htmlFor="max-daily-trades-switch"
+                className="text-sm font-medium cursor-pointer select-none"
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select symbol" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="BANKNIFTY">BankNifty</SelectItem>
-                  <SelectItem value="NIFTY">Nifty</SelectItem>
-                  <SelectItem value="both">Both</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Timeframe */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Timeframe
+                Max Daily Trades
               </label>
-              <Select
-                value={timeframe}
-                onValueChange={(v) => setTimeframe(v as TimeframeOption)}
-                disabled={isRunning}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select timeframe" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="15m/60m">15m / 60m (Recommended)</SelectItem>
-                  <SelectItem value="15m/15m">15m / 15m</SelectItem>
-                  <SelectItem value="5m/60m">5m / 60m</SelectItem>
-                  <SelectItem value="all">All Combinations</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Method */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Method
-              </label>
-              <Select
-                value={method}
-                onValueChange={(v) => setMethod(v as MethodOption)}
-                disabled={isRunning}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select method" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="method_a">Compounding (Method A)</SelectItem>
-                  <SelectItem value="method_b">Monthly Batch (Method B)</SelectItem>
-                  <SelectItem value="both">Both</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* ── Row 2: Date Range ──────────────────────────────────── */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Calendar className="size-4 text-muted-foreground" />
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Date Range
-              </label>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="from-date" className="text-xs text-muted-foreground">From Date</Label>
+              {maxDailyTradesEnabled ? (
                 <Input
-                  id="from-date"
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  disabled={isRunning}
-                  className="font-mono text-sm"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="to-date" className="text-xs text-muted-foreground">To Date</Label>
-                <Input
-                  id="to-date"
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  disabled={isRunning}
-                  className="font-mono text-sm"
-                />
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* ── Row 3: Strategy Parameters ─────────────────────────── */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Settings2 className="size-4 text-muted-foreground" />
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Strategy Parameters
-              </label>
-            </div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="capital" className="text-xs text-muted-foreground">Starting Capital (₹)</Label>
-                <Input
-                  id="capital"
                   type="number"
-                  value={capital}
-                  onChange={(e) => setCapital(e.target.value)}
-                  disabled={isRunning}
-                  className="font-mono text-sm"
-                  min="10000"
-                  step="10000"
+                  min={1}
+                  max={50}
+                  value={maxDailyTrades}
+                  onChange={(e) => setMaxDailyTrades(parseInt(e.target.value) || 1)}
+                  className="w-20 h-8 text-center text-sm"
                 />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="sl-atr" className="text-xs text-muted-foreground">SL ATR Multiplier</Label>
-                <Input
-                  id="sl-atr"
-                  type="number"
-                  value={slAtr}
-                  onChange={(e) => setSlAtr(e.target.value)}
-                  disabled={isRunning}
-                  className="font-mono text-sm"
-                  min="0.5"
-                  max="5.0"
-                  step="0.1"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="min-rr" className="text-xs text-muted-foreground">Min Risk:Reward</Label>
-                <Input
-                  id="min-rr"
-                  type="number"
-                  value={minRr}
-                  onChange={(e) => setMinRr(e.target.value)}
-                  disabled={isRunning}
-                  className="font-mono text-sm"
-                  min="0.5"
-                  max="5.0"
-                  step="0.1"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="moneyness" className="text-xs text-muted-foreground">Option Moneyness</Label>
-                <Select
-                  value={moneyness}
-                  onValueChange={(v) => setMoneyness(v as MoneynessOption)}
-                  disabled={isRunning}
-                >
-                  <SelectTrigger id="moneyness">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ITM">ITM (In-The-Money)</SelectItem>
-                    <SelectItem value="ATM">ATM (At-The-Money)</SelectItem>
-                    <SelectItem value="DEEP_ITM">Deep ITM</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Risk Parameters (always visible) ────────────────── */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Settings2 className="size-4 text-muted-foreground" />
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Risk Parameters
-              </label>
-            </div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="daily-risk" className="text-xs text-muted-foreground">Daily Risk %</Label>
-                <Input
-                  id="daily-risk"
-                  type="number"
-                  value={dailyRiskPct}
-                  onChange={(e) => setDailyRiskPct(e.target.value)}
-                  disabled={isRunning}
-                  className="font-mono text-sm"
-                  min="1"
-                  max="15"
-                  step="0.5"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="max-positions" className="text-xs text-muted-foreground">Max Open Positions</Label>
-                <Input
-                  id="max-positions"
-                  type="number"
-                  value={maxOpenPositions}
-                  onChange={(e) => setMaxOpenPositions(e.target.value)}
-                  disabled={isRunning}
-                  className="font-mono text-sm"
-                  min="1"
-                  max="5"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="max-trades" className="text-xs text-muted-foreground">Max Daily Trades</Label>
-                  {/* Indicator badge showing current status — not a toggle */}
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'gap-1 border-0 text-[10px] font-semibold',
-                      maxDailyTradesEnabled
-                        ? 'bg-emerald-500/10 text-emerald-400'
-                        : 'bg-zinc-500/10 text-zinc-400'
-                    )}
-                  >
-                    <Circle className={cn('size-1.5', maxDailyTradesEnabled ? 'fill-emerald-400' : 'fill-zinc-400')} />
-                    {maxDailyTradesEnabled ? `ON · ${maxDailyTrades}/day` : 'OFF · Unlimited'}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="max-trades"
-                    type="number"
-                    value={maxDailyTrades}
-                    onChange={(e) => setMaxDailyTrades(e.target.value)}
-                    disabled={isRunning || !maxDailyTradesEnabled}
-                    className={cn(
-                      'font-mono text-sm transition-opacity',
-                      !maxDailyTradesEnabled && 'opacity-40'
-                    )}
-                    min="1"
-                    max="10"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      'h-9 px-3 text-xs shrink-0',
-                      maxDailyTradesEnabled
-                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                        : 'border-zinc-700 bg-zinc-800/50 text-zinc-400 hover:bg-zinc-700/50'
-                    )}
-                    onClick={() => setMaxDailyTradesEnabled(!maxDailyTradesEnabled)}
-                    disabled={isRunning}
-                  >
-                    {maxDailyTradesEnabled ? 'Disable' : 'Enable'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* ── Action row ──────────────────────────────────────────── */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              {/* Token validity badge */}
-              <Badge
-                variant="outline"
-                className={cn(
-                  'gap-1.5 border-0 text-xs',
-                  tokenValid
-                    ? 'bg-emerald-500/10 text-emerald-400'
-                    : 'bg-red-500/10 text-red-400'
-                )}
-              >
-                <Circle
-                  className={cn(
-                    'size-2',
-                    tokenValid ? 'fill-emerald-400' : 'fill-red-400'
-                  )}
-                />
-                {tokenValid ? 'Token Valid' : 'Token Invalid'}
-              </Badge>
-
-              {/* Date range summary */}
-              <span className="text-xs text-muted-foreground font-mono">
-                {fromDate} → {toDate}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* Reset button */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs"
-                onClick={handleResetParams}
-                disabled={isRunning}
-              >
-                <RotateCcw className="size-3.5" />
-                Reset
-              </Button>
-
-              {/* Run Backtest button */}
-              <Button
-                className={cn(
-                  'gap-2 min-w-[160px]',
-                  !runDisabled && 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                )}
-                onClick={handleRunBacktest}
-                disabled={runDisabled}
-              >
-                {isRunning ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    Running...
-                  </>
-                ) : (
-                  <>
-                    <Play className="size-4 fill-current" />
-                    Run Backtest
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {/* ── Disabled reasons ─────────────────────────────────── */}
-          {runDisabled && !isRunning && (
-            <div className="flex flex-wrap gap-2">
-              {!isConnected && (
-                <Badge variant="destructive" className="text-[10px] gap-1">
-                  <AlertTriangle className="size-3" /> Not connected to backend
-                </Badge>
+              ) : (
+                <span className="text-sm text-muted-foreground italic">Unlimited</span>
               )}
             </div>
-          )}
 
-          {/* ── Sample data mode indicator ──────────────────────── */}
-          {!tokenValid && !isRunning && isConnected && (
-            <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5">
-              <AlertTriangle className="size-4 text-amber-400 flex-shrink-0" />
-              <span className="text-xs text-amber-300">
-                Token invalid — backtest will use <strong>sample data</strong> for demonstration. 
-                Exchange a valid Kite token for real market data.
-              </span>
+            {/* Method filter */}
+            <Separator orientation="vertical" className="h-6 hidden sm:block" />
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Method:</span>
+              <div className="flex rounded-lg border border-border/50 overflow-hidden">
+                {(['all', 'a', 'b'] as const).map((method) => (
+                  <Button
+                    key={method}
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      'h-7 px-3 text-xs rounded-none',
+                      activeMethod === method
+                        ? 'bg-primary/15 text-primary font-semibold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    onClick={() => setActiveMethod(method)}
+                  >
+                    {method === 'all' ? 'All' : method === 'a' ? 'Compounding' : 'Monthly'}
+                  </Button>
+                ))}
+              </div>
             </div>
-          )}
-
-          {/* ── Info note ────────────────────────────────────────── */}
-          <div className="rounded-lg border bg-muted/30 p-3">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              The backtest replays historical candle data for the selected symbol and timeframe,
-              applying the DDLJ strategy with both Compounding (Method A) and Monthly Batch
-              (Method B) approaches. All parameters above are passed directly to the engine.
-              Ensure your Kite token is valid before running. Real-time progress updates
-              are streamed via SSE.
-            </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* ── Running State with progress ───────────────────────────── */}
-      {btStatus === 'running' && <RunningState startTime={runStartTime} progress={progress} />}
-
-      {/* ── Results Section ──────────────────────────────────────── */}
-      {btStatus !== 'running' && hasResults && (
-        <ResultsTable results={flattenedResults} />
-      )}
-
-      {/* Summary card when we have results */}
-      {hasResults && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Summary</CardTitle>
-              {paramsUsed && (
-                <Badge variant="outline" className="text-[10px] border-0 bg-muted/50">
-                  {Object.entries(paramsUsed).length} params configured
-                </Badge>
-              )}
+      {/* Progress Section */}
+      {isRunning && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Loader2 className="h-5 w-5 animate-spin text-amber-500" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-200">
+                  {progressMsg || 'Processing...'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {progress}% complete &middot; {formatDuration(elapsed)} elapsed
+                </p>
+              </div>
+              <Badge variant="outline" className="border-amber-500/30 text-amber-400">
+                {progress}%
+              </Badge>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {/* Best P&L */}
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Best Net P&L</p>
-                <div className="flex items-center gap-1.5">
-                  {safeNum(flattenedResults[0]?.config?.net_pnl) >= 0 ? (
-                    <TrendingUp className={cn('size-4', pnlColor(safeNum(flattenedResults[0]?.config?.net_pnl)))} />
-                  ) : (
-                    <TrendingDown className={cn('size-4', pnlColor(safeNum(flattenedResults[0]?.config?.net_pnl)))} />
-                  )}
-                  <span className={cn('text-lg font-bold', pnlColor(safeNum(flattenedResults[0]?.config?.net_pnl)))}>
-                    {formatCurrency(safeNum(flattenedResults[0]?.config?.net_pnl))}
-                  </span>
-                </div>
-              </div>
-
-              {/* Configs tested */}
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Configs Tested</p>
-                <span className="text-lg font-bold">
-                  {backtestStatus?.last_results?.configs_tested ?? '—'}
-                </span>
-              </div>
-
-              {/* Best Win Rate */}
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Best Win Rate</p>
-                <span className="text-lg font-bold text-emerald-400">
-                  {flattenedResults.length > 0
-                    ? Math.max(...flattenedResults.map((r) => safeNum(r.config.win_rate))).toFixed(1)
-                    : '—'}%
-                </span>
-              </div>
-
-              {/* Best Sharpe */}
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Best Sharpe</p>
-                <span className={cn('text-lg font-bold', sharpeColor(
-                  flattenedResults.length > 0
-                    ? Math.max(...flattenedResults.map((r) => safeNum(r.config.sharpe_approx)))
-                    : 0
-                ))}>
-                  {flattenedResults.length > 0
-                    ? Math.max(...flattenedResults.map((r) => safeNum(r.config.sharpe_approx))).toFixed(2)
-                    : '—'}
-                </span>
-              </div>
-            </div>
-
-            {/* Params used badge */}
-            {paramsUsed && (
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {Object.entries(paramsUsed).map(([key, val]) => (
-                  <Badge key={key} variant="outline" className="text-[10px] border-0 bg-muted/40 font-mono">
-                    {key}: {String(val)}
-                  </Badge>
-                ))}
-              </div>
-            )}
+            <Progress value={progress} className="h-2" />
           </CardContent>
         </Card>
       )}
 
-      {btStatus !== 'running' && !hasResults && <NoResultsState />}
+      {/* Summary Stats Cards */}
+      {hasResults && filteredResults.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <StatCard
+            label="Total P&L"
+            value={formatCurrency(totalPnl)}
+            icon={totalPnl >= 0 ? TrendingUp : TrendingDown}
+            color={pnlColor(totalPnl)}
+            sub={formatPercent(totalPnl > 0 ? (totalPnl / (bestResult?.starting_capital || 50000)) * 100 : 0)}
+          />
+          <StatCard
+            label="Avg Win Rate"
+            value={`${avgWinRate.toFixed(1)}%`}
+            icon={Target}
+            color={avgWinRate >= 50 ? 'text-emerald-400' : 'text-amber-400'}
+          />
+          <StatCard
+            label="Profit Factor"
+            value={avgProfitFactor.toFixed(2)}
+            icon={BarChart3}
+            color={avgProfitFactor >= 1.5 ? 'text-emerald-400' : avgProfitFactor >= 1.0 ? 'text-amber-400' : 'text-red-400'}
+          />
+          <StatCard
+            label="Total Trades"
+            value={totalTrades.toString()}
+            icon={Activity}
+            color="text-zinc-300"
+            sub={`${results.length} configs`}
+          />
+          <StatCard
+            label="Max Drawdown"
+            value={`${maxDrawdown.toFixed(1)}%`}
+            icon={ShieldAlert}
+            color={maxDrawdown <= 25 ? 'text-emerald-400' : maxDrawdown <= 40 ? 'text-amber-400' : 'text-red-400'}
+          />
+          <StatCard
+            label="Sharpe Ratio"
+            value={avgSharpe.toFixed(2)}
+            icon={Zap}
+            color={avgSharpe >= 2 ? 'text-emerald-400' : avgSharpe >= 1 ? 'text-amber-400' : 'text-red-400'}
+          />
+        </div>
+      )}
 
-      {/* ── Error state ──────────────────────────────────────────── */}
-      {btStatus === 'error' && (
-        <Card className="border-red-500/30 bg-red-500/5">
-          <CardContent className="flex items-start gap-3 py-4">
-            <AlertTriangle className="size-5 text-red-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-red-400">Backtest Failed</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {errorMessage || 'The backtest encountered an error. Check the backend logs for details and ensure your token is valid.'}
-              </p>
-              {!tokenValid && (
-                <p className="text-xs text-red-400/80 mt-2">
-                  Your Kite token is invalid or expired. Visit the Token page to get a fresh token, then try again.
-                </p>
-              )}
+      {/* Results Table */}
+      {hasResults && (
+        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+          <CardHeader className="pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-base">Configuration Results</CardTitle>
+                <CardDescription>
+                  Click any row to expand and view individual trade details
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={expandAll}
+                >
+                  <Eye className="h-3 w-3" />
+                  Expand All
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={collapseAll}
+                >
+                  <EyeOff className="h-3 w-3" />
+                  Collapse All
+                </Button>
+              </div>
             </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-10" />
+                    <TableHead className="text-xs">Config</TableHead>
+                    <TableHead className="text-xs">Method</TableHead>
+                    <TableHead className="text-xs text-right">Net P&L</TableHead>
+                    <TableHead className="text-xs text-right">P&L %</TableHead>
+                    <TableHead className="text-xs text-right">Win Rate</TableHead>
+                    <TableHead className="text-xs text-right">PF</TableHead>
+                    <TableHead className="text-xs text-right">Trades</TableHead>
+                    <TableHead className="text-xs text-right">Max DD%</TableHead>
+                    <TableHead className="text-xs text-right">Sharpe</TableHead>
+                    <TableHead className="text-xs text-right">Avg R:R</TableHead>
+                    <TableHead className="text-xs text-right">Trading Days</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredResults.map((r) => {
+                    const isExpanded = expandedRows.has(r._key);
+                    const tradeCount = r.trades?.length || 0;
+                    return (
+                      <ExpandableConfigRow
+                        key={r._key}
+                        result={r}
+                        isExpanded={isExpanded}
+                        tradeCount={tradeCount}
+                        onToggle={() => toggleExpand(r._key)}
+                      />
+                    );
+                  })}
+                  {filteredResults.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                        No results match the selected filter
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Empty State */}
+      {!hasResults && !isRunning && !initialLoad && (
+        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+          <CardContent className="py-16 flex flex-col items-center text-center">
+            <div className="p-4 rounded-full bg-muted/50 mb-4">
+              <BarChart3 className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold mb-1">No Backtest Results</h3>
+            <p className="text-sm text-muted-foreground max-w-md mb-6">
+              Run a backtest to analyze strategy performance across multiple configurations
+              and drill into individual trade details.
+            </p>
+            <Button
+              onClick={handleRun}
+              size="lg"
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+            >
+              <Play className="h-4 w-4" />
+              Run First Backtest
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Initial Loading State */}
+      {initialLoad && (
+        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+          <CardContent className="py-16 flex flex-col items-center text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
+            <p className="text-sm text-muted-foreground">Checking backtest status...</p>
           </CardContent>
         </Card>
       )}
     </div>
+  );
+}
+
+// ── Expandable Config Row Component ────────────────────────────
+function ExpandableConfigRow({
+  result,
+  isExpanded,
+  tradeCount,
+  onToggle,
+}: {
+  result: FlattenedResult;
+  isExpanded: boolean;
+  tradeCount: number;
+  onToggle: () => void;
+}) {
+  const methodLabel = result._method === 'a' ? 'Compounding' : 'Monthly';
+  const methodColor = result._method === 'a'
+    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+    : 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+
+  return (
+    <>
+      {/* Main row */}
+      <TableRow
+        className={cn(
+          'cursor-pointer transition-colors',
+          isExpanded ? 'bg-muted/20' : 'hover:bg-muted/40',
+        )}
+        onClick={onToggle}
+      >
+        <TableCell className="py-3 w-10">
+          {isExpanded ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          )}
+        </TableCell>
+        <TableCell className="py-3">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-sm">{result.label}</span>
+            {tradeCount > 0 && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                {tradeCount} trades
+              </Badge>
+            )}
+          </div>
+        </TableCell>
+        <TableCell className="py-3">
+          <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 border', methodColor)}>
+            {methodLabel}
+          </Badge>
+        </TableCell>
+        <TableCell className={cn('py-3 text-right font-semibold font-mono', pnlColor(result.net_pnl))}>
+          {result.net_pnl > 0 ? '+' : ''}{formatCurrency(result.net_pnl)}
+        </TableCell>
+        <TableCell className={cn('py-3 text-right font-mono text-sm', pnlColor(result.net_pnl_pct))}>
+          {formatPercent(result.net_pnl_pct)}
+        </TableCell>
+        <TableCell className="py-3 text-right">
+          <span className={cn(
+            'font-medium',
+            result.win_rate >= 50 ? 'text-emerald-400' : result.win_rate >= 40 ? 'text-amber-400' : 'text-red-400'
+          )}>
+            {result.win_rate.toFixed(1)}%
+          </span>
+        </TableCell>
+        <TableCell className="py-3 text-right font-mono text-sm">
+          <span className={cn(
+            result.profit_factor >= 1.5 ? 'text-emerald-400' :
+            result.profit_factor >= 1.0 ? 'text-amber-400' : 'text-red-400'
+          )}>
+            {result.profit_factor.toFixed(2)}
+          </span>
+        </TableCell>
+        <TableCell className="py-3 text-right text-sm">{result.total_trades}</TableCell>
+        <TableCell className="py-3 text-right">
+          <span className={cn(
+            'text-sm font-mono',
+            result.max_dd_pct <= 25 ? 'text-emerald-400' :
+            result.max_dd_pct <= 40 ? 'text-amber-400' : 'text-red-400'
+          )}>
+            {result.max_dd_pct.toFixed(1)}%
+          </span>
+        </TableCell>
+        <TableCell className="py-3 text-right">
+          <span className={cn(
+            'font-mono text-sm',
+            result.sharpe_approx >= 2 ? 'text-emerald-400' :
+            result.sharpe_approx >= 1 ? 'text-amber-400' : 'text-red-400'
+          )}>
+            {result.sharpe_approx.toFixed(2)}
+          </span>
+        </TableCell>
+        <TableCell className="py-3 text-right font-mono text-sm">
+          {result.avg_rr?.toFixed(2) ?? '—'}
+        </TableCell>
+        <TableCell className="py-3 text-right text-sm">
+          {result.trading_days ?? '—'}
+        </TableCell>
+      </TableRow>
+
+      {/* Expanded trade details */}
+      {isExpanded && (
+        <TableRow
+          className="bg-muted/10 hover:bg-muted/10"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <TableCell colSpan={12} className="p-0 border-0">
+            <div className="border-l-2 border-emerald-500/30 ml-5 my-1">
+              {/* Config detail summary */}
+              <div className="px-4 py-2 flex flex-wrap gap-x-6 gap-y-1 text-xs border-b border-border/30">
+                <span>
+                  <span className="text-muted-foreground">Gross Profit: </span>
+                  <span className="text-emerald-400 font-mono">
+                    {formatCurrency(result.gross_profit ?? 0)}
+                  </span>
+                </span>
+                <span>
+                  <span className="text-muted-foreground">Gross Loss: </span>
+                  <span className="text-red-400 font-mono">
+                    {formatCurrency(result.gross_loss ?? 0)}
+                  </span>
+                </span>
+                <span>
+                  <span className="text-muted-foreground">Costs: </span>
+                  <span className="font-mono">{formatCurrency(result.total_costs ?? 0)}</span>
+                </span>
+                <span>
+                  <span className="text-muted-foreground">Avg Win: </span>
+                  <span className="text-emerald-400 font-mono">
+                    {formatCurrency(result.avg_win ?? 0)}
+                  </span>
+                </span>
+                <span>
+                  <span className="text-muted-foreground">Avg Loss: </span>
+                  <span className="text-red-400 font-mono">
+                    {formatCurrency(result.avg_loss ?? 0)}
+                  </span>
+                </span>
+                <span>
+                  <span className="text-muted-foreground">Long: </span>
+                  {result.long_trades ?? 0} ({(result.long_wr ?? 0).toFixed(1)}%)
+                </span>
+                <span>
+                  <span className="text-muted-foreground">Short: </span>
+                  {result.short_trades ?? 0} ({(result.short_wr ?? 0).toFixed(1)}%)
+                </span>
+                <span>
+                  <span className="text-muted-foreground">Capital: </span>
+                  {formatCurrency(result.starting_capital ?? 50000)} → {formatCurrency(result.final_capital ?? 0)}
+                </span>
+                {result.exit_reasons && Object.keys(result.exit_reasons).length > 0 && (
+                  <span>
+                    <span className="text-muted-foreground">Exits: </span>
+                    {Object.entries(result.exit_reasons).map(([reason, count]) => (
+                      <Badge
+                        key={reason}
+                        variant={exitReasonVariant(reason)}
+                        className="text-[9px] px-1 py-0 mx-0.5"
+                      >
+                        {reason}: {count}
+                      </Badge>
+                    ))}
+                  </span>
+                )}
+              </div>
+
+              {/* Individual trades table */}
+              {result.trades && result.trades.length > 0 ? (
+                <TradeDetailTable trades={result.trades} />
+              ) : (
+                <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                  <AlertTriangle className="h-4 w-4 inline mr-1" />
+                  No individual trade details available. Trade details are returned when the backend includes the trades array.
+                </div>
+              )}
+            </div>
+          </TableCell>
+        </TableRow>
+      )}
+    </>
   );
 }

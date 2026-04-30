@@ -65,22 +65,9 @@ const defaultEngineStatus: EngineStatus = {
   error_count: 0,
   start_time: null,
   stop_time: null,
+  manually_started: false,
   token: { stored: false, valid: false, user: null },
   last_heartbeat: null,
-  last_error: null,
-  running: false,
-  connected: false,
-  capital: 0,
-  peak_capital: 0,
-  daily_pnl: 0,
-  daily_trade_count: 0,
-  open_positions: 0,
-  total_closed_trades: 0,
-  last_bias: 'NEUTRAL',
-  index: 'BANKNIFTY',
-  entry_tf: '15m',
-  bias_tf: '60m',
-  live_vix: null,
   uptime_seconds: 0,
 };
 
@@ -275,7 +262,6 @@ export const useDDLJStore = create<DDLJStore>()(
           get().fetchConfig(),
           get().fetchHealth(),
           get().fetchTokenStatus(),
-          get().fetchLoginUrl(),
           get().fetchReadiness(),
           get().fetchBacktestStatus(),
         ]);
@@ -291,7 +277,7 @@ export const useDDLJStore = create<DDLJStore>()(
       setNumberFormat: (numberFormat) => set((s) => ({ theme: { ...s.theme, numberFormat } })),
     }),
     {
-      name: 'ddlj-theme',
+      name: 'ddljj-theme',
       partialize: (state) => ({
         theme: state.theme,
         sidebarCollapsed: state.sidebarCollapsed,

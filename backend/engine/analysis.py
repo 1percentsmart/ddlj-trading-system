@@ -70,6 +70,7 @@ def analyze(trades, label="", capital=50000):
             "avg_daily_pnl": 0.0,
             "final_capital": capital,
             "starting_capital": capital,
+            "trades": [],
         }
 
     wins = [t for t in trades if t.net > 0]
@@ -157,6 +158,50 @@ def analyze(trades, label="", capital=50000):
         avg_spread = sum(t.option_spread_cost for t in opt_trades) / len(opt_trades)
         avg_delta = sum(t.option_delta for t in opt_trades) / len(opt_trades)
 
+    # ── Individual trade details ──
+    # WHY: The frontend needs to show each trade with date, time, quantity,
+    #      entry/exit, SL/target, trigger reason, and P&L. Without this,
+    #      the backtest results page shows only aggregate stats and users
+    #      cannot understand WHY only 2 trades occurred in 5 months.
+    trade_details = []
+    for idx, t in enumerate(trades):
+        entry_ts = t.entry_time.isoformat() if isinstance(t.entry_time, datetime) else str(t.entry_time)
+        exit_ts = t.exit_time.isoformat() if isinstance(t.exit_time, datetime) else str(t.exit_time)
+        detail = {
+            "id": idx + 1,
+            "symbol": t.symbol,
+            "direction": t.direction,
+            "entry_time": entry_ts,
+            "exit_time": exit_ts,
+            "entry_price": round(t.entry, 2),
+            "exit_price": round(t.exit, 2),
+            "sl": round(t.sl, 2),
+            "target": round(t.target, 2),
+            "qty": t.qty,
+            "gross": round(t.gross, 2),
+            "costs": round(t.costs, 2),
+            "net": round(t.net, 2),
+            "exit_reason": t.exit_reason,
+            "rr": round(t.rr, 2),
+            "risk": round(t.risk, 2),
+            "reward": round(t.reward, 2),
+            "held_bars": t.held,
+            "mode": t.mode,
+        }
+        # Add option-specific fields if applicable
+        if t.mode == "options":
+            detail.update({
+                "option_strike": t.option_strike,
+                "option_type": t.option_type,
+                "option_entry_premium": round(t.option_entry_premium, 2),
+                "option_exit_premium": round(t.option_exit_premium, 2),
+                "option_delta": round(t.option_delta, 4),
+                "option_iv_entry": round(t.option_iv_entry, 2),
+                "option_iv_exit": round(t.option_iv_exit, 2),
+                "option_spread_cost": round(t.option_spread_cost, 2),
+            })
+        trade_details.append(detail)
+
     return {
         "label": label,
         "total_trades": len(trades),
@@ -197,4 +242,5 @@ def analyze(trades, label="", capital=50000):
         "sharpe_approx": round(sharpe, 2),
         "final_capital": round(capital + net_pnl, 2),
         "starting_capital": capital,
+        "trades": trade_details,
     }
