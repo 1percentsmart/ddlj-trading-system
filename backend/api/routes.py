@@ -258,12 +258,49 @@ class BacktestRunRequest(BaseModel):
     max_daily_trades: Optional[int] = None
 
 
+# ── Global backtest state tracker ─────────────────────────────────────
+# WHY: The previous implementation had no way to tell if a backtest was
+#      currently running. The status endpoint only checked the results file,
+#      which doesn't exist until the backtest completes. This caused the
+#      frontend to give up polling after the first "no_results" response.
+_backtest_state = {
+    "status": "idle",          # "idle" | "running" | "completed" | "error"
+    "started_at": None,        # ISO timestamp when backtest started
+    "error_message": None,     # Error message if backtest failed
+    "params": None,            # Parameters used for the current/last run
+}
+
+
+def _get_results_path():
+    """Resolve the backtest results file path consistently.
+
+    WHY: Previously, routes.py and run_backtest.py used DIFFERENT path
+    resolution logic, which could cause the status endpoint to look in
+    the wrong directory. Now we use the same PROJECT_ROOT derivation.
+    """
+    from pathlib import Path
+    try:
+        from core.config import PROJECT_ROOT
+        return PROJECT_ROOT / "download" / "v9_backtest_results.json"
+    except Exception:
+        return Path("/app/download/v9_backtest_results.json")
+
+
 @router.post("/backtest/run")
 async def run_backtest(request: BacktestRunRequest = None):
     """Run the DDLJ backtest engine with user-configurable parameters."""
     import threading
     import json
-    from pathlib import Path
+    from datetime import datetime, timezone
+
+    # Prevent starting a new backtest if one is already running
+    if _backtest_state["status"] == "running":
+        return {
+            "status": "already_running",
+            "message": "A backtest is already in progress. Please wait for it to complete.",
+            "started_at": _backtest_state["started_at"],
+            "params": _backtest_state["params"],
+        }
 
     # Build params dict from request, filtering out None values
     params = {}
@@ -290,20 +327,23 @@ async def run_backtest(request: BacktestRunRequest = None):
     except Exception as e:
         log.warning("Backtest: Could not check token status: %s", e)
 
-    # Run backtest in a background thread so we don't block the API
-    backtest_result = {"status": "running", "message": "Backtest started"}
+    # Update global state to "running"
+    _backtest_state["status"] = "running"
+    _backtest_state["started_at"] = datetime.now(timezone.utc).isoformat()
+    _backtest_state["error_message"] = None
+    _backtest_state["params"] = params
 
     def _run_backtest_thread(bt_params):
-        """Run backtest in a background thread."""
+        """Run backtest in a background thread and update global state."""
         try:
             from engine.run_backtest import main as run_bt
             result = run_bt(bt_params)
-            backtest_result["status"] = "completed"
-            backtest_result["data"] = result
+            _backtest_state["status"] = "completed"
+            _backtest_state["error_message"] = None
             log.info("Backtest: Completed successfully")
         except Exception as e:
-            backtest_result["status"] = "error"
-            backtest_result["message"] = f"Backtest failed: {e}"
+            _backtest_state["status"] = "error"
+            _backtest_state["error_message"] = f"Backtest failed: {e}"
             log.error("Backtest: Failed — %s", e, exc_info=True)
 
     # Start backtest in background
@@ -322,14 +362,27 @@ async def run_backtest(request: BacktestRunRequest = None):
 async def backtest_status():
     """Check if a backtest is currently running and get last results."""
     import json
-    from pathlib import Path
 
-    # Check for results file
-    try:
-        from core.config import PROJECT_ROOT
-        results_path = PROJECT_ROOT / "download" / "v9_backtest_results.json"
-    except Exception:
-        results_path = Path("/app/download/v9_backtest_results.json")
+    current_status = _backtest_state["status"]
+
+    # If currently running, return running status immediately
+    if current_status == "running":
+        return {
+            "status": "running",
+            "message": "Backtest is currently in progress.",
+            "started_at": _backtest_state["started_at"],
+            "params": _backtest_state["params"],
+        }
+
+    # If error, return error details
+    if current_status == "error":
+        return {
+            "status": "error",
+            "message": _backtest_state.get("error_message", "Backtest failed with unknown error."),
+        }
+
+    # Check for results file (for completed or idle status)
+    results_path = _get_results_path()
 
     if results_path.exists():
         try:
@@ -353,6 +406,7 @@ async def backtest_status():
         except Exception as e:
             return {"status": "error", "message": f"Could not read results: {e}"}
 
+    # No results file and not running
     return {"status": "no_results", "message": "No backtest results found. Run POST /backtest/run first."}
 
 

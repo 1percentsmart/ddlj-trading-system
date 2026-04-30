@@ -131,7 +131,20 @@ function NoResultsState() {
 
 // ── Running State ────────────────────────────────────────────────
 
-function RunningState() {
+function RunningState({ startTime }: { startTime: number | null }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!startTime) return;
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startTime]);
+
+  const minutes = Math.floor(elapsed / 60);
+  const seconds = elapsed % 60;
+
   return (
     <Card className="border-amber-500/30 bg-amber-500/5">
       <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -145,9 +158,17 @@ function RunningState() {
           The engine is processing historical data with your parameters.
           Results will appear automatically once complete.
         </p>
+        {startTime && (
+          <div className="mt-3 flex items-center gap-2 text-sm">
+            <Clock className="size-3.5 text-muted-foreground" />
+            <span className="font-mono text-muted-foreground">
+              {minutes}:{seconds.toString().padStart(2, '0')} elapsed
+            </span>
+          </div>
+        )}
         <Progress className="mt-4 h-1.5 w-64" value={undefined} />
         <p className="mt-2 text-xs text-muted-foreground/60">
-          Polling for status every 15 seconds
+          Polling for status every 10 seconds
         </p>
       </CardContent>
     </Card>
@@ -298,7 +319,9 @@ export default function BacktestPage() {
 
   const [isRunning, setIsRunning] = useState(false);
   const [errorFlag, setErrorFlag] = useState(false);
+  const [runStartTime, setRunStartTime] = useState<number | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Token validity ───────────────────────────────────────────
   const tokenValid = engineStatus.token.valid;
@@ -328,35 +351,56 @@ export default function BacktestPage() {
   }, [fetchBacktestStatus]);
 
   // ── Polling logic ────────────────────────────────────────────
+  // WHY: Previously, polling stopped on "no_results" because the
+  //      backend couldn't distinguish "running" from "never run".
+  //      Now the backend returns "running" while the backtest is
+  //      in progress, so we only stop polling on terminal states.
   const startPolling = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
       try {
-        await fetchBacktestStatus();
         const latest = await backtestApi.getStatus();
-        if (latest.status === 'completed' || latest.status === 'error' || latest.status === 'no_results') {
+        // Update store with latest data
+        if (latest.last_results) {
+          // Sync store so the UI updates
+          await fetchBacktestStatus();
+        }
+
+        // Terminal states: stop polling
+        if (latest.status === 'completed') {
           setIsRunning(false);
-          setErrorFlag(latest.status === 'error');
+          setErrorFlag(false);
           if (pollRef.current) clearInterval(pollRef.current);
           pollRef.current = null;
+          await fetchBacktestStatus(); // Final sync
           if (latest.last_results) {
             toast.success('Backtest completed! Results are ready.');
-          } else if (latest.status === 'error') {
-            toast.error('Backtest failed. Check backend logs.');
           } else {
-            toast.info('Backtest finished with no results.');
+            toast.info('Backtest finished but produced no results.');
           }
+        } else if (latest.status === 'error') {
+          setIsRunning(false);
+          setErrorFlag(true);
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+          toast.error(`Backtest failed: ${latest.message || 'Check backend logs.'}`);
         }
+        // "running" → keep polling (don't stop!)
+        // "no_results" → keep polling if isRunning (backtest might still be starting up)
       } catch {
-        // Silently ignore polling errors
+        // Silently ignore polling errors — keep polling
       }
-    }, 15_000);
+    }, 10_000); // Poll every 10s for faster feedback
   }, [fetchBacktestStatus]);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
   }, []);
 
@@ -387,6 +431,7 @@ export default function BacktestPage() {
     try {
       setIsRunning(true);
       setErrorFlag(false);
+      setRunStartTime(Date.now());
 
       const params: BacktestRunParams = {
         symbol,
@@ -404,17 +449,34 @@ export default function BacktestPage() {
       };
 
       toast.info('Backtest started. This may take a few minutes...');
-      await backtestApi.run(params);
+      const result = await backtestApi.run(params);
+
+      // Handle case where backtest was already running
+      if (result.status === 'already_running') {
+        toast.info('A backtest is already running. Continuing to poll for results.');
+      }
+
       startPolling();
+
+      // Safety timeout: stop polling after 10 minutes max
+      timeoutRef.current = setTimeout(() => {
+        if (pollRef.current) {
+          toast.warning('Backtest is taking longer than expected. It may still be running on the backend.');
+          setIsRunning(false);
+          stopPolling();
+          fetchBacktestStatus(); // Check one last time
+        }
+      }, 600_000); // 10 minutes
     } catch (err) {
       setIsRunning(false);
       setErrorFlag(true);
+      setRunStartTime(null);
       toast.error(
         `Backtest failed: ${err instanceof Error ? err.message : 'Unknown error'}`
       );
       stopPolling();
     }
-  }, [startPolling, stopPolling, symbol, timeframe, method, fromDate, toDate,
+  }, [startPolling, stopPolling, fetchBacktestStatus, symbol, timeframe, method, fromDate, toDate,
       capital, slAtr, minRr, moneyness, dailyRiskPct, maxOpenPositions, maxDailyTrades]);
 
   // ── Run button disabled logic ────────────────────────────────
@@ -809,7 +871,7 @@ export default function BacktestPage() {
       </Card>
 
       {/* ── Results Section ──────────────────────────────────────── */}
-      {btStatus === 'running' && !hasResults && <RunningState />}
+      {btStatus === 'running' && !hasResults && <RunningState startTime={runStartTime} />}
 
       {btStatus !== 'running' && hasResults && (
         <ResultsTable results={flattenedResults} />

@@ -129,15 +129,19 @@ export interface TokenLoginUrl {
 }
 
 export interface BacktestRunResult {
-  status: string;
+  status: 'started' | 'already_running' | 'error';
   message: string;
   note?: string;
   hint?: string;
+  params?: Record<string, unknown>;
+  started_at?: string | null;
 }
 
 export interface BacktestStatusResult {
-  status: string;
+  status: 'idle' | 'running' | 'completed' | 'error' | 'no_results';
   message?: string;
+  started_at?: string | null;
+  params?: Record<string, unknown> | null;
   last_results?: {
     version: string;
     params_used?: Record<string, unknown>;
