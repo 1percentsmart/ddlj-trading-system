@@ -53,12 +53,13 @@ import csv
 import time
 import logging
 import calendar
+import asyncio
 from datetime import datetime, date, timedelta, time as dtime
 from dataclasses import dataclass, asdict
 
 import pytz
 
-from .candle_data import Candle, CandleBuffer, parse_candles, build_htf_from_ltf
+from .candle_data import Candle, CandleBuffer, parse_candles, build_htf_from_ltf, candle_close_time
 from .indicators import swing_high, swing_low
 from .cost_calculator import calc_costs_options
 from .bias_engine import BiasEngine
@@ -242,6 +243,7 @@ class PaperTrader:
             self._config.update(config_override)
 
         # ── Core trading parameters ──
+        self.session_id = datetime.now(IST).strftime("paper_%Y%m%d_%H%M%S")
         self.starting_capital = self._config["STARTING_CAPITAL"]
         self.current_capital = self.starting_capital
         self.peak_capital = self.starting_capital
@@ -461,6 +463,20 @@ class PaperTrader:
     def stop(self):
         """Stop the paper trader gracefully."""
         self._running = False
+        self._graceful_shutdown()
+
+    def _graceful_shutdown(self):
+        """Persist the latest simulated trading state before the loop exits."""
+        self._running = False
+        try:
+            self._save_state()
+            self._notify(
+                f"Session state saved | Capital=â‚¹{self.current_capital:,.0f} | "
+                f"Open={len(self.open_positions)} | Closed={len(self.closed_trades)}"
+            )
+        except Exception as e:
+            log.warning("Failed to save state during shutdown: %s", e)
+            self._notify(f"Shutdown state save failed: {e}")
 
     def get_status(self) -> dict:
         """
@@ -573,9 +589,15 @@ class PaperTrader:
             entry_interval = self._kite_interval_map.get(self.entry_tf, "15minute")
             self._notify(f"  Fetching {self.entry_tf} candles: {start} to {end}...")
             raw_entry = self.fetcher.fetch_candles_chunked(
-                self.index_token, start, end, entry_interval
+                self.index_token, start, end, entry_interval,
+                use_cache=False, write_cache=False, raise_on_error=True,
             )
             candles_entry = parse_candles(raw_entry, self.trade_index, self.entry_tf)
+            now_ist = datetime.now(IST)
+            candles_entry = [
+                c for c in candles_entry
+                if candle_close_time(c, self._entry_tf_minutes) <= now_ist
+            ]
             self._notify(f"  Got {len(candles_entry)} {self.entry_tf} candles")
 
             # Build bias timeframe candles from entry candles
@@ -830,13 +852,17 @@ class PaperTrader:
             to_date = date.today()
             from_date = to_date - timedelta(days=2)
             raw = self.fetcher.fetch_candles_chunked(
-                instrument_token, from_date, to_date, interval
+                instrument_token, from_date, to_date, interval,
+                use_cache=False, write_cache=False, raise_on_error=True,
             )
             if not raw:
                 return None
 
-            # Parse and return the last candle
+            # Parse and return the latest completed candle. Kite can include the
+            # currently-forming candle in historical responses; processing it
+            # would create unstable/repainting signals.
             candles = []
+            now_ist = datetime.now(IST)
             for d in raw[-5:]:  # Only parse last 5 to save time
                 ts = d.get("date", "")
                 if isinstance(ts, str):
@@ -860,11 +886,29 @@ class PaperTrader:
                     float(d["volume"]), tf
                 ))
 
-            return candles[-1] if candles else None
+            completed = [c for c in candles if candle_close_time(c) <= now_ist]
+            return completed[-1] if completed else None
 
         except Exception as e:
             log.warning("Fetch candle failed: %s", e)
+            if self._is_auth_error(e):
+                log.warning("Kite auth/token error detected during live fetch")
+                self._connected = False
             return None
+
+    @staticmethod
+    def _is_auth_error(exc) -> bool:
+        """Return True when an exception likely means the Kite token is invalid."""
+        text = f"{type(exc).__name__}: {exc}".lower()
+        return any(marker in text for marker in (
+            "token",
+            "auth",
+            "unauthor",
+            "403",
+            "401",
+            "permission",
+            "invalid session",
+        ))
 
     # ══════════════════════════════════════════════════════════════════
     # STRATEGY PROCESSING
@@ -887,8 +931,9 @@ class PaperTrader:
         Args:
             candle (Candle): The new completed candle on the entry timeframe.
         """
-        ct = candle.ts.time()
-        today = candle.ts.date()
+        event_time = candle_close_time(candle, self._entry_tf_minutes)
+        ct = event_time.time()
+        today = event_time.date()
 
         # ── STEP 1: EVALUATE BIAS ──
         bias = self.bias_engine.evaluate(self.buf_bias)
@@ -1162,9 +1207,10 @@ class PaperTrader:
 
         # Model the options entry
         self.options_engine.capital = effective_capital
+        entry_event_time = candle_close_time(candle, self._entry_tf_minutes)
         opt_entry = self.options_engine.model_entry(
             signal.entry, signal.direction, signal.atr_val, dte,
-            candle.ts, candle.ts.time()
+            entry_event_time, entry_event_time.time()
         )
 
         # BUG FIX #12: Per-position risk check (was not implemented)
@@ -1195,7 +1241,7 @@ class PaperTrader:
             symbol=self.trade_index,
             direction=signal.direction,
             entry=signal.entry,
-            entry_time=candle.ts.isoformat(),
+            entry_time=entry_event_time.isoformat(),
             qty=actual_qty,
             sl=signal.sl,
             target=signal.target,
@@ -1237,12 +1283,13 @@ class PaperTrader:
         """
         # BUG FIX #7: Use monthly expiry for DTE
         dte = estimate_dte_monthly(candle.ts)
+        exit_event_time = candle_close_time(candle, self._entry_tf_minutes)
 
         # Model options exit
         self.options_engine.capital = self.current_capital
         opt_exit = self.options_engine.model_exit(
             pos.opt_entry, exit_price, pos.atr_at_entry, dte,
-            candle.ts, candle.ts.time(), pos.held, self._entry_tf_minutes
+            exit_event_time, exit_event_time.time(), pos.held, self._entry_tf_minutes
         )
 
         # Calculate P&L
@@ -1260,7 +1307,7 @@ class PaperTrader:
             entry=pos.entry,
             exit=exit_price,
             entry_time=datetime.fromisoformat(pos.entry_time) if isinstance(pos.entry_time, str) else pos.entry_time,
-            exit_time=candle.ts,
+            exit_time=exit_event_time,
             sl=pos.sl,
             target=pos.target,
             qty=pos.qty,
@@ -1512,6 +1559,62 @@ class PaperTrader:
                 ])
         except Exception as e:
             log.warning("Failed to write CSV trade log: %s", e)
+
+        self._persist_trade_to_database(trade)
+
+    def _persist_trade_to_database(self, trade):
+        """
+        Best-effort persistence of completed paper trades.
+
+        JSON/CSV remain local audit logs, but Supabase/Postgres is the durable
+        source the dashboard can read after process restarts.
+        """
+        try:
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                pass
+            else:
+                log.warning("Skipping DB trade persistence from active event loop")
+                return
+
+            async def _save():
+                from database.connection import get_session
+                from database.crud import create_trade
+
+                async for db in get_session():
+                    await create_trade(
+                        db,
+                        session_id=self.session_id,
+                        symbol=trade.symbol,
+                        direction=trade.direction,
+                        entry_price=trade.entry,
+                        exit_price=trade.exit,
+                        entry_time=trade.entry_time,
+                        exit_time=trade.exit_time,
+                        sl=trade.sl,
+                        target=trade.target,
+                        qty=trade.qty,
+                        gross_pnl=trade.gross,
+                        costs=trade.costs,
+                        net_pnl=trade.net,
+                        exit_reason=trade.exit_reason,
+                        rr=trade.rr,
+                        mode=trade.mode,
+                        option_strike=trade.option_strike,
+                        option_type=trade.option_type,
+                        option_entry_premium=trade.option_entry_premium,
+                        option_exit_premium=trade.option_exit_premium,
+                        option_delta=trade.option_delta,
+                        option_iv_entry=trade.option_iv_entry,
+                        option_iv_exit=trade.option_iv_exit,
+                    )
+                    await db.commit()
+                    break
+
+            asyncio.run(_save())
+        except Exception as e:
+            log.warning("Failed to persist trade to database: %s", e)
 
     # ══════════════════════════════════════════════════════════════════
     # NOTIFICATIONS

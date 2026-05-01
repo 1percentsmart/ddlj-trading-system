@@ -52,25 +52,25 @@ describe('engineApi', () => {
   });
 
   it('start - should call POST /start', async () => {
-    mockFetch.mockReturnValue(mockResponse({ ok: true }));
+    mockFetch.mockReturnValue(mockResponse({ status: 'started', message: 'Trading engine is running' }));
 
     const result = await engineApi.start();
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/start'),
       expect.objectContaining({ method: 'POST' })
     );
-    expect(result.ok).toBe(true);
+    expect(result.status).toBe('started');
   });
 
   it('stop - should call POST /stop', async () => {
-    mockFetch.mockReturnValue(mockResponse({ ok: true }));
+    mockFetch.mockReturnValue(mockResponse({ status: 'stopped', message: 'Trading engine stopped gracefully' }));
 
     const result = await engineApi.stop();
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/stop'),
       expect.objectContaining({ method: 'POST' })
     );
-    expect(result.ok).toBe(true);
+    expect(result.status).toBe('stopped');
   });
 
   it('getReadiness - should call GET /readiness', async () => {

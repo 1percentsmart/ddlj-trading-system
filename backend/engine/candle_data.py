@@ -20,7 +20,7 @@ Version: 9.0 (Paper Trading Production)
 
 import os
 import json
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from dataclasses import dataclass
 from collections import deque
 
@@ -28,6 +28,33 @@ import pytz
 
 # Indian Standard Timezone — used for all candle timestamps
 IST = pytz.timezone("Asia/Kolkata")
+
+
+def timeframe_to_minutes(tf) -> int:
+    """Convert app/Kite timeframe strings to minutes."""
+    if tf is None:
+        return 15
+
+    value = str(tf).strip().lower()
+    mapping = {
+        "3m": 3,
+        "3minute": 3,
+        "5m": 5,
+        "5minute": 5,
+        "15m": 15,
+        "15minute": 15,
+        "60m": 60,
+        "60minute": 60,
+        "hour": 60,
+        "day": 24 * 60,
+    }
+    return mapping.get(value, 15)
+
+
+def candle_close_time(candle, timeframe_minutes: int | None = None) -> datetime:
+    """Return the timestamp when a candle is complete."""
+    minutes = timeframe_minutes or timeframe_to_minutes(getattr(candle, "timeframe", "15m"))
+    return candle.ts + timedelta(minutes=minutes)
 
 
 @dataclass(slots=True)

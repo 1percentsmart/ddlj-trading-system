@@ -8,6 +8,7 @@ All REST API endpoints for controlling and monitoring the trading engine.
 
 import json
 import logging
+import os
 import traceback
 from typing import Optional
 
@@ -89,6 +90,8 @@ async def health_check(request: Request, mgr: EngineManager = Depends(get_engine
         # (main imports routes, so routes must NOT import main)
         health_monitor = getattr(request.app.state, "health_monitor", None)
         if health_monitor:
+            if hasattr(health_monitor, "get_health_async"):
+                return await health_monitor.get_health_async()
             return health_monitor.get_health()
     except Exception:
         pass
@@ -177,41 +180,78 @@ async def get_login_url():
 async def get_trades(limit: int = 50, offset: int = 0, mgr: EngineManager = Depends(get_engine_manager)):
     if mgr._trader is not None and hasattr(mgr._trader, 'closed_trades'):
         trades = mgr._trader.closed_trades
-        total = len(trades)
-        paginated = trades[offset:offset + limit]
-        trade_list = []
-        for idx, t in enumerate(paginated):
-            trade_dict = {
-                "id": str(idx + offset),
-                "symbol": t.symbol,
-                "direction": t.direction,
-                "entry": t.entry,
-                "exit": t.exit,
-                "entry_time": str(t.entry_time),
-                "exit_time": str(t.exit_time),
-                "sl": t.sl,
-                "target": t.target,
-                "qty": t.qty,
-                "gross": t.gross,
-                "costs": t.costs,
-                "net": t.net,
-                "exit_reason": t.exit_reason,
-                "rr": t.rr,
-                "held": t.held,
-                "mode": t.mode,
-            }
-            if getattr(t, "mode", None) == "options":
-                trade_dict.update({
+        if trades:
+            total = len(trades)
+            paginated = trades[offset:offset + limit]
+            trade_list = []
+            for idx, t in enumerate(paginated):
+                trade_dict = {
+                    "id": str(idx + offset),
+                    "symbol": t.symbol,
+                    "direction": t.direction,
+                    "entry": t.entry,
+                    "exit": t.exit,
+                    "entry_time": str(t.entry_time),
+                    "exit_time": str(t.exit_time),
+                    "sl": t.sl,
+                    "target": t.target,
+                    "qty": t.qty,
+                    "gross": t.gross,
+                    "costs": t.costs,
+                    "net": t.net,
+                    "exit_reason": t.exit_reason,
+                    "rr": t.rr,
+                    "held": t.held,
+                    "mode": t.mode,
+                }
+                if getattr(t, "mode", None) == "options":
+                    trade_dict.update({
+                        "option_strike": t.option_strike,
+                        "option_type": t.option_type,
+                        "option_entry_premium": t.option_entry_premium,
+                        "option_exit_premium": t.option_exit_premium,
+                        "option_delta": t.option_delta,
+                        "option_iv_entry": t.option_iv_entry,
+                        "option_iv_exit": t.option_iv_exit,
+                    })
+                trade_list.append(trade_dict)
+            return {"total": total, "limit": limit, "offset": offset, "trades": trade_list}
+    if os.getenv("APP_ENV") != "test":
+        try:
+            from database.connection import get_session
+            from database.crud import get_trades as db_get_trades
+
+            async for session in get_session():
+                db_trades = await db_get_trades(session, limit=limit, offset=offset)
+                trade_list = [{
+                    "id": str(t.id),
+                    "session_id": t.session_id,
+                    "symbol": t.symbol,
+                    "direction": t.direction,
+                    "entry": t.entry_price,
+                    "exit": t.exit_price,
+                    "entry_time": str(t.entry_time),
+                    "exit_time": str(t.exit_time),
+                    "sl": t.sl,
+                    "target": t.target,
+                    "qty": t.qty,
+                    "gross": t.gross_pnl,
+                    "costs": t.costs,
+                    "net": t.net_pnl,
+                    "exit_reason": t.exit_reason,
+                    "rr": t.rr,
+                    "mode": t.mode,
                     "option_strike": t.option_strike,
                     "option_type": t.option_type,
                     "option_entry_premium": t.option_entry_premium,
                     "option_exit_premium": t.option_exit_premium,
                     "option_delta": t.option_delta,
                     "option_iv_entry": t.option_iv_entry,
-                    "option_iv_exit": t.option_iv_exit,
-                })
-            trade_list.append(trade_dict)
-        return {"total": total, "limit": limit, "offset": offset, "trades": trade_list}
+                    "option_iv_exit": getattr(t, "option_iv_exit", None),
+                } for t in db_trades]
+                return {"total": len(trade_list), "limit": limit, "offset": offset, "trades": trade_list}
+        except Exception as e:
+            log.warning("Trade DB fallback failed: %s", e)
     return {"total": 0, "limit": limit, "offset": offset, "trades": []}
 
 
@@ -262,6 +302,7 @@ class BacktestRunRequest(BaseModel):
     max_open_positions: Optional[int] = None
     max_daily_trades: Optional[int] = None
     max_daily_trades_enabled: Optional[bool] = True
+    use_sample_data: Optional[bool] = None
 
     # Alias mapping: human-readable → internal engine names
     METHOD_ALIASES: dict = {
@@ -339,7 +380,7 @@ async def run_backtest(request: BacktestRunRequest = None):
         for key in ["symbol", "timeframe", "from_date", "to_date",
                      "capital", "sl_atr", "min_rr", "moneyness",
                      "daily_risk_pct", "max_open_positions", "max_daily_trades",
-                     "max_daily_trades_enabled"]:
+                     "max_daily_trades_enabled", "use_sample_data"]:
             val = getattr(request, key, None)
             if val is not None:
                 params[key] = val
@@ -450,13 +491,16 @@ async def run_backtest(request: BacktestRunRequest = None):
     bt_thread = threading.Thread(target=_run_backtest_thread, args=(params,), name="DDLJ-Backtest", daemon=True)
     bt_thread.start()
 
+    data_source_message = (
+        "Uses real Kite data, with synthetic fallback allowed."
+        if params.get("use_sample_data")
+        else "Uses real Kite data only; no synthetic fallback."
+    )
     return {
         "status": "started",
-        "message": "Backtest is running in the background with your parameters. "
-                   "Uses real Kite data when available, with synthetic data as fallback.",
+        "message": f"Backtest is running in the background with your parameters. {data_source_message}",
         "params": params,
         "note": "Results will be available at GET /backtest/status. Typically takes 2-5 minutes.",
-        "progress_endpoint": "/backtest/progress (SSE stream)",
     }
 
 

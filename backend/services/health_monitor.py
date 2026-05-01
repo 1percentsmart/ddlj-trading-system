@@ -50,8 +50,9 @@ from __future__ import annotations
 import os
 import logging
 import time
+import asyncio
 from datetime import datetime, time as dt_time, timedelta
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 import pytz
 
@@ -215,7 +216,7 @@ class HealthMonitor:
         self.memory_critical_pct = memory_critical_pct
 
         # ── Custom health checks ──
-        self._custom_checks: Dict[str, Callable[[], HealthCheckResult]] = {}
+        self._custom_checks: Dict[str, Callable[[], HealthCheckResult | Awaitable[HealthCheckResult]]] = {}
 
         # ── Error tracking ──
         self._error_timestamps: List[float] = []
@@ -322,16 +323,9 @@ class HealthMonitor:
                 - checks (dict): Individual check results
                 - system (dict): System metrics (memory, disk, errors)
         """
-        all_results: List[HealthCheckResult] = []
+        all_results = self._get_builtin_results()
 
         # ── Run built-in checks ──
-        all_results.append(self._check_engine_heartbeat())
-        all_results.append(self._check_api_connectivity())
-        all_results.append(self._check_database())
-        all_results.append(self._check_disk_space())
-        all_results.append(self._check_memory())
-        all_results.append(self._check_error_rate())
-        all_results.append(self._check_last_trade())
 
         # ── Run custom checks ──
         import asyncio
@@ -342,16 +336,20 @@ class HealthMonitor:
                 # Handle async check functions — run them in an event loop
                 if asyncio.iscoroutine(result):
                     try:
-                        loop = asyncio.get_event_loop()
-                        if loop.is_running():
-                            # Already in an async context — use thread pool
-                            import concurrent.futures
-                            with concurrent.futures.ThreadPoolExecutor() as pool:
-                                result = pool.submit(asyncio.run, result).result(timeout=10)
-                        else:
-                            result = loop.run_until_complete(result)
+                        asyncio.get_running_loop()
+                        # A running loop means the caller should use get_health_async().
                     except RuntimeError:
                         result = asyncio.run(result)
+                    else:
+                        result.close()
+                        result = HealthCheckResult(
+                            name=name,
+                            status=HealthStatus.DEGRADED,
+                            message=(
+                                "Async health check requires get_health_async() "
+                                "when called from an active event loop"
+                            ),
+                        )
                 # Handle tuple returns (status, message) — backward compat
                 if isinstance(result, tuple):
                     status_val, message_val = result[0], result[1] if len(result) > 1 else ""
@@ -392,6 +390,69 @@ class HealthMonitor:
         }
 
         return report
+
+    async def get_health_async(self) -> Dict[str, Any]:
+        """
+        Get a comprehensive health report from an async context.
+
+        Async custom checks are awaited on the current event loop. This keeps
+        async resources such as SQLAlchemy/asyncpg connections on the loop
+        where FastAPI is already running.
+        """
+        all_results = self._get_builtin_results()
+
+        for name, check_fn in self._custom_checks.items():
+            try:
+                start = time.monotonic()
+                result = check_fn()
+                if asyncio.iscoroutine(result):
+                    result = await result
+                if isinstance(result, tuple):
+                    status_val, message_val = result[0], result[1] if len(result) > 1 else ""
+                    result = HealthCheckResult(name=name, status=status_val, message=message_val)
+                result.duration_ms = (time.monotonic() - start) * 1000
+                all_results.append(result)
+            except Exception as e:
+                all_results.append(HealthCheckResult(
+                    name=name,
+                    status=HealthStatus.UNHEALTHY,
+                    message=f"Health check crashed: {e}",
+                ))
+
+        return self._build_report(all_results)
+
+    def _get_builtin_results(self) -> List[HealthCheckResult]:
+        return [
+            self._check_engine_heartbeat(),
+            self._check_api_connectivity(),
+            self._check_database(),
+            self._check_disk_space(),
+            self._check_memory(),
+            self._check_error_rate(),
+            self._check_last_trade(),
+        ]
+
+    def _build_report(self, all_results: List[HealthCheckResult]) -> Dict[str, Any]:
+        statuses = [r.status for r in all_results]
+        overall_status = HealthStatus.worst(*statuses)
+        checks_dict = {r.name: r.to_dict() for r in all_results}
+        uptime = (datetime.now(IST) - self.start_time).total_seconds()
+
+        return {
+            "status": overall_status,
+            "timestamp": datetime.now(IST).isoformat(),
+            "uptime_seconds": round(uptime, 1),
+            "uptime_human": self._format_uptime(uptime),
+            "checks": checks_dict,
+            "system": {
+                "errors_last_hour": len(self._error_timestamps),
+                "last_trade_time": (
+                    self._last_trade_time.isoformat() if self._last_trade_time else None
+                ),
+                "memory_usage_pct": self._get_memory_usage(),
+                "disk_usage_pct": self._get_disk_usage(),
+            },
+        }
 
     def check_all(self) -> str:
         """

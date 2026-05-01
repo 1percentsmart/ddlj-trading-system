@@ -74,6 +74,7 @@ class TestTradeCRUD:
             option_exit_premium=350.0,
             option_delta=0.55,
             option_iv_entry=16.5,
+            option_iv_exit=17.2,
         )
         await db_session.commit()
 
@@ -82,6 +83,7 @@ class TestTradeCRUD:
         assert trade.direction == "LONG"
         assert trade.net_pnl == 7320.0
         assert trade.option_type == "CE"
+        assert trade.option_iv_exit == 17.2
 
     async def test_get_trades(self, db_session):
         """Test retrieving trades."""

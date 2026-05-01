@@ -258,6 +258,7 @@ const DEFAULT_CONFIG: BacktestRunConfig = {
   max_open_positions: 2,
   max_daily_trades: 4,
   max_daily_trades_enabled: true,
+  use_sample_data: false,
 };
 
 // ── Main Backtest Page Component ───────────────────────────────
@@ -276,6 +277,7 @@ export default function BacktestPage() {
   const [maxOpenPositions, setMaxOpenPositions] = useState(DEFAULT_CONFIG.max_open_positions!);
   const [maxDailyTradesEnabled, setMaxDailyTradesEnabled] = useState(DEFAULT_CONFIG.max_daily_trades_enabled!);
   const [maxDailyTrades, setMaxDailyTrades] = useState(DEFAULT_CONFIG.max_daily_trades!);
+  const [allowSampleData, setAllowSampleData] = useState(DEFAULT_CONFIG.use_sample_data!);
 
   // Results state
   const [isRunning, setIsRunning] = useState(false);
@@ -314,54 +316,14 @@ export default function BacktestPage() {
     return flat;
   }, []);
 
-  // Check initial status on mount
-  useEffect(() => {
-    const checkInitial = async () => {
-      try {
-        const status = await backtestApi.getStatus();
-        if (status.status === 'completed' && status.last_results) {
-          setResults(flattenResults(status));
-          setHasResults(true);
-          setHasSyntheticData(status.last_results?.has_synthetic_data ?? false);
-          setProgress(100);
-          setProgressMsg('Results loaded from previous run');
-        } else if (status.status === 'running') {
-          setIsRunning(true);
-          const progObj = status.progress;
-          const pct = progObj?.pct ?? 0;
-          const msg = progObj?.message ?? status.message ?? 'Running...';
-          setProgress(pct);
-          setProgressMsg(msg);
-          startTimeRef.current = Date.now() - (status.elapsed_seconds || 0) * 1000;
-          startPolling();
-        } else if (status.status === 'error') {
-          toast.error('Previous backtest failed', {
-            description: status.message || 'Unknown error',
-          });
-        }
-      } catch {
-        // Silently ignore — backend may be unreachable
-      } finally {
-        setInitialLoad(false);
-      }
-    };
-    checkInitial();
-  }, [flattenResults]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-      if (elapsedRef.current) clearInterval(elapsedRef.current);
-    };
-  }, []);
-
   // Start polling for status
-  const startPolling = useCallback(() => {
+  const startPolling = useCallback((resetStartTime = true) => {
     if (pollRef.current) clearInterval(pollRef.current);
     if (elapsedRef.current) clearInterval(elapsedRef.current);
 
-    startTimeRef.current = Date.now();
+    if (resetStartTime) {
+      startTimeRef.current = Date.now();
+    }
 
     elapsedRef.current = setInterval(() => {
       setElapsed(Math.round((Date.now() - startTimeRef.current) / 1000));
@@ -402,6 +364,48 @@ export default function BacktestPage() {
     }, 1500);
   }, [flattenResults]);
 
+  // Check initial status on mount
+  useEffect(() => {
+    const checkInitial = async () => {
+      try {
+        const status = await backtestApi.getStatus();
+        if (status.status === 'completed' && status.last_results) {
+          setResults(flattenResults(status));
+          setHasResults(true);
+          setHasSyntheticData(status.last_results?.has_synthetic_data ?? false);
+          setProgress(100);
+          setProgressMsg('Results loaded from previous run');
+        } else if (status.status === 'running') {
+          setIsRunning(true);
+          const progObj = status.progress;
+          const pct = progObj?.pct ?? 0;
+          const msg = progObj?.message ?? status.message ?? 'Running...';
+          setProgress(pct);
+          setProgressMsg(msg);
+          startTimeRef.current = Date.now() - (status.elapsed_seconds || 0) * 1000;
+          startPolling(false);
+        } else if (status.status === 'error') {
+          toast.error('Previous backtest failed', {
+            description: status.message || 'Unknown error',
+          });
+        }
+      } catch {
+        // Silently ignore — backend may be unreachable
+      } finally {
+        setInitialLoad(false);
+      }
+    };
+    checkInitial();
+  }, [flattenResults, startPolling]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (elapsedRef.current) clearInterval(elapsedRef.current);
+    };
+  }, []);
+
   // Run backtest — sends ALL configuration to the backend
   const handleRun = useCallback(async () => {
     if (isRunning) return;
@@ -425,6 +429,7 @@ export default function BacktestPage() {
       max_open_positions: maxOpenPositions,
       max_daily_trades: maxDailyTradesEnabled ? maxDailyTrades : undefined,
       max_daily_trades_enabled: maxDailyTradesEnabled,
+      use_sample_data: allowSampleData,
     };
 
     try {
@@ -439,7 +444,7 @@ export default function BacktestPage() {
         description: err instanceof Error ? err.message : 'Unknown error',
       });
     }
-  }, [isRunning, symbol, method, fromDate, toDate, capital, slAtr, minRR, moneyness, dailyRiskPct, maxOpenPositions, maxDailyTradesEnabled, maxDailyTrades, startPolling]);
+  }, [isRunning, symbol, method, fromDate, toDate, capital, slAtr, minRR, moneyness, dailyRiskPct, maxOpenPositions, maxDailyTradesEnabled, maxDailyTrades, allowSampleData, startPolling]);
 
   // Toggle expanded row
   const toggleExpand = useCallback((key: string) => {
@@ -739,6 +744,21 @@ export default function BacktestPage() {
                   )}
                 </div>
               </div>
+
+              {/* Data Source Fallback */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Sample Data Fallback</Label>
+                <div className="flex items-center gap-2 h-9">
+                  <Switch
+                    checked={allowSampleData}
+                    onCheckedChange={setAllowSampleData}
+                    id="sample-data-switch"
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {allowSampleData ? 'Allowed' : 'Real data only'}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* Config summary */}
@@ -747,6 +767,7 @@ export default function BacktestPage() {
                 <span className="font-medium">Active config:</span>{' '}
                 {symbol} | TF: {timeframe} | {fromDate} to {toDate} | {formatCurrency(capital)} capital | SL {slAtr}x ATR | RR {minRR}+ | {moneyness} | {dailyRiskPct}% daily risk
                 {maxDailyTradesEnabled && ` | max ${maxDailyTrades} trades/day`}
+                {` | ${allowSampleData ? 'sample fallback allowed' : 'real data only'}`}
               </p>
             </div>
           </CardContent>

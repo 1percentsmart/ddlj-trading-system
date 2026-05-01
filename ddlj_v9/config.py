@@ -567,11 +567,11 @@ TEST_END_DAY = 25
 # ============================================================================
 
 # --- API Key ---
-KITE_API_KEY = "cjzjv3v9y3lox6mh"
+KITE_API_KEY = os.getenv("KITE_API_KEY", "")
 
 # --- API Secret ---
 # WHY: Your API secret from Zerodha. NEVER share this publicly.
-KITE_API_SECRET = "tkg39m07fqan0h1yzirpyilmvovf9gr8"
+KITE_API_SECRET = os.getenv("KITE_API_SECRET", "")
 
 # --- Token File Path ---
 # WHY: Where to store the access token after login.

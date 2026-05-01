@@ -22,7 +22,7 @@ from datetime import date, time as dtime, timedelta
 from typing import Tuple
 from collections import defaultdict
 
-from .candle_data import CandleBuffer
+from .candle_data import CandleBuffer, candle_close_time, timeframe_to_minutes
 from .indicators import swing_high, swing_low
 from .cost_calculator import calc_costs_futures, calc_costs_options
 from .trade_types import Trade
@@ -104,19 +104,6 @@ def run_backtest_enhanced(
     buf_entry = CandleBuffer(2000)
     buf_bias = CandleBuffer(2000)
 
-    # Build bias candle index
-    b_idx = {}
-    for i, c in enumerate(candles_bias):
-        if c.timeframe == "60m":
-            key = (c.ts.date(), c.ts.hour)
-        elif c.timeframe == "15m":
-            key = (c.ts.date(), c.ts.hour, c.ts.minute // 15)
-        elif c.timeframe == "5m":
-            key = (c.ts.date(), c.ts.hour, c.ts.minute // 5)
-        else:
-            key = (c.ts.date(), c.ts.hour, c.ts.minute)
-        b_idx[key] = i
-
     pushed_bias = -1
     open_positions = []
     trades = []
@@ -179,8 +166,9 @@ def run_backtest_enhanced(
     # MAIN BACKTEST LOOP
     # ══════════════════════════════════════════════════════════════════
     for c_ent in candles_entry:
-        ct = c_ent.ts.time() if hasattr(c_ent.ts, 'time') else dtime(12, 0)
-        today = c_ent.ts.date()
+        entry_close = candle_close_time(c_ent, entry_tf_minutes)
+        ct = entry_close.time() if hasattr(entry_close, 'time') else dtime(12, 0)
+        today = entry_close.date()
         cur_month = (today.year, today.month)
 
         # NEW DAY SETUP
@@ -202,23 +190,17 @@ def run_backtest_enhanced(
         # Push entry candle
         buf_entry.push(c_ent)
 
-        # Synchronize bias buffer
+        # Synchronize bias buffer.
+        # Use only HTF candles whose close time is known at the entry candle's
+        # close. This prevents lookahead bias in 15m/60m backtests.
         if candles_bias:
-            if candles_bias[0].timeframe == "60m":
-                key = (c_ent.ts.date(), c_ent.ts.hour)
-            elif candles_bias[0].timeframe == "15m":
-                key = (c_ent.ts.date(), c_ent.ts.hour, c_ent.ts.minute // 15)
-            elif candles_bias[0].timeframe == "5m":
-                key = (c_ent.ts.date(), c_ent.ts.hour, c_ent.ts.minute // 5)
-            else:
-                key = (c_ent.ts.date(), c_ent.ts.hour, c_ent.ts.minute)
-
-            if key in b_idx:
-                tgt = b_idx[key]
-                while pushed_bias < tgt:
-                    pushed_bias += 1
-                    if pushed_bias < len(candles_bias):
-                        buf_bias.push(candles_bias[pushed_bias])
+            while pushed_bias + 1 < len(candles_bias):
+                next_bias = candles_bias[pushed_bias + 1]
+                bias_minutes = timeframe_to_minutes(next_bias.timeframe)
+                if candle_close_time(next_bias, bias_minutes) > entry_close:
+                    break
+                pushed_bias += 1
+                buf_bias.push(next_bias)
 
         # Evaluate bias
         bias = bias_engine.evaluate(buf_bias)
@@ -302,7 +284,7 @@ def run_backtest_enhanced(
                 dte = estimate_dte(c_ent.ts)
                 opt_exit = options_engine.model_exit(
                     pos._opt_entry, ep, pos._atr_at_entry, dte,
-                    c_ent.ts, ct, pos.held, entry_tf_minutes
+                    entry_close, ct, pos.held, entry_tf_minutes
                 )
                 gross = opt_exit.net_pnl
                 costs_opt, bd_opt = calc_costs_options(
@@ -313,7 +295,7 @@ def run_backtest_enhanced(
                 trade = Trade(
                     symbol=symbol, direction=pos.direction,
                     entry=pos.entry, exit=ep,
-                    entry_time=pos.entry_time, exit_time=c_ent.ts,
+                    entry_time=pos.entry_time, exit_time=entry_close,
                     sl=pos.sl, target=pos.target, qty=pos.qty,
                     gross=round(gross, 2), costs=round(costs_opt, 2),
                     net=round(net, 2), exit_reason=action,
@@ -345,7 +327,7 @@ def run_backtest_enhanced(
                 trade = Trade(
                     symbol=symbol, direction=pos.direction,
                     entry=pos.entry, exit=ep,
-                    entry_time=pos.entry_time, exit_time=c_ent.ts,
+                    entry_time=pos.entry_time, exit_time=entry_close,
                     sl=pos.sl, target=pos.target, qty=pos.qty,
                     gross=round(gross, 2), costs=round(costs, 2),
                     net=round(net, 2), exit_reason=action,
@@ -428,15 +410,13 @@ def run_backtest_enhanced(
             if max_daily_trades_enabled and daily_count.get(today, 0) >= max_daily_trades:
                 continue
 
-            daily_count[today] = daily_count.get(today, 0) + 1
-
             # 8. Model options entry
             opt_entry = None
             if options_engine:
                 options_engine.capital = effective_capital
                 dte = estimate_dte(c_ent.ts)
                 opt_entry = options_engine.model_entry(
-                    sig.entry, sig.direction, sig.atr_val, dte, c_ent.ts, ct
+                    sig.entry, sig.direction, sig.atr_val, dte, entry_close, ct
                 )
                 actual_qty = opt_entry["lots"] * opt_entry["lot_size"]
 
@@ -455,7 +435,7 @@ def run_backtest_enhanced(
                 'symbol': symbol,
                 'direction': sig.direction,
                 'entry': sig.entry,
-                'entry_time': c_ent.ts,
+                'entry_time': entry_close,
                 'qty': actual_qty,
                 'sl': sig.sl,
                 'target': sig.target,
@@ -468,6 +448,7 @@ def run_backtest_enhanced(
                 '_opt_entry': opt_entry,
             })()
             open_positions.append(new_pos)
+            daily_count[today] = daily_count.get(today, 0) + 1
 
     # Record final equity point
     if prev_date:

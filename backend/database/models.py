@@ -210,6 +210,9 @@ class Trade(Base):
     option_iv_entry: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     """Implied volatility at entry time (%)."""
 
+    option_iv_exit: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    """Implied volatility at exit time (%)."""
+
     # ── Metadata ──
     mode: Mapped[str] = mapped_column(String(10), nullable=False, default="futures")
     """Trade mode: 'futures' or 'options'."""

@@ -86,6 +86,7 @@ async def create_trade(
     option_exit_premium: Optional[float] = None,
     option_delta: Optional[float] = None,
     option_iv_entry: Optional[float] = None,
+    option_iv_exit: Optional[float] = None,
 ) -> Trade:
     """
     Insert a new completed trade record.
@@ -117,6 +118,7 @@ async def create_trade(
         option_exit_premium: Exit premium (options only).
         option_delta: Delta at entry (options only).
         option_iv_entry: IV at entry (options only).
+        option_iv_exit: IV at exit (options only).
 
     Returns:
         Trade: The newly created Trade ORM object.
@@ -147,6 +149,7 @@ async def create_trade(
         option_exit_premium=option_exit_premium,
         option_delta=option_delta,
         option_iv_entry=option_iv_entry,
+        option_iv_exit=option_iv_exit,
         created_at=ist_now(),
     )
     db.add(trade)

@@ -205,7 +205,10 @@ class KiteDataFetcher:
 
     def fetch_candles_chunked(self, instrument_token: int,
                                from_date: date, to_date: date,
-                               interval: str = "5minute") -> list:
+                               interval: str = "5minute",
+                               use_cache: bool = True,
+                               write_cache: bool = True,
+                               raise_on_error: bool = False) -> list:
         """
         Fetch historical candles in chunks respecting API limits.
 
@@ -217,6 +220,10 @@ class KiteDataFetcher:
             from_date (date): Start date.
             to_date (date): End date.
             interval (str): Candle interval. Default: "5minute".
+            use_cache (bool): Read cached chunks before hitting Kite.
+            write_cache (bool): Store fetched chunks for reuse.
+            raise_on_error (bool): Re-raise API failures instead of returning
+                partial/empty data. Live polling uses this to detect auth loss.
 
         Returns:
             list[dict]: List of candle dictionaries.
@@ -231,7 +238,7 @@ class KiteDataFetcher:
             chunk_num += 1
 
             cache_file = self._cache_path(instrument_token, interval, current, chunk_end)
-            if cache_file.exists():
+            if use_cache and cache_file.exists():
                 try:
                     with open(cache_file) as f:
                         chunk_data = json.load(f)
@@ -273,17 +280,24 @@ class KiteDataFetcher:
 
                 all_candles.extend(chunk_data)
 
-                try:
-                    with open(cache_file, "w") as f:
-                        json.dump(chunk_data, f)
-                except OSError as e:
-                    log.warning("  Failed to cache: %s", e)
+                if write_cache:
+                    try:
+                        with open(cache_file, "w") as f:
+                            json.dump(chunk_data, f)
+                    except OSError as e:
+                        log.warning("  Failed to cache: %s", e)
 
-                log.info("  Chunk %d: %s -> %s = %d candles",
-                         chunk_num, current, chunk_end, len(chunk_data))
+                if write_cache:
+                    log.info("  Chunk %d: %s -> %s = %d candles",
+                             chunk_num, current, chunk_end, len(chunk_data))
+                else:
+                    log.info("  Chunk %d: %s -> %s = %d candles (live uncached)",
+                             chunk_num, current, chunk_end, len(chunk_data))
 
             except Exception as e:
                 log.error("  Chunk %d: %s -> %s FAILED: %s", chunk_num, current, chunk_end, e)
+                if raise_on_error:
+                    raise
 
             current = chunk_end + timedelta(days=1)
 
