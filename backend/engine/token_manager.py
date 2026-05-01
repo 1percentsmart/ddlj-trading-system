@@ -15,6 +15,7 @@ import sys
 import logging
 import threading
 from datetime import datetime
+from urllib.parse import quote_plus, urlparse
 
 from .config import KITE_API_KEY, KITE_API_SECRET, KITE_TOKEN_FILE
 
@@ -59,14 +60,35 @@ def _run_async_blocking(coro_factory, timeout: float = 10):
     return result["value"]
 
 
+def _asyncpg_dsn() -> str | None:
+    """Return a sanitized PostgreSQL DSN for direct token-store access."""
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if not database_url.startswith(("postgresql://", "postgres://")):
+        return None
+
+    import re
+
+    database_url = re.sub(r':\[([^\]]+)\]@', r':\1@', database_url)
+    parsed = urlparse(database_url)
+    safe_user = quote_plus(parsed.username or "")
+    safe_password = quote_plus(parsed.password or "")
+    host = parsed.hostname or ""
+    port = parsed.port or 5432
+    database = parsed.path.lstrip("/") or "postgres"
+    return f"postgresql://{safe_user}:{safe_password}@{host}:{port}/{database}"
+
+
 def _read_database_token() -> str | None:
     """Read the latest unexpired access token from durable storage."""
     async def _load():
-        from sqlalchemy import text
-        from database.connection import get_session
+        import asyncpg
 
-        async for db in get_session():
-            result = await db.execute(text(
+        dsn = _asyncpg_dsn()
+        if not dsn:
+            return None
+        conn = await asyncpg.connect(dsn=dsn)
+        try:
+            row = await conn.fetchrow(
                 """
                 SELECT access_token
                 FROM kite_token_store
@@ -75,10 +97,10 @@ def _read_database_token() -> str | None:
                   AND access_token <> ''
                   AND (expires_at IS NULL OR expires_at > NOW())
                 """
-            ))
-            row = result.first()
-            return row[0].strip() if row and row[0] else None
-        return None
+            )
+            return row["access_token"].strip() if row and row["access_token"] else None
+        finally:
+            await conn.close()
 
     try:
         return _run_async_blocking(_load)
@@ -90,16 +112,19 @@ def _read_database_token() -> str | None:
 def _save_database_token(access_token: str) -> None:
     """Persist the access token to durable storage for redeploy recovery."""
     async def _save():
-        from sqlalchemy import text
-        from database.connection import get_session
+        import asyncpg
 
-        async for db in get_session():
-            await db.execute(text(
+        dsn = _asyncpg_dsn()
+        if not dsn:
+            return
+        conn = await asyncpg.connect(dsn=dsn)
+        try:
+            await conn.execute(
                 """
                 INSERT INTO kite_token_store (id, access_token, expires_at, updated_at)
                 VALUES (
                     1,
-                    :access_token,
+                    $1,
                     (timezone('Asia/Kolkata', now())::date + interval '1 day') AT TIME ZONE 'Asia/Kolkata',
                     NOW()
                 )
@@ -107,10 +132,11 @@ def _save_database_token(access_token: str) -> None:
                     access_token = EXCLUDED.access_token,
                     expires_at = EXCLUDED.expires_at,
                     updated_at = NOW()
-                """
-            ), {"access_token": access_token.strip()})
-            await db.commit()
-            break
+                """,
+                access_token.strip(),
+            )
+        finally:
+            await conn.close()
 
     try:
         _run_async_blocking(_save)
