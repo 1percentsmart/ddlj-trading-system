@@ -166,8 +166,9 @@ def run_backtest_enhanced(
     # MAIN BACKTEST LOOP
     # ══════════════════════════════════════════════════════════════════
     for c_ent in candles_entry:
-        ct = c_ent.ts.time() if hasattr(c_ent.ts, 'time') else dtime(12, 0)
-        today = c_ent.ts.date()
+        entry_close = candle_close_time(c_ent, entry_tf_minutes)
+        ct = entry_close.time() if hasattr(entry_close, 'time') else dtime(12, 0)
+        today = entry_close.date()
         cur_month = (today.year, today.month)
 
         # NEW DAY SETUP
@@ -193,7 +194,6 @@ def run_backtest_enhanced(
         # Use only HTF candles whose close time is known at the entry candle's
         # close. This prevents lookahead bias in 15m/60m backtests.
         if candles_bias:
-            entry_close = candle_close_time(c_ent, entry_tf_minutes)
             while pushed_bias + 1 < len(candles_bias):
                 next_bias = candles_bias[pushed_bias + 1]
                 bias_minutes = timeframe_to_minutes(next_bias.timeframe)
@@ -284,7 +284,7 @@ def run_backtest_enhanced(
                 dte = estimate_dte(c_ent.ts)
                 opt_exit = options_engine.model_exit(
                     pos._opt_entry, ep, pos._atr_at_entry, dte,
-                    c_ent.ts, ct, pos.held, entry_tf_minutes
+                    entry_close, ct, pos.held, entry_tf_minutes
                 )
                 gross = opt_exit.net_pnl
                 costs_opt, bd_opt = calc_costs_options(
@@ -295,7 +295,7 @@ def run_backtest_enhanced(
                 trade = Trade(
                     symbol=symbol, direction=pos.direction,
                     entry=pos.entry, exit=ep,
-                    entry_time=pos.entry_time, exit_time=c_ent.ts,
+                    entry_time=pos.entry_time, exit_time=entry_close,
                     sl=pos.sl, target=pos.target, qty=pos.qty,
                     gross=round(gross, 2), costs=round(costs_opt, 2),
                     net=round(net, 2), exit_reason=action,
@@ -327,7 +327,7 @@ def run_backtest_enhanced(
                 trade = Trade(
                     symbol=symbol, direction=pos.direction,
                     entry=pos.entry, exit=ep,
-                    entry_time=pos.entry_time, exit_time=c_ent.ts,
+                    entry_time=pos.entry_time, exit_time=entry_close,
                     sl=pos.sl, target=pos.target, qty=pos.qty,
                     gross=round(gross, 2), costs=round(costs, 2),
                     net=round(net, 2), exit_reason=action,
@@ -416,7 +416,7 @@ def run_backtest_enhanced(
                 options_engine.capital = effective_capital
                 dte = estimate_dte(c_ent.ts)
                 opt_entry = options_engine.model_entry(
-                    sig.entry, sig.direction, sig.atr_val, dte, c_ent.ts, ct
+                    sig.entry, sig.direction, sig.atr_val, dte, entry_close, ct
                 )
                 actual_qty = opt_entry["lots"] * opt_entry["lot_size"]
 
@@ -435,7 +435,7 @@ def run_backtest_enhanced(
                 'symbol': symbol,
                 'direction': sig.direction,
                 'entry': sig.entry,
-                'entry_time': c_ent.ts,
+                'entry_time': entry_close,
                 'qty': actual_qty,
                 'sl': sig.sl,
                 'target': sig.target,
