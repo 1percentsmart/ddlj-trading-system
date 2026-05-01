@@ -262,9 +262,9 @@ export const useDDLJStore = create<DDLJStore>()(
           get().fetchConfig(),
           get().fetchHealth(),
           get().fetchTokenStatus(),
+          get().fetchLoginUrl(),
           get().fetchReadiness(),
           get().fetchBacktestStatus(),
-          // Note: fetchLoginUrl removed from auto-refresh — no longer needed since auth redirect link was removed
         ]);
         set({ dataFetched: true });
       },

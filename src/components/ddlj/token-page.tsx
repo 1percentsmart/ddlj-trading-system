@@ -5,14 +5,26 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Key, CheckCircle2, XCircle, Info } from 'lucide-react';
+import { Key, ExternalLink, CheckCircle2, XCircle, Info, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
 export default function TokenPage() {
-  const { tokenStatus, exchangeToken } = useDDLJStore();
+  const { tokenStatus, loginUrl, exchangeToken, fetchLoginUrl } = useDDLJStore();
   const [requestToken, setRequestToken] = useState('');
   const [exchanging, setExchanging] = useState(false);
+  const [loadingUrl, setLoadingUrl] = useState(false);
+
+  const handleGetRequestToken = async () => {
+    setLoadingUrl(true);
+    try {
+      await fetchLoginUrl();
+    } catch {
+      toast.error('Failed to generate login URL');
+    } finally {
+      setLoadingUrl(false);
+    }
+  };
 
   const handleExchange = async () => {
     if (!requestToken.trim()) return;
@@ -51,6 +63,30 @@ export default function TokenPage() {
             </span>
           </div>
 
+          {/* Get Request Token Link */}
+          {loginUrl ? (
+            <a href={loginUrl} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" className="gap-2" disabled={loadingUrl}>
+                <ExternalLink className="h-4 w-4" />
+                Get Request Token
+              </Button>
+            </a>
+          ) : (
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={handleGetRequestToken}
+              disabled={loadingUrl}
+            >
+              {loadingUrl ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ExternalLink className="h-4 w-4" />
+              )}
+              Generate Login URL
+            </Button>
+          )}
+
           {/* Manual token exchange */}
           <div className="flex gap-2">
             <Input
@@ -77,10 +113,10 @@ export default function TokenPage() {
         </CardHeader>
         <CardContent>
           <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-            <li>Log in to your Zerodha Kite account and go to the developer console</li>
-            <li>Generate a new request token from the Kite Connect dashboard</li>
-            <li>Copy the request token and paste it in the input field above</li>
-            <li>Click &quot;Exchange&quot; to convert it into an access token</li>
+            <li>Click <strong>Get Request Token</strong> above to open the Zerodha Kite login page</li>
+            <li>Log in with your Zerodha credentials and approve the API access request</li>
+            <li>After approval, copy the <code className="px-1 py-0.5 bg-muted rounded text-xs">request_token</code> from the redirect URL</li>
+            <li>Paste the request token in the input field above and click <strong>Exchange</strong></li>
           </ol>
           <p className="text-xs text-muted-foreground mt-3">
             Note: Access tokens are valid for one trading day and must be refreshed daily.
