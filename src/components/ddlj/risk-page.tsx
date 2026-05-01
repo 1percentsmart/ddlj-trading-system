@@ -5,9 +5,10 @@
  * ===============================================
  * Risk dashboard with position sizing, drawdown metrics,
  * max daily trades toggle, and risk controls.
+ * Settings are persisted to the backend via the config API.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useDDLJStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,18 +21,63 @@ import { cn, formatCurrency, pnlColor, formatPercent } from '@/lib/utils';
 import {
   Shield, ShieldAlert, ShieldCheck, AlertTriangle,
   TrendingDown, Target, Activity, Percent, Gauge,
-  Wallet, Lock, Unlock, Zap,
+  Wallet, Lock, Unlock, Zap, Save, Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function RiskPage() {
-  const { trades, positions, engineStatus, config } = useDDLJStore();
+  const { trades, positions, engineStatus, config, updateConfig } = useDDLJStore();
 
-  // Risk parameters
-  const [maxDailyTradesEnabled, setMaxDailyTradesEnabled] = useState(true);
-  const [maxDailyTrades, setMaxDailyTrades] = useState(4);
-  const [dailyRiskPct, setDailyRiskPct] = useState(2);
-  const [maxDrawdownPct, setMaxDrawdownPct] = useState(25);
+  // Risk parameters — initialized from backend config, then local state
+  const [maxDailyTradesEnabled, setMaxDailyTradesEnabled] = useState(
+    config?.MAX_DAILY_TRADES_ENABLED !== undefined ? Boolean(config.MAX_DAILY_TRADES_ENABLED) : true
+  );
+  const [maxDailyTrades, setMaxDailyTrades] = useState(
+    config?.MAX_DAILY_TRADES ? Number(config.MAX_DAILY_TRADES) : 4
+  );
+  const [dailyRiskPct, setDailyRiskPct] = useState(
+    config?.DAILY_RISK_PCT ? Number(config.DAILY_RISK_PCT) : 6
+  );
+  const [maxDrawdownPct, setMaxDrawdownPct] = useState(
+    config?.DRAWDOWN_CIRCUIT_BREAKER ? Math.round((1 - Number(config.DRAWDOWN_CIRCUIT_BREAKER)) * 100) : 20
+  );
+  const [saving, setSaving] = useState(false);
+
+  // Sync from backend config when it changes
+  useEffect(() => {
+    if (config?.MAX_DAILY_TRADES_ENABLED !== undefined) {
+      setMaxDailyTradesEnabled(Boolean(config.MAX_DAILY_TRADES_ENABLED));
+    }
+    if (config?.MAX_DAILY_TRADES !== undefined) {
+      setMaxDailyTrades(Number(config.MAX_DAILY_TRADES));
+    }
+    if (config?.DAILY_RISK_PCT !== undefined) {
+      setDailyRiskPct(Number(config.DAILY_RISK_PCT));
+    }
+    if (config?.DRAWDOWN_CIRCUIT_BREAKER !== undefined) {
+      setMaxDrawdownPct(Math.round((1 - Number(config.DRAWDOWN_CIRCUIT_BREAKER)) * 100));
+    }
+  }, [config]);
+
+  // Save settings to backend
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    try {
+      await updateConfig({
+        MAX_DAILY_TRADES_ENABLED: maxDailyTradesEnabled,
+        MAX_DAILY_TRADES: maxDailyTrades,
+        DAILY_RISK_PCT: dailyRiskPct,
+        DRAWDOWN_CIRCUIT_BREAKER: (100 - maxDrawdownPct) / 100,
+      });
+      toast.success('Risk settings saved', {
+        description: 'Changes will apply on next engine restart',
+      });
+    } catch {
+      toast.error('Failed to save risk settings');
+    } finally {
+      setSaving(false);
+    }
+  }, [maxDailyTradesEnabled, maxDailyTrades, dailyRiskPct, maxDrawdownPct, updateConfig]);
 
   // Compute risk metrics from trades
   const totalPnl = trades.reduce((s, t) => s + t.net, 0);
@@ -84,6 +130,17 @@ export default function RiskPage() {
             Monitor and control risk parameters for the trading engine
           </p>
         </div>
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="gap-2"
+        >
+          {saving ? (
+            <><Loader2 className="h-4 w-4 animate-spin" />Saving...</>
+          ) : (
+            <><Save className="h-4 w-4" />Save Settings</>
+          )}
+        </Button>
       </div>
 
       {/* Risk Controls */}
@@ -93,7 +150,7 @@ export default function RiskPage() {
             <Shield className="h-4 w-4" />
             Risk Controls
           </CardTitle>
-          <CardDescription>Configure risk parameters — changes apply on next engine restart</CardDescription>
+          <CardDescription>Configure risk parameters — click Save to persist to backend</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -3,8 +3,11 @@
 /**
  * DDLJ Trading System — Backtest Page
  * ========================================
- * Professional backtest results viewer with expandable trade details,
- * summary metric cards, and real-time progress streaming.
+ * Full-featured backtest configuration + results viewer with:
+ *  - Complete parameter configuration (symbol, dates, capital, SL ATR, RR, moneyness, etc.)
+ *  - Real-time progress streaming
+ *  - Expandable trade details with date/time, quantity, trigger columns
+ *  - Summary metric cards
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -12,6 +15,7 @@ import {
   type BacktestConfigResult,
   type BacktestTradeDetail,
   type BacktestStatusResult,
+  type BacktestRunConfig,
   backtestApi,
 } from '@/lib/api';
 import { cn, formatCurrency, pnlColor, formatPercent, formatDuration } from '@/lib/utils';
@@ -20,8 +24,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -46,6 +58,8 @@ import {
   AlertTriangle,
   Eye,
   EyeOff,
+  Calendar,
+  Settings2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -190,16 +204,16 @@ function TradeDetailTable({ trades }: { trades: BacktestTradeDetail[] }) {
                   </Badge>
                 </TableCell>
                 <TableCell className="py-1.5 text-right font-mono">
-                  ₹{t.entry_price.toLocaleString('en-IN')}
+                  {t.entry_price.toLocaleString('en-IN')}
                 </TableCell>
                 <TableCell className="py-1.5 text-right font-mono">
-                  ₹{t.exit_price.toLocaleString('en-IN')}
+                  {t.exit_price.toLocaleString('en-IN')}
                 </TableCell>
                 <TableCell className="py-1.5 text-right font-mono text-red-400/80">
-                  ₹{t.sl.toLocaleString('en-IN')}
+                  {t.sl.toLocaleString('en-IN')}
                 </TableCell>
                 <TableCell className="py-1.5 text-right font-mono text-emerald-400/80">
-                  ₹{t.target.toLocaleString('en-IN')}
+                  {t.target.toLocaleString('en-IN')}
                 </TableCell>
                 <TableCell className="py-1.5 text-right">{t.qty}</TableCell>
                 <TableCell className="py-1.5">
@@ -228,20 +242,49 @@ function TradeDetailTable({ trades }: { trades: BacktestTradeDetail[] }) {
   );
 }
 
+// ── Default backtest config ────────────────────────────────────
+const DEFAULT_CONFIG: BacktestRunConfig = {
+  symbol: 'both',
+  method: 'both',
+  from_date: '2025-11-01',
+  to_date: '2026-04-25',
+  capital: 50000,
+  sl_atr: 2.0,
+  min_rr: 1.5,
+  moneyness: 'ITM',
+  daily_risk_pct: 6.0,
+  max_open_positions: 2,
+  max_daily_trades: 4,
+  max_daily_trades_enabled: true,
+};
+
 // ── Main Backtest Page Component ───────────────────────────────
 export default function BacktestPage() {
-  // State
+  // Configuration state
+  const [symbol, setSymbol] = useState<'BANKNIFTY' | 'NIFTY' | 'both'>(DEFAULT_CONFIG.symbol!);
+  const [method, setMethod] = useState<'compounding' | 'monthly' | 'both'>(DEFAULT_CONFIG.method!);
+  const [fromDate, setFromDate] = useState(DEFAULT_CONFIG.from_date!);
+  const [toDate, setToDate] = useState(DEFAULT_CONFIG.to_date!);
+  const [capital, setCapital] = useState(DEFAULT_CONFIG.capital!);
+  const [slAtr, setSlAtr] = useState(DEFAULT_CONFIG.sl_atr!);
+  const [minRR, setMinRR] = useState(DEFAULT_CONFIG.min_rr!);
+  const [moneyness, setMoneyness] = useState<'ATM' | 'ITM' | 'DEEP_ITM'>(DEFAULT_CONFIG.moneyness!);
+  const [dailyRiskPct, setDailyRiskPct] = useState(DEFAULT_CONFIG.daily_risk_pct!);
+  const [maxOpenPositions, setMaxOpenPositions] = useState(DEFAULT_CONFIG.max_open_positions!);
+  const [maxDailyTradesEnabled, setMaxDailyTradesEnabled] = useState(DEFAULT_CONFIG.max_daily_trades_enabled!);
+  const [maxDailyTrades, setMaxDailyTrades] = useState(DEFAULT_CONFIG.max_daily_trades!);
+
+  // Results state
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressMsg, setProgressMsg] = useState('');
   const [elapsed, setElapsed] = useState(0);
   const [results, setResults] = useState<FlattenedResult[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const [maxDailyTradesEnabled, setMaxDailyTradesEnabled] = useState(true);
-  const [maxDailyTrades, setMaxDailyTrades] = useState(4);
   const [activeMethod, setActiveMethod] = useState<'all' | 'a' | 'b'>('all');
   const [hasResults, setHasResults] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
+  const [showConfig, setShowConfig] = useState(true);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -283,6 +326,10 @@ export default function BacktestPage() {
           setProgressMsg(status.message || 'Running...');
           startTimeRef.current = Date.now() - (status.elapsed_seconds || 0) * 1000;
           startPolling();
+        } else if (status.status === 'error') {
+          toast.error('Previous backtest failed', {
+            description: status.message || 'Unknown error',
+          });
         }
       } catch {
         // Silently ignore — backend may be unreachable
@@ -328,10 +375,13 @@ export default function BacktestPage() {
           toast.success('Backtest completed', {
             description: `${(status.last_results?.configs_tested || 0)} configurations tested`,
           });
-        } else if (status.status === 'running') {
-          // Still running, keep polling
-        } else if (status.status === 'no_results') {
-          // Not running and no results — stop
+        } else if (status.status === 'error') {
+          setIsRunning(false);
+          if (pollRef.current) clearInterval(pollRef.current);
+          if (elapsedRef.current) clearInterval(elapsedRef.current);
+          toast.error('Backtest failed', {
+            description: status.message || 'Unknown error',
+          });
         }
       } catch {
         // Keep polling on transient errors
@@ -339,7 +389,7 @@ export default function BacktestPage() {
     }, 1500);
   }, [flattenResults]);
 
-  // Run backtest
+  // Run backtest — sends ALL configuration to the backend
   const handleRun = useCallback(async () => {
     if (isRunning) return;
     setIsRunning(true);
@@ -348,13 +398,26 @@ export default function BacktestPage() {
     setElapsed(0);
     setExpandedRows(new Set());
 
+    const config: BacktestRunConfig = {
+      symbol,
+      method,
+      from_date: fromDate,
+      to_date: toDate,
+      capital,
+      sl_atr: slAtr,
+      min_rr: minRR,
+      moneyness,
+      daily_risk_pct: dailyRiskPct,
+      max_open_positions: maxOpenPositions,
+      max_daily_trades: maxDailyTradesEnabled ? maxDailyTrades : undefined,
+      max_daily_trades_enabled: maxDailyTradesEnabled,
+    };
+
     try {
-      await backtestApi.run({
-        max_daily_trades_enabled: maxDailyTradesEnabled,
-      });
+      await backtestApi.run(config);
       startPolling();
       toast.info('Backtest started', {
-        description: 'Polling for progress...',
+        description: `${symbol} | ${fromDate} to ${toDate} | Capital: ${capital}`,
       });
     } catch (err) {
       setIsRunning(false);
@@ -362,7 +425,7 @@ export default function BacktestPage() {
         description: err instanceof Error ? err.message : 'Unknown error',
       });
     }
-  }, [isRunning, maxDailyTradesEnabled, startPolling]);
+  }, [isRunning, symbol, method, fromDate, toDate, capital, slAtr, minRR, moneyness, dailyRiskPct, maxOpenPositions, maxDailyTradesEnabled, maxDailyTrades, startPolling]);
 
   // Toggle expanded row
   const toggleExpand = useCallback((key: string) => {
@@ -419,7 +482,7 @@ export default function BacktestPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Backtest Engine</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Run strategy backtests across multiple configurations and analyze individual trade details
+            Configure and run strategy backtests across multiple configurations, then drill into individual trade details
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -455,66 +518,209 @@ export default function BacktestPage() {
         </div>
       </div>
 
-      {/* Configuration Panel */}
+      {/* ── Configuration Panel ────────────────────────────────── */}
       <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Configuration</CardTitle>
-          <CardDescription>Backtest parameters — changes apply on next run</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Settings2 className="h-4 w-4" />
+                Configuration
+              </CardTitle>
+              <CardDescription>All parameters apply on next run — defaults from engine config</CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={() => setShowConfig(!showConfig)}
+            >
+              {showConfig ? (
+                <><ChevronDown className="h-3 w-3" />Hide</>
+              ) : (
+                <><ChevronRight className="h-3 w-3" />Show</>
+              )}
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-center gap-6">
-            {/* Max Daily Trades Switch */}
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={maxDailyTradesEnabled}
-                onCheckedChange={setMaxDailyTradesEnabled}
-                id="max-daily-trades-switch"
-              />
-              <label
-                htmlFor="max-daily-trades-switch"
-                className="text-sm font-medium cursor-pointer select-none"
-              >
-                Max Daily Trades
-              </label>
-              {maxDailyTradesEnabled ? (
+        {showConfig && (
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
+              {/* Symbol */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Symbol</Label>
+                <Select value={symbol} onValueChange={(v) => setSymbol(v as 'BANKNIFTY' | 'NIFTY' | 'both')}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="both">Both (BANKNIFTY + NIFTY)</SelectItem>
+                    <SelectItem value="BANKNIFTY">BANKNIFTY</SelectItem>
+                    <SelectItem value="NIFTY">NIFTY</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Method */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Method</Label>
+                <Select value={method} onValueChange={(v) => setMethod(v as 'compounding' | 'monthly' | 'both')}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="both">Both Methods</SelectItem>
+                    <SelectItem value="compounding">Compounding</SelectItem>
+                    <SelectItem value="monthly">Monthly Batch</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* From Date */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Calendar className="h-3 w-3" /> From Date
+                </Label>
+                <Input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+
+              {/* To Date */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Calendar className="h-3 w-3" /> To Date
+                </Label>
+                <Input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+
+              {/* Capital */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Starting Capital</Label>
+                <Input
+                  type="number"
+                  min={10000}
+                  max={10000000}
+                  step={10000}
+                  value={capital}
+                  onChange={(e) => setCapital(Number(e.target.value) || 50000)}
+                  className="h-9"
+                />
+              </div>
+
+              {/* SL ATR Multiplier */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">SL ATR Multiplier</Label>
+                <Input
+                  type="number"
+                  min={0.5}
+                  max={5.0}
+                  step={0.1}
+                  value={slAtr}
+                  onChange={(e) => setSlAtr(Number(e.target.value) || 2.0)}
+                  className="h-9"
+                />
+              </div>
+
+              {/* Min Risk-Reward */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Min Risk-Reward</Label>
+                <Input
+                  type="number"
+                  min={0.5}
+                  max={5.0}
+                  step={0.1}
+                  value={minRR}
+                  onChange={(e) => setMinRR(Number(e.target.value) || 1.5)}
+                  className="h-9"
+                />
+              </div>
+
+              {/* Moneyness */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Option Moneyness</Label>
+                <Select value={moneyness} onValueChange={(v) => setMoneyness(v as 'ATM' | 'ITM' | 'DEEP_ITM')}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ITM">ITM (In-The-Money)</SelectItem>
+                    <SelectItem value="ATM">ATM (At-The-Money)</SelectItem>
+                    <SelectItem value="DEEP_ITM">Deep ITM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Daily Risk % */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Daily Risk %</Label>
                 <Input
                   type="number"
                   min={1}
-                  max={50}
-                  value={maxDailyTrades}
-                  onChange={(e) => setMaxDailyTrades(parseInt(e.target.value) || 1)}
-                  className="w-20 h-8 text-center text-sm"
+                  max={20}
+                  step={0.5}
+                  value={dailyRiskPct}
+                  onChange={(e) => setDailyRiskPct(Number(e.target.value) || 6.0)}
+                  className="h-9"
                 />
-              ) : (
-                <span className="text-sm text-muted-foreground italic">Unlimited</span>
-              )}
-            </div>
+              </div>
 
-            {/* Method filter */}
-            <Separator orientation="vertical" className="h-6 hidden sm:block" />
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Method:</span>
-              <div className="flex rounded-lg border border-border/50 overflow-hidden">
-                {(['all', 'a', 'b'] as const).map((method) => (
-                  <Button
-                    key={method}
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                      'h-7 px-3 text-xs rounded-none',
-                      activeMethod === method
-                        ? 'bg-primary/15 text-primary font-semibold'
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                    onClick={() => setActiveMethod(method)}
-                  >
-                    {method === 'all' ? 'All' : method === 'a' ? 'Compounding' : 'Monthly'}
-                  </Button>
-                ))}
+              {/* Max Open Positions */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Max Open Positions</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={maxOpenPositions}
+                  onChange={(e) => setMaxOpenPositions(Number(e.target.value) || 2)}
+                  className="h-9"
+                />
+              </div>
+
+              {/* Max Daily Trades Toggle */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Max Daily Trades</Label>
+                <div className="flex items-center gap-2 h-9">
+                  <Switch
+                    checked={maxDailyTradesEnabled}
+                    onCheckedChange={setMaxDailyTradesEnabled}
+                    id="max-daily-trades-switch"
+                  />
+                  {maxDailyTradesEnabled ? (
+                    <Input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={maxDailyTrades}
+                      onChange={(e) => setMaxDailyTrades(parseInt(e.target.value) || 1)}
+                      className="w-16 h-8 text-center text-sm"
+                    />
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">Unlimited</span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </CardContent>
+
+            {/* Config summary */}
+            <div className="mt-4 pt-3 border-t border-border/30">
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium">Active config:</span>{' '}
+                {symbol} | {fromDate} to {toDate} | {formatCurrency(capital)} capital | SL {slAtr}x ATR | RR {minRR}+ | {moneyness} | {dailyRiskPct}% daily risk
+                {maxDailyTradesEnabled && ` | max ${maxDailyTrades} trades/day`}
+              </p>
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       {/* Progress Section */}
@@ -596,6 +802,26 @@ export default function BacktestPage() {
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
+                {/* Method filter pills */}
+                <div className="flex rounded-lg border border-border/50 overflow-hidden">
+                  {(['all', 'a', 'b'] as const).map((m) => (
+                    <Button
+                      key={m}
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        'h-7 px-3 text-xs rounded-none',
+                        activeMethod === m
+                          ? 'bg-primary/15 text-primary font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                      onClick={() => setActiveMethod(m)}
+                    >
+                      {m === 'all' ? 'All' : m === 'a' ? 'Compounding' : 'Monthly'}
+                    </Button>
+                  ))}
+                </div>
+                <Separator orientation="vertical" className="h-6 hidden sm:block" />
                 <Button
                   variant="ghost"
                   size="sm"
@@ -673,8 +899,8 @@ export default function BacktestPage() {
             </div>
             <h3 className="text-lg font-semibold mb-1">No Backtest Results</h3>
             <p className="text-sm text-muted-foreground max-w-md mb-6">
-              Run a backtest to analyze strategy performance across multiple configurations
-              and drill into individual trade details.
+              Configure parameters above and run a backtest to analyze strategy performance
+              across multiple configurations and drill into individual trade details.
             </p>
             <Button
               onClick={handleRun}

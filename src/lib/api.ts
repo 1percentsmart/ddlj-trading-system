@@ -256,8 +256,24 @@ export const tokenApi = {
 };
 
 // ── Backtest ──────────────────────────────────────────────────────
+export interface BacktestRunConfig {
+  symbol?: 'BANKNIFTY' | 'NIFTY' | 'both';
+  timeframe?: '5m' | '15m' | '60m' | 'all';
+  method?: 'compounding' | 'monthly' | 'both';
+  from_date?: string; // YYYY-MM-DD
+  to_date?: string;   // YYYY-MM-DD
+  capital?: number;
+  sl_atr?: number;
+  min_rr?: number;
+  moneyness?: 'ATM' | 'ITM' | 'DEEP_ITM';
+  daily_risk_pct?: number;
+  max_open_positions?: number;
+  max_daily_trades?: number;
+  max_daily_trades_enabled?: boolean;
+}
+
 export const backtestApi = {
-  run: (config?: { max_daily_trades_enabled?: boolean }) =>
+  run: (config?: BacktestRunConfig) =>
     request<BacktestRunResult>('/backtest/run', {
       method: 'POST',
       body: config ? JSON.stringify(config) : undefined,
