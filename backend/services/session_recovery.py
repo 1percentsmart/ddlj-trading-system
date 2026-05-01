@@ -217,7 +217,7 @@ class SessionRecovery:
                 save_state = dict(state)
                 save_state["saved_at"] = datetime.now(IST).isoformat()
                 save_state["saved_at_ts"] = datetime.now(IST).timestamp()
-                save_state["version"] = "10.1.0"
+                save_state["version"] = "10.3.0"
 
                 # Remove the clean_shutdown flag — it should ONLY be
                 # present after a graceful shutdown

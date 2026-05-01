@@ -22,8 +22,8 @@ Modules:
   data_fetcher.py    — Kite API data fetcher with chunking & caching
   analysis.py        — Performance statistics
 
-Version: 9.1.0 (inherited from standalone — all 16 bug fixes applied)
+Version: 10.3.0 (all bug fixes applied, config-driven exits, token-aware data)
 """
 
-__version__ = "9.1.0"
+__version__ = "10.3.0"
 __author__ = "DDLJ Strategy Team"

@@ -219,6 +219,64 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+// ── Data Normalizers ──────────────────────────────────────────
+// WHY: The backend returns trades/positions in two formats:
+//   1. In-memory (from PaperTrader): uses entry, exit, gross, net, held (string)
+//   2. Database (from Supabase): uses entry_price, exit_price, gross_pnl, net_pnl
+// These normalizers unify both formats into a single consistent interface.
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function normalizeTrade(raw: any): Trade {
+  return {
+    id: raw.id != null ? String(raw.id) : raw.session_id ?? '',
+    symbol: raw.symbol,
+    direction: raw.direction,
+    entry: raw.entry ?? raw.entry_price ?? 0,
+    exit: raw.exit ?? raw.exit_price ?? 0,
+    entry_time: raw.entry_time,
+    exit_time: raw.exit_time,
+    sl: raw.sl ?? 0,
+    target: raw.target ?? 0,
+    qty: raw.qty ?? 0,
+    gross: raw.gross ?? raw.gross_pnl ?? 0,
+    costs: raw.costs ?? 0,
+    net: raw.net ?? raw.net_pnl ?? 0,
+    exit_reason: raw.exit_reason ?? '',
+    rr: raw.rr ?? 0,
+    held: raw.held != null ? String(raw.held) : '',
+    mode: raw.mode ?? 'futures',
+    option_strike: raw.option_strike,
+    option_type: raw.option_type,
+    option_entry_premium: raw.option_entry_premium,
+    option_exit_premium: raw.option_exit_premium,
+    option_delta: raw.option_delta,
+    option_iv_entry: raw.option_iv_entry,
+    option_iv_exit: raw.option_iv_exit,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function normalizePosition(raw: any): Position {
+  return {
+    id: raw.id != null ? String(raw.id) : '',
+    symbol: raw.symbol,
+    direction: raw.direction,
+    entry: raw.entry ?? raw.entry_price ?? 0,
+    entry_time: raw.entry_time,
+    qty: raw.qty ?? 0,
+    sl: raw.sl ?? 0,
+    target: raw.target ?? 0,
+    rr: raw.rr ?? 0,
+    held: raw.held != null ? String(raw.held) : '',
+    be_done: raw.be_done ?? false,
+    atr_at_entry: raw.atr_at_entry ?? 0,
+    current_premium: raw.current_premium,
+    unrealized_pnl: raw.unrealized_pnl,
+    option_strike: raw.option_strike,
+    option_type: raw.option_type,
+  };
+}
+
 // ── Engine ──────────────────────────────────────────────────────
 export const engineApi = {
   getStatus: () => request<EngineStatus>('/status'),
