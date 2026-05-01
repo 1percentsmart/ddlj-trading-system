@@ -42,6 +42,11 @@ from .config import (
     DRAWDOWN_CIRCUIT_BREAKER,  # BUG FIX #13: Config parameter
     CAPITAL_FLOOR_PCT,         # BUG FIX #14: Config parameter
     MAX_TRADE_HOURS,           # BUG FIX #6: Config parameter
+    BE_TRIGGER_RISK_MULT,      # BUG FIX #15: Breakeven trigger from config
+    TRAILING_STOP_ENABLED,     # BUG FIX #15: Trailing stop toggle from config
+    TRAIL_EVERY_N_CANDLES,     # BUG FIX #15: Trail frequency from config
+    BIAS_FLIP_MIN_HELD,        # BUG FIX #15: Bias flip min held from config
+    NEAR_TARGET_ATR,           # BUG FIX #10: Near-target threshold from config
 )
 
 # Time boundaries
@@ -232,21 +237,25 @@ def run_backtest_enhanced(
                     action, price = "SL", pos.sl
                 elif c_ent.high >= pos.target:
                     action, price = "TARGET", pos.target
-                elif c_ent.high >= pos.target - 3 and c_ent.close > pos.entry:
+                # BUG FIX #10: Near Target threshold scaled by ATR (was hardcoded 3)
+                elif c_ent.high >= pos.target - NEAR_TARGET_ATR * pos._atr_at_entry and c_ent.close > pos.entry:
                     action, price = "NEAR_TGT", c_ent.close
                 elif ct >= FORCE_CLOSE_TIME:
                     action, price = "EOD", c_ent.close
-                elif bias.direction == "BEARISH" and pos.held > 6:
+                # BUG FIX #15: Bias flip min held from config (was hardcoded 6)
+                elif bias.direction == "BEARISH" and pos.held > BIAS_FLIP_MIN_HELD:
                     action, price = "BIAS_FLIP", c_ent.close
                 elif pos.held >= max_candles:  # BUG FIX #6: proper time exit
                     action, price = "TIME", c_ent.close
                 else:
+                    # BUG FIX #15: BE trigger uses config multiplier (was hardcoded 1.0)
                     if not pos._be_done:
                         profit = c_ent.high - pos.entry
-                        if profit >= pos.risk:
+                        if profit >= pos.risk * BE_TRIGGER_RISK_MULT:
                             pos.sl = pos.entry + 1
                             pos._be_done = True
-                    elif pos.held % 3 == 0:
+                    # BUG FIX #15: Trailing stop uses config toggle and frequency
+                    elif TRAILING_STOP_ENABLED and pos.held % TRAIL_EVERY_N_CANDLES == 0:
                         sl_cand = buf_entry.last(15)
                         new_sl = swing_low(sl_cand, 15)
                         if new_sl and new_sl > pos.sl:
@@ -257,21 +266,25 @@ def run_backtest_enhanced(
                     action, price = "SL", pos.sl
                 elif c_ent.low <= pos.target:
                     action, price = "TARGET", pos.target
-                elif c_ent.low <= pos.target + 3 and c_ent.close < pos.entry:
+                # BUG FIX #10: Near Target threshold scaled by ATR (was hardcoded 3)
+                elif c_ent.low <= pos.target + NEAR_TARGET_ATR * pos._atr_at_entry and c_ent.close < pos.entry:
                     action, price = "NEAR_TGT", c_ent.close
                 elif ct >= FORCE_CLOSE_TIME:
                     action, price = "EOD", c_ent.close
-                elif bias.direction == "BULLISH" and pos.held > 6:
+                # BUG FIX #15: Bias flip min held from config (was hardcoded 6)
+                elif bias.direction == "BULLISH" and pos.held > BIAS_FLIP_MIN_HELD:
                     action, price = "BIAS_FLIP", c_ent.close
                 elif pos.held >= max_candles:  # BUG FIX #6: proper time exit
                     action, price = "TIME", c_ent.close
                 else:
+                    # BUG FIX #15: BE trigger uses config multiplier (was hardcoded 1.0)
                     if not pos._be_done:
                         profit = pos.entry - c_ent.low
-                        if profit >= pos.risk:
+                        if profit >= pos.risk * BE_TRIGGER_RISK_MULT:
                             pos.sl = pos.entry - 1
                             pos._be_done = True
-                    elif pos.held % 3 == 0:
+                    # BUG FIX #15: Trailing stop uses config toggle and frequency
+                    elif TRAILING_STOP_ENABLED and pos.held % TRAIL_EVERY_N_CANDLES == 0:
                         sl_cand = buf_entry.last(15)
                         new_sl = swing_high(sl_cand, 15)
                         if new_sl and new_sl < pos.sl:

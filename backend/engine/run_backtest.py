@@ -126,13 +126,12 @@ def _fetch_data_if_needed(tokens, interval, from_date, to_date,
             except Exception:
                 pass
 
-    # 3. Fall back to sample data — ALWAYS try if API failed.
-    #    WHY: Sample data is used as an INTERNAL fallback only when the Kite API
-    #    is unavailable. This is NOT a user-facing toggle anymore — it's a system
+    # 3. Fall back to sample data — only when use_sample_data is True.
+    #    WHY: When a valid Kite token is available, we prefer real data and
+    #    don't silently fall back to synthetic data (which could give misleading
+    #    backtest results). When no token is available, sample data is the
     #    safety net to prevent "No candle data available" RuntimeError crashes.
-    #    The backtest always attempts real data first (cache, then API), and only
-    #    falls back to synthetic data when both fail.
-    if api_fetch_failed:
+    if api_fetch_failed and use_sample_data:
         # Determine which symbol this token list corresponds to
         symbol = None
         for sym, sym_tokens in _TOKEN_SYMBOL_MAP.items():
@@ -195,7 +194,8 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
                 - daily_risk_pct (float): Daily risk % (default: from config)
                 - max_open_positions (int): Max open positions (default: from config)
                 - max_daily_trades (int): Max daily trades (default: from config)
-                - use_sample_data (bool): Use sample data if API fails (default: True)
+                - max_daily_trades_enabled (bool): Enable max daily trades limit (default: True)
+                - use_sample_data (bool): Use sample data if API fails (default: True when no Kite token, False otherwise)
 
     Returns:
         dict: Complete backtest results with method_a and method_b data.
@@ -214,8 +214,17 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
     max_open_positions = int(p.get("max_open_positions", MAX_OPEN_POSITIONS))
     max_daily_trades = int(p.get("max_daily_trades", MAX_DAILY_TRADES))
     max_daily_trades_enabled = bool(p.get("max_daily_trades_enabled", True))
-    # use_sample_data is always True internally — no longer a user toggle
-    use_sample_data = True
+    # Default use_sample_data to True only when no Kite token is available.
+    # When a valid token exists, we prefer real data and don't silently
+    # fall back to synthetic data (which could give misleading backtest results).
+    use_sample_data = p.get("use_sample_data", None)
+    if use_sample_data is None:
+        try:
+            from .token_manager import token_status
+            _token_info = token_status()
+            use_sample_data = not bool(_token_info.get("valid", False))
+        except Exception:
+            use_sample_data = True
 
     # ── Parse date range ──
     try:
@@ -242,7 +251,7 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
     log.info("Period: %s → %s | Capital: ₹%s", from_date, to_date, f"{capital:,}")
     log.info("Symbol: %s | TF: %s | Method: %s | SL_ATR: %s | Min_RR: %s | Moneyness: %s",
              symbol, timeframe, method, sl_atr, min_rr, moneyness)
-    log.info("Sample data as fallback: always enabled (internal safety net)")
+    log.info("Sample data as fallback: %s", "enabled (no Kite token)" if use_sample_data else "disabled (Kite token available)")
     _progress(phase="fetching", message=f"Fetching data for {symbol} ({from_date} → {to_date})...", pct=5)
 
     # Load data
@@ -467,6 +476,7 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
             "daily_risk_pct": daily_risk_pct,
             "max_open_positions": max_open_positions,
             "max_daily_trades": max_daily_trades,
+            "max_daily_trades_enabled": max_daily_trades_enabled,
             "use_sample_data": use_sample_data,
         },
         "method_a_compounding": results_a,

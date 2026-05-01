@@ -316,10 +316,8 @@ async def run_backtest(request: BacktestRunRequest = None):
         }
 
     # Build params dict from request, filtering out None values
-    # NOTE: use_sample_data is NO LONGER a user-facing toggle.
-    # The system always uses sample data as an INTERNAL fallback when the
-    # Kite API is unavailable. This ensures backtests never crash with
-    # "No candle data available" errors.
+    # NOTE: use_sample_data defaults to True when no Kite token is available,
+    # and False when a valid token exists (prefer real data over synthetic).
     params = {}
     if request:
         for key in ["symbol", "timeframe", "method", "from_date", "to_date",
@@ -329,8 +327,18 @@ async def run_backtest(request: BacktestRunRequest = None):
             val = getattr(request, key, None)
             if val is not None:
                 params[key] = val
-    # Always enable sample data as internal fallback
-    params["use_sample_data"] = True
+    # Default use_sample_data to True only when no Kite token is available.
+    # When a valid token exists, we prefer real data and don't silently
+    # fall back to synthetic data (which could give misleading backtest results).
+    _has_valid_token = False
+    try:
+        from engine.token_manager import token_status
+        _token_info = token_status()
+        _has_valid_token = bool(_token_info.get("valid", False))
+    except Exception:
+        pass
+    if "use_sample_data" not in params:
+        params["use_sample_data"] = not _has_valid_token
 
     log.info("Backtest: Request received with params=%s — starting in background thread", params)
 
