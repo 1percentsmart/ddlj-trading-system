@@ -154,7 +154,13 @@ class TelegramNotifier:
         # are silently dropped or the bot gets temporarily banned.
         # We track send timestamps in a sliding window to enforce our limit.
         self._message_timestamps: deque = deque(maxlen=MAX_MESSAGES_PER_MINUTE)
-        self._rate_limit_lock = asyncio.Lock() if asyncio.get_event_loop().is_running() else None
+        # Fix: asyncio.get_event_loop() is deprecated in Python 3.12+
+        # Use asyncio.get_running_loop() which only succeeds if a loop is already running
+        try:
+            asyncio.get_running_loop()
+            self._rate_limit_lock = asyncio.Lock()
+        except RuntimeError:
+            self._rate_limit_lock = None
 
         # ── HTTP client (lazy initialization) ──
         # WHY: We don't import httpx at module level because it might not

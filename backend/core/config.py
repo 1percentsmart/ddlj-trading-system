@@ -72,7 +72,17 @@ def _detect_project_root() -> Path:
 
 
 PROJECT_ROOT = _detect_project_root()
-BACKEND_DIR = PROJECT_ROOT / "backend"
+
+# Detect BACKEND_DIR: On Railway (Docker), main.py lives at PROJECT_ROOT (/app),
+# so BACKEND_DIR == PROJECT_ROOT. Locally, main.py is at PROJECT_ROOT/backend/main.py,
+# so BACKEND_DIR == PROJECT_ROOT / "backend".
+# We check for the presence of main.py and core/ at PROJECT_ROOT to decide.
+if (PROJECT_ROOT / "main.py").exists() and (PROJECT_ROOT / "core").is_dir():
+    # We are already inside the backend directory (e.g., /app in Docker)
+    BACKEND_DIR = PROJECT_ROOT
+else:
+    # We are at the monorepo root; backend is a subdirectory
+    BACKEND_DIR = PROJECT_ROOT / "backend"
 
 
 # ============================================================================
