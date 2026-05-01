@@ -248,6 +248,9 @@ class BacktestRunRequest(BaseModel):
     """Request body for running a backtest with user-configurable parameters."""
     symbol: Optional[str] = "both"
     timeframe: Optional[str] = "all"
+    # Accept both internal names (method_a/method_b) and human-readable
+    # aliases (compounding/monthly) for convenience. The mapping is
+    # normalised in the route handler before passing to the engine.
     method: Optional[str] = "both"
     from_date: Optional[str] = None
     to_date: Optional[str] = None
@@ -259,6 +262,16 @@ class BacktestRunRequest(BaseModel):
     max_open_positions: Optional[int] = None
     max_daily_trades: Optional[int] = None
     max_daily_trades_enabled: Optional[bool] = True
+
+    # Alias mapping: human-readable → internal engine names
+    METHOD_ALIASES: dict = {
+        "compounding": "method_a",
+        "monthly": "method_b",
+    }
+
+    def normalised_method(self) -> str:
+        """Return the method value mapped to internal engine names."""
+        return self.METHOD_ALIASES.get(self.method, self.method)
 
 
 # ── Global backtest state tracker ─────────────────────────────────────
@@ -320,13 +333,18 @@ async def run_backtest(request: BacktestRunRequest = None):
     # and False when a valid token exists (prefer real data over synthetic).
     params = {}
     if request:
-        for key in ["symbol", "timeframe", "method", "from_date", "to_date",
+        # Normalise the method parameter so both "compounding"/"method_a"
+        # and "monthly"/"method_b" are accepted and mapped correctly.
+        normalised = request.normalised_method()
+        for key in ["symbol", "timeframe", "from_date", "to_date",
                      "capital", "sl_atr", "min_rr", "moneyness",
                      "daily_risk_pct", "max_open_positions", "max_daily_trades",
                      "max_daily_trades_enabled"]:
             val = getattr(request, key, None)
             if val is not None:
                 params[key] = val
+        # Always use the normalised method value
+        params["method"] = normalised
     # Default use_sample_data to True only when no Kite token is available.
     # When a valid token exists, we prefer real data and don't silently
     # fall back to synthetic data (which could give misleading backtest results).
@@ -487,6 +505,8 @@ async def backtest_status():
                     "configs_tested": len(method_a) + len(method_b),
                     "method_a_top": method_a,
                     "method_b_top": method_b,
+                    "data_sources": data.get("data_sources", {}),
+                    "has_synthetic_data": data.get("has_synthetic_data", False),
                 },
             }
         except Exception as e:

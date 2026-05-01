@@ -119,7 +119,7 @@ export interface BacktestRunResult {
 export interface BacktestStatusResult {
   status: string;
   message?: string;
-  progress?: number | BacktestProgress; // Can be number (legacy) or object (current)
+  progress?: BacktestProgress; // Backend always sends an object with .pct
   elapsed_seconds?: number;
   started_at?: string;
   params?: BacktestRunConfig;
@@ -129,6 +129,8 @@ export interface BacktestStatusResult {
     configs_tested: number;
     method_a_top: Record<string, BacktestConfigResult>;
     method_b_top: Record<string, BacktestConfigResult>;
+    data_sources?: Record<string, string>;
+    has_synthetic_data?: boolean;
   } | null;
 }
 

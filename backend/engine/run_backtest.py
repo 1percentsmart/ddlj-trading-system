@@ -76,7 +76,8 @@ _TOKEN_SYMBOL_MAP = {
 
 
 def _fetch_data_if_needed(tokens, interval, from_date, to_date,
-                          use_sample_data=False, progress_callback=None):
+                          use_sample_data=False, progress_callback=None,
+                          source_tracker=None):
     """Load from cache or fetch from API. Fall back to sample data if both fail.
 
     Args:
@@ -86,6 +87,8 @@ def _fetch_data_if_needed(tokens, interval, from_date, to_date,
         to_date: End date for data.
         use_sample_data: If True, generate sample data when API fetch fails.
         progress_callback: Optional callback for progress updates.
+        source_tracker: Optional dict to populate with data source info.
+            Key: token_interval (e.g. "12345_15minute"), Value: "cache"|"api"|"sample"|"none"
 
     Returns:
         list[dict]: Raw candle data (Kite API format).
@@ -94,6 +97,9 @@ def _fetch_data_if_needed(tokens, interval, from_date, to_date,
     cached = load_cached_data(tokens, interval)
     if cached:
         log.info("Loaded %d candles from cache for tokens=%s interval=%s", len(cached), tokens, interval)
+        if source_tracker is not None:
+            for t in tokens:
+                source_tracker[f"{t}_{interval}"] = "cache"
         return cached
 
     # 2. Try fetching from Kite API
@@ -109,6 +115,9 @@ def _fetch_data_if_needed(tokens, interval, from_date, to_date,
         if all_data:
             log.info("API fetch successful: %d candles for tokens=%s interval=%s",
                      len(all_data), tokens, interval)
+            if source_tracker is not None:
+                for t in tokens:
+                    source_tracker[f"{t}_{interval}"] = "api"
             return all_data
         else:
             log.warning("API fetch returned 0 candles for tokens=%s interval=%s", tokens, interval)
@@ -160,6 +169,9 @@ def _fetch_data_if_needed(tokens, interval, from_date, to_date,
                 )
                 if sample:
                     log.info("Generated %d sample candles for %s (%s)", len(sample), symbol, interval)
+                    if source_tracker is not None:
+                        for t in tokens:
+                            source_tracker[f"{t}_{interval}"] = "sample"
                     return sample
                 else:
                     log.error("Sample data generation returned empty for %s (%s)", symbol, interval)
@@ -172,6 +184,9 @@ def _fetch_data_if_needed(tokens, interval, from_date, to_date,
     log.error("No candle data available for tokens=%s interval=%s. "
               "Cache empty, API fetch failed, and sample data generation also failed.",
               tokens, interval)
+    if source_tracker is not None:
+        for t in tokens:
+            source_tracker[f"{t}_{interval}"] = "none"
     return []
 
 
@@ -281,16 +296,19 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
         bn_5m_raw = _fetch_data_if_needed(
             [BN_INDEX_TOKEN], "5minute", from_date, to_date,
             use_sample_data=use_sample_data, progress_callback=_progress,
+            source_tracker=data_sources,
         )
         _progress(phase="fetching", message="Fetching BANKNIFTY 15m data...", pct=15)
         bn_15m_raw = _fetch_data_if_needed(
             [BN_INDEX_TOKEN], "15minute", from_date, to_date,
             use_sample_data=use_sample_data, progress_callback=_progress,
+            source_tracker=data_sources,
         )
         _progress(phase="fetching", message="Fetching BANKNIFTY 60m data...", pct=20)
         bn_60m_raw = _fetch_data_if_needed(
             [BN_INDEX_TOKEN], "60minute", from_date, to_date,
             use_sample_data=use_sample_data, progress_callback=_progress,
+            source_tracker=data_sources,
         )
         bn_5m = filter_candles_by_date(parse_candles(bn_5m_raw, "BANKNIFTY", "5m"), from_date, to_date)
         bn_15m = filter_candles_by_date(parse_candles(bn_15m_raw, "BANKNIFTY", "15m"), from_date, to_date)
@@ -320,16 +338,19 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
         nf_5m_raw = _fetch_data_if_needed(
             [NF_INDEX_TOKEN], "5minute", from_date, to_date,
             use_sample_data=use_sample_data, progress_callback=_progress,
+            source_tracker=data_sources,
         )
         _progress(phase="fetching", message="Fetching NIFTY 15m data...", pct=30)
         nf_15m_raw = _fetch_data_if_needed(
             [NF_INDEX_TOKEN], "15minute", from_date, to_date,
             use_sample_data=use_sample_data, progress_callback=_progress,
+            source_tracker=data_sources,
         )
         _progress(phase="fetching", message="Fetching NIFTY 60m data...", pct=35)
         nf_60m_raw = _fetch_data_if_needed(
             [NF_INDEX_TOKEN], "60minute", from_date, to_date,
             use_sample_data=use_sample_data, progress_callback=_progress,
+            source_tracker=data_sources,
         )
         nf_5m = filter_candles_by_date(parse_candles(nf_5m_raw, "NIFTY", "5m"), from_date, to_date)
         nf_15m = filter_candles_by_date(parse_candles(nf_15m_raw, "NIFTY", "15m"), from_date, to_date)
@@ -479,6 +500,8 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
             "max_daily_trades_enabled": max_daily_trades_enabled,
             "use_sample_data": use_sample_data,
         },
+        "data_sources": data_sources,
+        "has_synthetic_data": any(v == "sample" for v in data_sources.values()),
         "method_a_compounding": results_a,
         "method_b_monthly_batch": results_b,
     }

@@ -286,6 +286,7 @@ export default function BacktestPage() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [activeMethod, setActiveMethod] = useState<'all' | 'a' | 'b'>('all');
   const [hasResults, setHasResults] = useState(false);
+  const [hasSyntheticData, setHasSyntheticData] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
   const [showConfig, setShowConfig] = useState(true);
 
@@ -321,13 +322,14 @@ export default function BacktestPage() {
         if (status.status === 'completed' && status.last_results) {
           setResults(flattenResults(status));
           setHasResults(true);
+          setHasSyntheticData(status.last_results?.has_synthetic_data ?? false);
           setProgress(100);
           setProgressMsg('Results loaded from previous run');
         } else if (status.status === 'running') {
           setIsRunning(true);
           const progObj = status.progress;
-          const pct = typeof progObj === 'object' && progObj !== null ? (progObj as BacktestProgress).pct ?? 0 : typeof progObj === 'number' ? progObj : 0;
-          const msg = typeof progObj === 'object' && progObj !== null ? (progObj as BacktestProgress).message ?? status.message ?? 'Running...' : status.message ?? 'Running...';
+          const pct = progObj?.pct ?? 0;
+          const msg = progObj?.message ?? status.message ?? 'Running...';
           setProgress(pct);
           setProgressMsg(msg);
           startTimeRef.current = Date.now() - (status.elapsed_seconds || 0) * 1000;
@@ -368,16 +370,17 @@ export default function BacktestPage() {
     pollRef.current = setInterval(async () => {
       try {
         const status = await backtestApi.getStatus();
-        // Progress can be a number (legacy) or an object with pct/message
+        // Progress is an object with .pct and .message
         const progObj = status.progress;
-        const pct = typeof progObj === 'object' && progObj !== null ? (progObj as BacktestProgress).pct ?? 0 : typeof progObj === 'number' ? progObj : 0;
-        const msg = typeof progObj === 'object' && progObj !== null ? (progObj as BacktestProgress).message ?? status.message ?? '' : status.message ?? '';
+        const pct = progObj?.pct ?? 0;
+        const msg = progObj?.message ?? status.message ?? '';
         setProgress(pct);
         setProgressMsg(msg);
 
         if (status.status === 'completed' && status.last_results) {
           setResults(flattenResults(status));
           setHasResults(true);
+          setHasSyntheticData(status.last_results?.has_synthetic_data ?? false);
           setIsRunning(false);
           if (pollRef.current) clearInterval(pollRef.current);
           if (elapsedRef.current) clearInterval(elapsedRef.current);
@@ -771,6 +774,21 @@ export default function BacktestPage() {
             <Progress value={progress} className="h-2" />
           </CardContent>
         </Card>
+      )}
+
+      {/* Synthetic Data Warning Banner */}
+      {hasResults && hasSyntheticData && (
+        <div className="bg-red-950/50 border border-red-500/40 rounded-lg p-3 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-red-300 font-semibold text-sm">Results based on synthetic (sample) data</p>
+            <p className="text-red-400/80 text-xs mt-0.5">
+              The Kite API was unavailable during this run, so the backtest used generated sample data instead of real market data.
+              These results may not reflect actual market conditions and should not be used for trading decisions.
+              Connect a valid Kite access token and re-run for reliable results.
+            </p>
+          </div>
+        </div>
       )}
 
       {/* Summary Stats Cards */}
