@@ -227,7 +227,10 @@ async def lifespan(app: FastAPI):
             """Handle SIGTERM/SIGINT — save state and exit cleanly."""
             log.info("Received signal %s — initiating graceful shutdown", signum)
             _graceful_shutdown()
-            sys.exit(0)
+            # Raise SystemExit without sys.exit() to avoid CancelledError cascade
+            # in uvicorn's asyncio event loop. uvicorn catches this and shuts
+            # down cleanly via its own lifespan handler.
+            raise SystemExit(0)
 
         signal.signal(signal.SIGTERM, handle_shutdown)
         signal.signal(signal.SIGINT, handle_shutdown)
@@ -276,14 +279,14 @@ async def lifespan(app: FastAPI):
     # Save session state
     if session_recovery and engine_manager._trader:
         try:
-            session_recovery.save_session(
-                capital=engine_manager._trader.current_capital,
-                daily_pnl=engine_manager._trader.daily_pnl,
-                open_positions=engine_manager._trader.open_positions,
-                closed_trades=engine_manager._trader.closed_trades,
-                config=engine_manager._trader._config,
-                clean_shutdown=True,
-            )
+            session_recovery.save_session({
+                "capital": engine_manager._trader.current_capital,
+                "daily_pnl": engine_manager._trader.daily_pnl,
+                "positions": engine_manager._trader.open_positions,
+                "trades_today": engine_manager._trader.closed_trades,
+                "config": engine_manager._trader._config,
+                "clean_shutdown": True,
+            })
             log.info("Session state saved")
         except Exception as e:
             log.error("Error saving session: %s", e)
@@ -460,14 +463,14 @@ def _graceful_shutdown():
     # 4. Save session state
     if session_recovery and engine_manager._trader:
         try:
-            session_recovery.save_session(
-                capital=engine_manager._trader.current_capital,
-                daily_pnl=engine_manager._trader.daily_pnl,
-                open_positions=engine_manager._trader.open_positions,
-                closed_trades=engine_manager._trader.closed_trades,
-                config=engine_manager._trader._config,
-                clean_shutdown=True,
-            )
+            session_recovery.save_session({
+                "capital": engine_manager._trader.current_capital,
+                "daily_pnl": engine_manager._trader.daily_pnl,
+                "positions": engine_manager._trader.open_positions,
+                "trades_today": engine_manager._trader.closed_trades,
+                "config": engine_manager._trader._config,
+                "clean_shutdown": True,
+            })
             log.info("Session state saved")
         except Exception as e:
             log.error("Error saving session: %s", e)
@@ -476,29 +479,32 @@ def _graceful_shutdown():
     # We can't simply await here (sync context), so try to run in the
     # existing event loop or create a new one as fallback.
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop and loop.is_running():
             # Loop is running — schedule the coroutine (fire-and-forget)
             asyncio.ensure_future(close_db())
-        else:
+        elif loop:
             # Loop exists but not running — run to completion
             loop.run_until_complete(close_db())
-    except RuntimeError:
-        # No event loop at all — create one and run
-        try:
+        else:
+            # No event loop at all — create one and run
             asyncio.run(close_db())
-        except Exception as e:
-            log.error("Could not close database from signal handler: %s", e)
     except Exception as e:
-        log.error("Error closing database: %s", e)
+        log.error("Could not close database from signal handler: %s", e)
     else:
         log.info("Database closed")
 
     # 6. Send Telegram notification (fire-and-forget)
     if telegram_notifier:
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+            if loop and loop.is_running():
                 asyncio.ensure_future(
                     telegram_notifier.send_system_alert(
                         "Backend Shutdown", "DDLJ v10.3 backend is going offline"
