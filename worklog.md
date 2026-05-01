@@ -64,3 +64,42 @@ Stage Summary:
 - Railway deployment requires manual redeploy from dashboard
 - Version 10.3.0 in code, Railway still running 10.1.0 (old)
 - User needs to go to Railway dashboard and click "Redeploy"
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix Railway deployment, backend bugs, and all remaining audit issues
+
+Work Log:
+- Tested backend startup locally with venv — all dependencies install, app starts on uvicorn
+- Fixed critical save_session() TypeError: was passing keyword args instead of dict
+  - Both call sites in main.py (shutdown handler + lifespan shutdown) fixed
+  - Fixed key names: 'positions' not 'open_positions', 'trades_today' not 'closed_trades'
+- Fixed signal handler: sys.exit(0) → raise SystemExit(0) to avoid CancelledError cascade
+- Fixed asyncio.get_event_loop() → get_running_loop() in shutdown function
+- Added backtest method alias mapping in BacktestRunRequest:
+  - "compounding" → "method_a", "monthly" → "method_b"
+  - Prevents silent empty results if frontend sends human-readable method names
+- Fixed progress type: removed `number` from BacktestStatusResult.progress union
+  - Cleaned up defensive typeof checks — now uses safe .?. optional chaining
+- Added data-source tracking: source_tracker param in _fetch_data_if_needed
+  - Tracks "cache"|"api"|"sample"|"none" per token+interval
+  - Added data_sources and has_synthetic_data to backtest results and API response
+- Added red warning banner on frontend when results are based on synthetic data
+- Added normalizeTrade() and normalizePosition() to api.ts (fixes stale test imports)
+- Unified version numbers to 10.3.0:
+  - backend/engine/__init__.py: 9.1.0 → 10.3.0
+  - backend/services/session_recovery.py: 10.1.0 → 10.3.0
+  - package.json: 0.2.0 → 10.3.0
+- Fixed candle data integrity:
+  - Sort cached candle data by timestamp after loading (load_cached_data)
+  - Added dedup + sort to API fetch path in _fetch_data_if_needed
+  - Prevents wrong EMA calculations from unsorted/interleaved candles
+- Committed: 7c95223, 75e746f, b47003a, 301f9fa (4 commits pushed to main)
+
+Stage Summary:
+- All critical audit bugs fixed across 4 commits
+- Backend verified: app starts, health endpoint returns 200
+- Frontend verified: Next.js build succeeds
+- Railway will auto-deploy from GitHub push (if integration is set up)
+- Remaining: Railway CLI can't login non-interactively; user should check Railway dashboard

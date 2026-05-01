@@ -45,7 +45,10 @@ class KiteDataFetcher:
 
     # WHY: Cache directory derived from project root — no hardcoded paths.
     #      Can be overridden via CACHE_DIR env var.
-    CACHE_DIR = Path(os.getenv("CACHE_DIR", str(Path(__file__).resolve().parent.parent.parent / "kite_cache_v10")))
+    # FIX: Use 2 levels up (engine/ → app/) not 3 levels (would go to / in Docker).
+    #      In Docker: /app/engine/data_fetcher.py → parent.parent = /app (correct)
+    #      Locally: backend/engine/data_fetcher.py → parent.parent = backend/ (correct)
+    CACHE_DIR = Path(os.getenv("CACHE_DIR", str(Path(__file__).resolve().parent.parent / "kite_cache_v10")))
 
     def __init__(self, api_key: str, access_token: str, rate_limit_delay: float = 0.35):
         try:

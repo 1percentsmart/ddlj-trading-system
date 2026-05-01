@@ -49,6 +49,7 @@ RUN useradd --create-home --shell /bin/bash ddlj && \
 # IMPORTANT: On Railway, the app runs from /app which IS the backend dir.
 # The core/config.py module uses this env var to detect PROJECT_ROOT.
 ENV PROJECT_ROOT=/app
+ENV CACHE_DIR=/app/kite_cache_v10
 
 # Switch to non-root user
 USER ddlj
