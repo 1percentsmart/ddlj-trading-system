@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * DDLJ Trading System — Main Dashboard Page
- * ============================================
+ * DDLJ Trading System — Main Page
+ * ====================================
  * Single-page application with sidebar navigation, hash-based URL routing,
- * and content views.
+ * and content views. All pages are rendered in this single route.
  */
 
 import { useEffect } from 'react';
@@ -44,13 +44,11 @@ export default function Home() {
 
   // Hash-based URL routing
   useEffect(() => {
-    // Read initial hash
     const page = pageFromHash();
     if (page !== activePage) {
       setActivePage(page);
     }
 
-    // Listen for hash changes (browser back/forward)
     const handleHashChange = () => {
       const newPage = pageFromHash();
       if (newPage !== activePage) {
