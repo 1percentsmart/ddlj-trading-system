@@ -49,7 +49,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool, StaticPool
 
 # ── Import app config (centralized env var reading) ──
 from core.config import DATABASE_URL, DATABASE_POOL_SIZE, DATABASE_ECHO, IS_PRODUCTION
@@ -208,20 +208,29 @@ def get_engine() -> AsyncEngine:
                             _original_host, pooler_host,
                         )
 
-            _engine = create_async_engine(
-                url,
-                pool_size=DATABASE_POOL_SIZE,
-                max_overflow=10,        # Allow 10 extra connections during bursts
-                pool_timeout=30,        # Wait 30s for a connection from pool
-                pool_recycle=1800,      # Recycle connections after 30 min
-                pool_pre_ping=True,     # Verify connections before use
-                connect_args={
-                    # Supabase's transaction pooler/PgBouncer does not support
-                    # asyncpg prepared statement caching reliably.
-                    "prepared_statement_cache_size": 0,
-                },
-                echo=DATABASE_ECHO,     # Log SQL statements in dev mode
-            )
+            # Supabase's transaction pooler/PgBouncer does not support cached
+            # asyncpg prepared statements reliably. SQLAlchemy documents this
+            # as a URL DBAPI argument for the asyncpg dialect.
+            if "prepared_statement_cache_size=" not in url:
+                url = f"{url}{'&' if '?' in url else '?'}prepared_statement_cache_size=0"
+
+            engine_kwargs = {
+                "pool_pre_ping": True,     # Verify connections before use
+                "echo": DATABASE_ECHO,     # Log SQL statements in dev mode
+            }
+            if "pooler.supabase.com" in url or ":6543/" in url:
+                # Let PgBouncer own pooling; don't stack SQLAlchemy's QueuePool
+                # on top of Supabase's transaction pooler.
+                engine_kwargs["poolclass"] = NullPool
+            else:
+                engine_kwargs.update({
+                    "pool_size": DATABASE_POOL_SIZE,
+                    "max_overflow": 10,        # Allow 10 extra connections during bursts
+                    "pool_timeout": 30,        # Wait 30s for a connection from pool
+                    "pool_recycle": 1800,      # Recycle connections after 30 min
+                })
+
+            _engine = create_async_engine(url, **engine_kwargs)
         else:
             # ── DEVELOPMENT: Local SQLite ──
             _db_type = "sqlite"
