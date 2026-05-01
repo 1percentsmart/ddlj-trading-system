@@ -103,3 +103,28 @@ Stage Summary:
 - Frontend verified: Next.js build succeeds
 - Railway will auto-deploy from GitHub push (if integration is set up)
 - Remaining: Railway CLI can't login non-interactively; user should check Railway dashboard
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fix Railway redeploy failure — CACHE_DIR PermissionError + Dockerfile path issues
+
+Work Log:
+- Analyzed Railway build log: Railway was using backend/Dockerfile instead of root Dockerfile
+  - Root cause: railway.json didn't specify dockerfilePath; Railway auto-discovered backend/Dockerfile
+- Found CRITICAL bug: engine/data_fetcher.py CACHE_DIR resolves to /kite_cache_v10 in Docker
+  - Path went 3 levels up: /app/engine/data_fetcher.py → parent³ = / (filesystem root)
+  - Non-root ddlj user can't create /kite_cache_v10 → PermissionError → crash
+  - Fixed to 2 levels up: /app/engine → parent² = /app (correct)
+- Added ENV CACHE_DIR=/app/kite_cache_v10 to both Dockerfiles (belt-and-suspenders)
+- Fixed railway.json: added explicit dockerfilePath: "Dockerfile"
+- Added backend/railway.json as fallback (in case Railway service Root Directory = backend/)
+- All imports verified with PROJECT_ROOT=/app and CACHE_DIR=/app/kite_cache_v10
+- FastAPI TestClient tested: root, health, config endpoints all return 200
+- Committed: a76433d, pushed to main
+
+Stage Summary:
+- CRITICAL CACHE_DIR PermissionError fixed (would crash PaperTrader/backtest in Docker)
+- Railway config fixed to explicitly specify root Dockerfile
+- Railway CLI can't login from this environment — user needs to redeploy from dashboard
+- User should go to Railway dashboard and click "Redeploy" to pick up latest code
