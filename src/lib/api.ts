@@ -15,6 +15,7 @@ export interface EngineStatus {
   engine_running: boolean;
   initialized: boolean;
   error_count: number;
+  last_error?: string | null;
   start_time: string | null;
   stop_time: string | null;
   manually_started?: boolean;
@@ -25,6 +26,18 @@ export interface EngineStatus {
   };
   last_heartbeat: string | null;
   uptime_seconds?: number;
+  running?: boolean;
+  capital?: number;
+  peak_capital?: number;
+  daily_pnl?: number;
+  daily_trade_count?: number;
+  open_positions?: number;
+  total_closed_trades?: number;
+  last_bias?: string;
+  index?: string;
+  entry_tf?: string;
+  bias_tf?: string;
+  live_vix?: number | null;
 }
 
 export interface HealthStatus {
@@ -225,7 +238,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 //   2. Database (from Supabase): uses entry_price, exit_price, gross_pnl, net_pnl
 // These normalizers unify both formats into a single consistent interface.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function normalizeTrade(raw: any): Trade {
   return {
     id: raw.id != null ? String(raw.id) : raw.session_id ?? '',
@@ -255,7 +267,6 @@ export function normalizeTrade(raw: any): Trade {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function normalizePosition(raw: any): Position {
   return {
     id: raw.id != null ? String(raw.id) : '',
@@ -280,8 +291,8 @@ export function normalizePosition(raw: any): Position {
 // ── Engine ──────────────────────────────────────────────────────
 export const engineApi = {
   getStatus: () => request<EngineStatus>('/status'),
-  start: () => request<{ ok: boolean }>('/start', { method: 'POST' }),
-  stop: () => request<{ ok: boolean }>('/stop', { method: 'POST' }),
+  start: () => request<{ status: string; message: string }>('/start', { method: 'POST' }),
+  stop: () => request<{ status: string; message: string }>('/stop', { method: 'POST' }),
   getReadiness: () => request<ReadinessCheck>('/readiness'),
 };
 

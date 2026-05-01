@@ -215,6 +215,11 @@ def get_engine() -> AsyncEngine:
                 pool_timeout=30,        # Wait 30s for a connection from pool
                 pool_recycle=1800,      # Recycle connections after 30 min
                 pool_pre_ping=True,     # Verify connections before use
+                connect_args={
+                    # Supabase's transaction pooler/PgBouncer does not support
+                    # asyncpg prepared statement caching reliably.
+                    "prepared_statement_cache_size": 0,
+                },
                 echo=DATABASE_ECHO,     # Log SQL statements in dev mode
             )
         else:

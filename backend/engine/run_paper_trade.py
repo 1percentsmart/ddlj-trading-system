@@ -27,7 +27,7 @@ USAGE:
 IMPORTANT:
     Before running, make sure you have a valid Kite access token.
     If you don't have one:
-      1. Visit: https://kite.trade/connect/login?api_key=cjzjv3v9y3lox6mh&v=3
+      1. Visit: https://kite.trade/connect/login?api_key=YOUR_API_KEY&v=3
       2. After login, copy the request_token from the redirect URL
       3. Run:
          from ddlj_v9.token_manager import exchange_request_token

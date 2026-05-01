@@ -89,6 +89,8 @@ async def health_check(request: Request, mgr: EngineManager = Depends(get_engine
         # (main imports routes, so routes must NOT import main)
         health_monitor = getattr(request.app.state, "health_monitor", None)
         if health_monitor:
+            if hasattr(health_monitor, "get_health_async"):
+                return await health_monitor.get_health_async()
             return health_monitor.get_health()
     except Exception:
         pass

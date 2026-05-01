@@ -314,54 +314,14 @@ export default function BacktestPage() {
     return flat;
   }, []);
 
-  // Check initial status on mount
-  useEffect(() => {
-    const checkInitial = async () => {
-      try {
-        const status = await backtestApi.getStatus();
-        if (status.status === 'completed' && status.last_results) {
-          setResults(flattenResults(status));
-          setHasResults(true);
-          setHasSyntheticData(status.last_results?.has_synthetic_data ?? false);
-          setProgress(100);
-          setProgressMsg('Results loaded from previous run');
-        } else if (status.status === 'running') {
-          setIsRunning(true);
-          const progObj = status.progress;
-          const pct = progObj?.pct ?? 0;
-          const msg = progObj?.message ?? status.message ?? 'Running...';
-          setProgress(pct);
-          setProgressMsg(msg);
-          startTimeRef.current = Date.now() - (status.elapsed_seconds || 0) * 1000;
-          startPolling();
-        } else if (status.status === 'error') {
-          toast.error('Previous backtest failed', {
-            description: status.message || 'Unknown error',
-          });
-        }
-      } catch {
-        // Silently ignore — backend may be unreachable
-      } finally {
-        setInitialLoad(false);
-      }
-    };
-    checkInitial();
-  }, [flattenResults]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-      if (elapsedRef.current) clearInterval(elapsedRef.current);
-    };
-  }, []);
-
   // Start polling for status
-  const startPolling = useCallback(() => {
+  const startPolling = useCallback((resetStartTime = true) => {
     if (pollRef.current) clearInterval(pollRef.current);
     if (elapsedRef.current) clearInterval(elapsedRef.current);
 
-    startTimeRef.current = Date.now();
+    if (resetStartTime) {
+      startTimeRef.current = Date.now();
+    }
 
     elapsedRef.current = setInterval(() => {
       setElapsed(Math.round((Date.now() - startTimeRef.current) / 1000));
@@ -401,6 +361,48 @@ export default function BacktestPage() {
       }
     }, 1500);
   }, [flattenResults]);
+
+  // Check initial status on mount
+  useEffect(() => {
+    const checkInitial = async () => {
+      try {
+        const status = await backtestApi.getStatus();
+        if (status.status === 'completed' && status.last_results) {
+          setResults(flattenResults(status));
+          setHasResults(true);
+          setHasSyntheticData(status.last_results?.has_synthetic_data ?? false);
+          setProgress(100);
+          setProgressMsg('Results loaded from previous run');
+        } else if (status.status === 'running') {
+          setIsRunning(true);
+          const progObj = status.progress;
+          const pct = progObj?.pct ?? 0;
+          const msg = progObj?.message ?? status.message ?? 'Running...';
+          setProgress(pct);
+          setProgressMsg(msg);
+          startTimeRef.current = Date.now() - (status.elapsed_seconds || 0) * 1000;
+          startPolling(false);
+        } else if (status.status === 'error') {
+          toast.error('Previous backtest failed', {
+            description: status.message || 'Unknown error',
+          });
+        }
+      } catch {
+        // Silently ignore — backend may be unreachable
+      } finally {
+        setInitialLoad(false);
+      }
+    };
+    checkInitial();
+  }, [flattenResults, startPolling]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (elapsedRef.current) clearInterval(elapsedRef.current);
+    };
+  }, []);
 
   // Run backtest — sends ALL configuration to the backend
   const handleRun = useCallback(async () => {
