@@ -113,12 +113,22 @@ def _fetch_data_if_needed(tokens, interval, from_date, to_date,
             data = fetcher.fetch_candles_chunked(token, from_date, to_date, interval)
             all_data.extend(data)
         if all_data:
-            log.info("API fetch successful: %d candles for tokens=%s interval=%s",
-                     len(all_data), tokens, interval)
+            # Deduplicate by date string (same as load_cached_data)
+            seen = set()
+            deduped = []
+            for d in all_data:
+                key = d.get("date", "")
+                if key not in seen:
+                    seen.add(key)
+                    deduped.append(d)
+            # Sort by timestamp to ensure chronological order
+            deduped.sort(key=lambda d: d.get("date", ""))
+            log.info("API fetch successful: %d candles (deduped from %d) for tokens=%s interval=%s",
+                     len(deduped), len(all_data), tokens, interval)
             if source_tracker is not None:
                 for t in tokens:
                     source_tracker[f"{t}_{interval}"] = "api"
-            return all_data
+            return deduped
         else:
             log.warning("API fetch returned 0 candles for tokens=%s interval=%s", tokens, interval)
             api_fetch_failed = True

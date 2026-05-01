@@ -201,6 +201,13 @@ def load_cached_data(tokens, interval, cache_dir=None):
             seen.add(key)
             deduped.append(d)
 
+    # Sort by timestamp to ensure chronological order.
+    # WHY: Cache files are loaded in filename-sorted order, which sorts by
+    # token+interval+date_range, NOT by candle timestamps within each chunk.
+    # Without sorting, candles from different chunks may be interleaved,
+    # causing wrong EMA calculations and signal generation.
+    deduped.sort(key=lambda d: d.get("date", ""))
+
     return deduped
 
 
