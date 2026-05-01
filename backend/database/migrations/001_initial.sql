@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS trades (
     option_exit_premium DOUBLE PRECISION,
     option_delta        DOUBLE PRECISION,
     option_iv_entry     DOUBLE PRECISION,
+    option_iv_exit      DOUBLE PRECISION,
     mode                VARCHAR(10) NOT NULL DEFAULT 'futures',
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

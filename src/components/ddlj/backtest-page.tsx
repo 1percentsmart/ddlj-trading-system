@@ -258,6 +258,7 @@ const DEFAULT_CONFIG: BacktestRunConfig = {
   max_open_positions: 2,
   max_daily_trades: 4,
   max_daily_trades_enabled: true,
+  use_sample_data: false,
 };
 
 // ── Main Backtest Page Component ───────────────────────────────
@@ -276,6 +277,7 @@ export default function BacktestPage() {
   const [maxOpenPositions, setMaxOpenPositions] = useState(DEFAULT_CONFIG.max_open_positions!);
   const [maxDailyTradesEnabled, setMaxDailyTradesEnabled] = useState(DEFAULT_CONFIG.max_daily_trades_enabled!);
   const [maxDailyTrades, setMaxDailyTrades] = useState(DEFAULT_CONFIG.max_daily_trades!);
+  const [allowSampleData, setAllowSampleData] = useState(DEFAULT_CONFIG.use_sample_data!);
 
   // Results state
   const [isRunning, setIsRunning] = useState(false);
@@ -427,6 +429,7 @@ export default function BacktestPage() {
       max_open_positions: maxOpenPositions,
       max_daily_trades: maxDailyTradesEnabled ? maxDailyTrades : undefined,
       max_daily_trades_enabled: maxDailyTradesEnabled,
+      use_sample_data: allowSampleData,
     };
 
     try {
@@ -441,7 +444,7 @@ export default function BacktestPage() {
         description: err instanceof Error ? err.message : 'Unknown error',
       });
     }
-  }, [isRunning, symbol, method, fromDate, toDate, capital, slAtr, minRR, moneyness, dailyRiskPct, maxOpenPositions, maxDailyTradesEnabled, maxDailyTrades, startPolling]);
+  }, [isRunning, symbol, method, fromDate, toDate, capital, slAtr, minRR, moneyness, dailyRiskPct, maxOpenPositions, maxDailyTradesEnabled, maxDailyTrades, allowSampleData, startPolling]);
 
   // Toggle expanded row
   const toggleExpand = useCallback((key: string) => {
@@ -741,6 +744,21 @@ export default function BacktestPage() {
                   )}
                 </div>
               </div>
+
+              {/* Data Source Fallback */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Sample Data Fallback</Label>
+                <div className="flex items-center gap-2 h-9">
+                  <Switch
+                    checked={allowSampleData}
+                    onCheckedChange={setAllowSampleData}
+                    id="sample-data-switch"
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {allowSampleData ? 'Allowed' : 'Real data only'}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* Config summary */}
@@ -749,6 +767,7 @@ export default function BacktestPage() {
                 <span className="font-medium">Active config:</span>{' '}
                 {symbol} | TF: {timeframe} | {fromDate} to {toDate} | {formatCurrency(capital)} capital | SL {slAtr}x ATR | RR {minRR}+ | {moneyness} | {dailyRiskPct}% daily risk
                 {maxDailyTradesEnabled && ` | max ${maxDailyTrades} trades/day`}
+                {` | ${allowSampleData ? 'sample fallback allowed' : 'real data only'}`}
               </p>
             </div>
           </CardContent>

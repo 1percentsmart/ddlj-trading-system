@@ -53,12 +53,13 @@ import csv
 import time
 import logging
 import calendar
+import asyncio
 from datetime import datetime, date, timedelta, time as dtime
 from dataclasses import dataclass, asdict
 
 import pytz
 
-from .candle_data import Candle, CandleBuffer, parse_candles, build_htf_from_ltf
+from .candle_data import Candle, CandleBuffer, parse_candles, build_htf_from_ltf, candle_close_time
 from .indicators import swing_high, swing_low
 from .cost_calculator import calc_costs_options
 from .bias_engine import BiasEngine
@@ -242,6 +243,7 @@ class PaperTrader:
             self._config.update(config_override)
 
         # ── Core trading parameters ──
+        self.session_id = datetime.now(IST).strftime("paper_%Y%m%d_%H%M%S")
         self.starting_capital = self._config["STARTING_CAPITAL"]
         self.current_capital = self.starting_capital
         self.peak_capital = self.starting_capital
@@ -835,8 +837,11 @@ class PaperTrader:
             if not raw:
                 return None
 
-            # Parse and return the last candle
+            # Parse and return the latest completed candle. Kite can include the
+            # currently-forming candle in historical responses; processing it
+            # would create unstable/repainting signals.
             candles = []
+            now_ist = datetime.now(IST)
             for d in raw[-5:]:  # Only parse last 5 to save time
                 ts = d.get("date", "")
                 if isinstance(ts, str):
@@ -860,7 +865,8 @@ class PaperTrader:
                     float(d["volume"]), tf
                 ))
 
-            return candles[-1] if candles else None
+            completed = [c for c in candles if candle_close_time(c) <= now_ist]
+            return completed[-1] if completed else None
 
         except Exception as e:
             log.warning("Fetch candle failed: %s", e)
@@ -1512,6 +1518,62 @@ class PaperTrader:
                 ])
         except Exception as e:
             log.warning("Failed to write CSV trade log: %s", e)
+
+        self._persist_trade_to_database(trade)
+
+    def _persist_trade_to_database(self, trade):
+        """
+        Best-effort persistence of completed paper trades.
+
+        JSON/CSV remain local audit logs, but Supabase/Postgres is the durable
+        source the dashboard can read after process restarts.
+        """
+        try:
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                pass
+            else:
+                log.warning("Skipping DB trade persistence from active event loop")
+                return
+
+            async def _save():
+                from database.connection import get_session
+                from database.crud import create_trade
+
+                async for db in get_session():
+                    await create_trade(
+                        db,
+                        session_id=self.session_id,
+                        symbol=trade.symbol,
+                        direction=trade.direction,
+                        entry_price=trade.entry,
+                        exit_price=trade.exit,
+                        entry_time=trade.entry_time,
+                        exit_time=trade.exit_time,
+                        sl=trade.sl,
+                        target=trade.target,
+                        qty=trade.qty,
+                        gross_pnl=trade.gross,
+                        costs=trade.costs,
+                        net_pnl=trade.net,
+                        exit_reason=trade.exit_reason,
+                        rr=trade.rr,
+                        mode=trade.mode,
+                        option_strike=trade.option_strike,
+                        option_type=trade.option_type,
+                        option_entry_premium=trade.option_entry_premium,
+                        option_exit_premium=trade.option_exit_premium,
+                        option_delta=trade.option_delta,
+                        option_iv_entry=trade.option_iv_entry,
+                        option_iv_exit=trade.option_iv_exit,
+                    )
+                    await db.commit()
+                    break
+
+            asyncio.run(_save())
+        except Exception as e:
+            log.warning("Failed to persist trade to database: %s", e)
 
     # ══════════════════════════════════════════════════════════════════
     # NOTIFICATIONS
