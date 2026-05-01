@@ -34,7 +34,7 @@ RUNNING IN PRODUCTION (Railway):
     uvicorn main:app --host 0.0.0.0 --port $PORT
 
 Author: DDLJ Strategy Team
-Version: 10.1.0 (Production — Cloud Deployable)
+Version: 10.3.0 (Production — Cloud Deployable)
 """
 
 import os
@@ -129,7 +129,7 @@ async def lifespan(app: FastAPI):
      10. Register signal handlers (graceful shutdown on SIGTERM)
     """
     log.info("=" * 65)
-    log.info("DDLJ v10.1 Backend — Starting up")
+    log.info("DDLJ v10.3 Backend — Starting up")
     log.info("=" * 65)
 
     # ── 1. Validate configuration ──
@@ -185,7 +185,7 @@ async def lifespan(app: FastAPI):
         try:
             await telegram_notifier.send_system_alert(
                 "Backend Started",
-                "DDLJ v10.1 backend is online and ready"
+                "DDLJ v10.3 backend is online and ready"
             )
             log.info("Telegram notifier initialized and tested")
         except Exception as e:
@@ -236,7 +236,7 @@ async def lifespan(app: FastAPI):
         log.debug("Signal handlers not registered (%s) — normal in non-main thread", e)
 
     log.info("=" * 65)
-    log.info("DDLJ v10.1 Backend — READY")
+    log.info("DDLJ v10.3 Backend — READY")
     log.info("API: http://localhost:%s | Docs: http://localhost:%s/docs",
              os.getenv("PORT", "8000"), os.getenv("PORT", "8000"))
     log.info("Market Guard: %s | Telegram: %s | Token Service: %s",
@@ -295,7 +295,7 @@ async def lifespan(app: FastAPI):
     if telegram_notifier:
         try:
             await telegram_notifier.send_system_alert(
-                "Backend Shutdown", "DDLJ v10.1 backend is going offline"
+                "Backend Shutdown", "DDLJ v10.3 backend is going offline"
             )
         except Exception:
             pass  # Best effort
@@ -501,7 +501,7 @@ def _graceful_shutdown():
             if loop.is_running():
                 asyncio.ensure_future(
                     telegram_notifier.send_system_alert(
-                        "Backend Shutdown", "DDLJ v10.1 backend is going offline"
+                        "Backend Shutdown", "DDLJ v10.3 backend is going offline"
                     )
                 )
         except Exception:
@@ -517,7 +517,7 @@ def _graceful_shutdown():
 app = FastAPI(
     title="DDLJ Trading System",
     description="""
-    DDLJ v10.1 — Live Paper Trading Backend
+    DDLJ v10.3 — Live Paper Trading Backend
 
     An enterprise-grade options trading system for Indian indices (BankNifty/Nifty)
     with real-time data from Zerodha's Kite API. Everything is real EXCEPT
@@ -540,7 +540,7 @@ app = FastAPI(
     - **Background threads** for trading engine and services
     - **Atomic state files** for crash recovery
     """,
-    version="10.1.0",
+    version="10.3.0",
     lifespan=lifespan,
     docs_url="/docs",        # Swagger UI at /docs
     redoc_url="/redoc",      # ReDoc at /redoc
@@ -580,7 +580,7 @@ async def root():
     """Root endpoint — quick health check and API info."""
     return {
         "name": "DDLJ Trading System",
-        "version": "10.1.0",
+        "version": "10.3.0",
         "status": "running",
         "docs": "/docs",
         "websocket": "/ws/status" if ENABLE_WEBSOCKET else "disabled",

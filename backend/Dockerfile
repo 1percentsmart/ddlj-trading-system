@@ -4,6 +4,11 @@
 # This Dockerfile creates a lightweight production image for
 # running the DDLJ FastAPI backend on Railway.
 #
+# USAGE:
+#   - If Railway Root Directory = "backend/", this file is used
+#   - If Railway Root Directory = "/" (root), the root Dockerfile is used
+#   Both produce identical results.
+#
 # STRATEGY:
 #   - Use Python 3.12 slim (small image, fast builds)
 #   - Install dependencies first (cached layer)
@@ -17,8 +22,8 @@ FROM python:3.12-slim AS base
 
 # Metadata
 LABEL maintainer="DDLJ Strategy Team"
-LABEL description="DDLJ v10.1 — Options Trading Backend"
-LABEL version="10.1.0"
+LABEL description="DDLJ v10.3 — Options Trading Backend"
+LABEL version="10.3.0"
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -49,6 +54,8 @@ RUN useradd --create-home --shell /bin/bash ddlj && \
     chown -R ddlj:ddlj /app
 
 # Set project root for path resolution
+# IMPORTANT: When Railway Root Directory = backend/, the app runs from /app
+# which IS the backend dir. The core/config.py module uses this env var.
 ENV PROJECT_ROOT=/app
 
 # Switch to non-root user

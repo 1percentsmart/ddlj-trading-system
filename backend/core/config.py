@@ -22,7 +22,7 @@ WHY SEPARATE FROM engine/config.py?
   App params change per deployment environment.
 
 Author: DDLJ Strategy Team
-Version: 10.1.0
+Version: 10.3.0
 """
 
 import os
