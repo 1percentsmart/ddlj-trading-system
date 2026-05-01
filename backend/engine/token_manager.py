@@ -13,6 +13,7 @@ Version: 9.0 (Paper Trading Production)
 import os
 import sys
 import logging
+import threading
 from datetime import datetime
 
 from .config import KITE_API_KEY, KITE_API_SECRET, KITE_TOKEN_FILE
@@ -31,21 +32,120 @@ if not logger.handlers:
 LOGIN_URL = f"https://kite.trade/connect/login?api_key={KITE_API_KEY}&v=3"
 
 
+def _run_async_blocking(coro_factory, timeout: float = 10):
+    """Run an async DB helper from sync token-management code."""
+    import asyncio
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro_factory())
+
+    result = {"value": None, "error": None}
+
+    def _target():
+        try:
+            result["value"] = asyncio.run(coro_factory())
+        except Exception as exc:
+            result["error"] = exc
+
+    thread = threading.Thread(target=_target, name="DDLJ-Token-DB", daemon=True)
+    thread.start()
+    thread.join(timeout=timeout)
+    if thread.is_alive():
+        raise TimeoutError("Timed out waiting for token database operation")
+    if result["error"]:
+        raise result["error"]
+    return result["value"]
+
+
+def _read_database_token() -> str | None:
+    """Read the latest unexpired access token from durable storage."""
+    async def _load():
+        from sqlalchemy import text
+        from database.connection import get_session
+
+        async for db in get_session():
+            result = await db.execute(text(
+                """
+                SELECT access_token
+                FROM kite_token_store
+                WHERE id = 1
+                  AND access_token IS NOT NULL
+                  AND access_token <> ''
+                  AND (expires_at IS NULL OR expires_at > NOW())
+                """
+            ))
+            row = result.first()
+            return row[0].strip() if row and row[0] else None
+        return None
+
+    try:
+        return _run_async_blocking(_load)
+    except Exception as exc:
+        logger.debug("Could not read token from database: %s", exc)
+        return None
+
+
+def _save_database_token(access_token: str) -> None:
+    """Persist the access token to durable storage for redeploy recovery."""
+    async def _save():
+        from sqlalchemy import text
+        from database.connection import get_session
+
+        async for db in get_session():
+            await db.execute(text(
+                """
+                INSERT INTO kite_token_store (id, access_token, expires_at, updated_at)
+                VALUES (
+                    1,
+                    :access_token,
+                    (timezone('Asia/Kolkata', now())::date + interval '1 day') AT TIME ZONE 'Asia/Kolkata',
+                    NOW()
+                )
+                ON CONFLICT (id) DO UPDATE SET
+                    access_token = EXCLUDED.access_token,
+                    expires_at = EXCLUDED.expires_at,
+                    updated_at = NOW()
+                """
+            ), {"access_token": access_token.strip()})
+            await db.commit()
+            break
+
+    try:
+        _run_async_blocking(_save)
+        logger.info("Access token saved to durable database storage")
+    except Exception as exc:
+        logger.warning("Could not save token to database: %s", exc)
+
+
 def _read_stored_token() -> str | None:
-    """Read the access token from the token file on disk."""
+    """Read the access token from env, disk, or durable database storage."""
+    env_token = os.getenv("KITE_ACCESS_TOKEN", "").strip()
+    if env_token:
+        return env_token
+
     try:
         with open(KITE_TOKEN_FILE, "r") as f:
             token = f.read().strip()
-        return token if token else None
+        if token:
+            return token
     except FileNotFoundError:
         logger.debug("Token file not found: %s", KITE_TOKEN_FILE)
-        return None
     except OSError as exc:
         logger.warning("Could not read token file: %s", exc)
-        return None
+
+    db_token = _read_database_token()
+    if db_token:
+        try:
+            _save_token_file(db_token)
+        except OSError as exc:
+            logger.debug("Could not hydrate token file from database: %s", exc)
+        return db_token
+    return None
 
 
-def _save_token(access_token: str) -> None:
+def _save_token_file(access_token: str) -> None:
     """Persist the access token to disk (overwrites any previous token)."""
     token_dir = os.path.dirname(KITE_TOKEN_FILE)
     if token_dir:
@@ -53,6 +153,12 @@ def _save_token(access_token: str) -> None:
     with open(KITE_TOKEN_FILE, "w") as f:
         f.write(access_token.strip())
     logger.info("Access token saved to %s", KITE_TOKEN_FILE)
+
+
+def _save_token(access_token: str) -> None:
+    """Persist the access token to disk and durable database storage."""
+    _save_token_file(access_token)
+    _save_database_token(access_token)
 
 
 def _create_kite_instance(access_token: str | None = None):

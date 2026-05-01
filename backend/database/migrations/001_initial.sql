@@ -156,6 +156,19 @@ CREATE INDEX IF NOT EXISTS ix_token_log_created_at ON token_log (created_at);
 
 
 -- ============================================================================
+-- TABLE 5B: KITE_TOKEN_STORE — Durable latest daily access token
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS kite_token_store (
+    id           INTEGER PRIMARY KEY DEFAULT 1,
+    access_token TEXT NOT NULL,
+    expires_at   TIMESTAMPTZ,
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT kite_token_store_singleton CHECK (id = 1)
+);
+
+
+-- ============================================================================
 -- TABLE 6: ERROR_LOG — Error tracking
 -- ============================================================================
 
@@ -186,6 +199,6 @@ CREATE INDEX IF NOT EXISTS ix_errors_severity_resolved ON error_log (severity, r
 --     WHERE table_schema = 'public'
 --     AND table_name IN (
 --         'trades', 'positions', 'sessions',
---         'config_overrides', 'token_log', 'error_log'
+--         'config_overrides', 'token_log', 'kite_token_store', 'error_log'
 --     )
 --     ORDER BY table_name;
