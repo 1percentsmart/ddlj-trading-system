@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { API_BASE, engineApi, tradesApi, configApi, healthApi, tokenApi, backtestApi, liveSafetyApi } from '../lib/api';
+import { API_BASE, engineApi, tradesApi, configApi, healthApi, tokenApi, backtestApi } from '../lib/api';
 
 // ── Mock fetch globally ──
 const mockFetch = vi.fn();
@@ -23,9 +23,8 @@ beforeEach(() => {
 // ============================================================================
 
 describe('API Configuration', () => {
-  it('should have API_BASE pointing to Railway backend', () => {
-    expect(API_BASE).toContain('railway.app');
-    expect(API_BASE).toContain('/api/v1');
+  it('should have API_BASE pointing to relative /api/v1', () => {
+    expect(API_BASE).toBe('/api/v1');
   });
 });
 
@@ -53,25 +52,25 @@ describe('engineApi', () => {
   });
 
   it('start - should call POST /start', async () => {
-    mockFetch.mockReturnValue(mockResponse({ status: 'started', message: 'ok' }));
+    mockFetch.mockReturnValue(mockResponse({ ok: true }));
 
     const result = await engineApi.start();
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/start'),
       expect.objectContaining({ method: 'POST' })
     );
-    expect(result.status).toBe('started');
+    expect(result.ok).toBe(true);
   });
 
   it('stop - should call POST /stop', async () => {
-    mockFetch.mockReturnValue(mockResponse({ status: 'stopped', message: 'ok' }));
+    mockFetch.mockReturnValue(mockResponse({ ok: true }));
 
     const result = await engineApi.stop();
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/stop'),
       expect.objectContaining({ method: 'POST' })
     );
-    expect(result.status).toBe('stopped');
+    expect(result.ok).toBe(true);
   });
 
   it('getReadiness - should call GET /readiness', async () => {
@@ -180,6 +179,48 @@ describe('tokenApi', () => {
 
     const result = await tokenApi.getLoginUrl();
     expect(result.login_url).toContain('kite.trade');
+  });
+});
+
+// ============================================================================
+// TEST: Backtest API
+// ============================================================================
+
+describe('backtestApi', () => {
+  it('run - should call POST /backtest/run with config', async () => {
+    mockFetch.mockReturnValue(mockResponse({
+      status: 'started', message: 'Backtest started',
+    }));
+
+    const result = await backtestApi.run({
+      symbol: 'BANKNIFTY',
+      method: 'method_a',
+      timeframe: '15m/60m',
+      capital: 50000,
+    });
+    expect(result.status).toBe('started');
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/backtest/run'),
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.any(String),
+      })
+    );
+  });
+
+  it('getStatus - should call GET /backtest/status', async () => {
+    mockFetch.mockReturnValue(mockResponse({
+      status: 'completed',
+      last_results: {
+        version: 'v10',
+        configs_tested: 3,
+        method_a_top: {},
+        method_b_top: {},
+      },
+    }));
+
+    const result = await backtestApi.getStatus();
+    expect(result.status).toBe('completed');
   });
 });
 

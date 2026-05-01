@@ -16,6 +16,7 @@ import {
   type BacktestTradeDetail,
   type BacktestStatusResult,
   type BacktestRunConfig,
+  type BacktestProgress,
   backtestApi,
 } from '@/lib/api';
 import { cn, formatCurrency, pnlColor, formatPercent, formatDuration } from '@/lib/utils';
@@ -245,6 +246,7 @@ function TradeDetailTable({ trades }: { trades: BacktestTradeDetail[] }) {
 // ── Default backtest config ────────────────────────────────────
 const DEFAULT_CONFIG: BacktestRunConfig = {
   symbol: 'both',
+  timeframe: 'all',
   method: 'both',
   from_date: '2025-11-01',
   to_date: '2026-04-25',
@@ -262,7 +264,8 @@ const DEFAULT_CONFIG: BacktestRunConfig = {
 export default function BacktestPage() {
   // Configuration state
   const [symbol, setSymbol] = useState<'BANKNIFTY' | 'NIFTY' | 'both'>(DEFAULT_CONFIG.symbol!);
-  const [method, setMethod] = useState<'compounding' | 'monthly' | 'both'>(DEFAULT_CONFIG.method!);
+  const [method, setMethod] = useState<'method_a' | 'method_b' | 'both'>(DEFAULT_CONFIG.method!);
+  const [timeframe, setTimeframe] = useState<'15m/60m' | '15m/15m' | '5m/60m' | 'all'>(DEFAULT_CONFIG.timeframe!);
   const [fromDate, setFromDate] = useState(DEFAULT_CONFIG.from_date!);
   const [toDate, setToDate] = useState(DEFAULT_CONFIG.to_date!);
   const [capital, setCapital] = useState(DEFAULT_CONFIG.capital!);
@@ -322,8 +325,11 @@ export default function BacktestPage() {
           setProgressMsg('Results loaded from previous run');
         } else if (status.status === 'running') {
           setIsRunning(true);
-          setProgress(status.progress || 0);
-          setProgressMsg(status.message || 'Running...');
+          const progObj = status.progress;
+          const pct = typeof progObj === 'object' && progObj !== null ? (progObj as BacktestProgress).pct ?? 0 : typeof progObj === 'number' ? progObj : 0;
+          const msg = typeof progObj === 'object' && progObj !== null ? (progObj as BacktestProgress).message ?? status.message ?? 'Running...' : status.message ?? 'Running...';
+          setProgress(pct);
+          setProgressMsg(msg);
           startTimeRef.current = Date.now() - (status.elapsed_seconds || 0) * 1000;
           startPolling();
         } else if (status.status === 'error') {
@@ -362,8 +368,12 @@ export default function BacktestPage() {
     pollRef.current = setInterval(async () => {
       try {
         const status = await backtestApi.getStatus();
-        setProgress(status.progress || 0);
-        setProgressMsg(status.message || '');
+        // Progress can be a number (legacy) or an object with pct/message
+        const progObj = status.progress;
+        const pct = typeof progObj === 'object' && progObj !== null ? (progObj as BacktestProgress).pct ?? 0 : typeof progObj === 'number' ? progObj : 0;
+        const msg = typeof progObj === 'object' && progObj !== null ? (progObj as BacktestProgress).message ?? status.message ?? '' : status.message ?? '';
+        setProgress(pct);
+        setProgressMsg(msg);
 
         if (status.status === 'completed' && status.last_results) {
           setResults(flattenResults(status));
@@ -400,6 +410,7 @@ export default function BacktestPage() {
 
     const config: BacktestRunConfig = {
       symbol,
+      timeframe,
       method,
       from_date: fromDate,
       to_date: toDate,
@@ -564,14 +575,30 @@ export default function BacktestPage() {
               {/* Method */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground">Method</Label>
-                <Select value={method} onValueChange={(v) => setMethod(v as 'compounding' | 'monthly' | 'both')}>
+                <Select value={method} onValueChange={(v) => setMethod(v as 'method_a' | 'method_b' | 'both')}>
                   <SelectTrigger className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="both">Both Methods</SelectItem>
-                    <SelectItem value="compounding">Compounding</SelectItem>
-                    <SelectItem value="monthly">Monthly Batch</SelectItem>
+                    <SelectItem value="method_a">Compounding</SelectItem>
+                    <SelectItem value="method_b">Monthly Batch</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Timeframe */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Timeframe</Label>
+                <Select value={timeframe} onValueChange={(v) => setTimeframe(v as '15m/60m' | '15m/15m' | '5m/60m' | 'all')}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Combinations</SelectItem>
+                    <SelectItem value="15m/60m">15m Entry / 60m Bias</SelectItem>
+                    <SelectItem value="15m/15m">15m Entry / 15m Bias</SelectItem>
+                    <SelectItem value="5m/60m">5m Entry / 60m Bias</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -715,7 +742,7 @@ export default function BacktestPage() {
             <div className="mt-4 pt-3 border-t border-border/30">
               <p className="text-xs text-muted-foreground">
                 <span className="font-medium">Active config:</span>{' '}
-                {symbol} | {fromDate} to {toDate} | {formatCurrency(capital)} capital | SL {slAtr}x ATR | RR {minRR}+ | {moneyness} | {dailyRiskPct}% daily risk
+                {symbol} | TF: {timeframe} | {fromDate} to {toDate} | {formatCurrency(capital)} capital | SL {slAtr}x ATR | RR {minRR}+ | {moneyness} | {dailyRiskPct}% daily risk
                 {maxDailyTradesEnabled && ` | max ${maxDailyTrades} trades/day`}
               </p>
             </div>

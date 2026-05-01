@@ -79,16 +79,19 @@ export default function RiskPage() {
     }
   }, [maxDailyTradesEnabled, maxDailyTrades, dailyRiskPct, maxDrawdownPct, updateConfig]);
 
+  // Get starting capital from backend config, fallback to 50000
+  const startingCapital = config?.STARTING_CAPITAL ? Number(config.STARTING_CAPITAL) : 50000;
+
   // Compute risk metrics from trades
   const totalPnl = trades.reduce((s, t) => s + t.net, 0);
   const losses = trades.filter(t => t.net < 0);
   const wins = trades.filter(t => t.net > 0);
 
-  // Running drawdown calculation
-  let peak = 50000; // default capital
+  // Running drawdown calculation — uses configured capital
+  let peak = startingCapital;
   let maxDrawdown = 0;
   let maxDrawdownPctActual = 0;
-  let running = 50000;
+  let running = startingCapital;
   for (const t of trades) {
     running += t.net;
     if (running > peak) peak = running;
@@ -104,7 +107,7 @@ export default function RiskPage() {
     ? wins.reduce((s, t) => s + t.net, 0) / losses.reduce((s, t) => s + Math.abs(t.net), 0)
     : 0;
 
-  const currentCapital = 50000 + totalPnl;
+  const currentCapital = startingCapital + totalPnl;
   const dailyRiskAmt = currentCapital * (dailyRiskPct / 100);
   const maxPositionRisk = dailyRiskAmt;
 

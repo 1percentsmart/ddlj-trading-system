@@ -2,7 +2,7 @@
  * DDLJ Trading System — API Service Layer
  * ==========================================
  * Type-safe API client for the FastAPI backend.
- * Frontend requests use the Next.js /api/v1 proxy, which rewrites to BACKEND_URL.
+ * All endpoints match the real backend at https://ddlj.up.railway.app/api/v1
  */
 
 const API_BASE = '/api/v1';
@@ -27,20 +27,12 @@ export interface EngineStatus {
   uptime_seconds?: number;
 }
 
-export interface EngineActionResult {
-  status?: string;
-  message?: string;
-  ok?: boolean;
-}
-
 export interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';
   reason?: string;
   action?: string;
   engine_running?: boolean;
   token_valid?: boolean;
-  checks?: Record<string, unknown>;
-  system?: Record<string, unknown>;
 }
 
 export interface TradesResponse {
@@ -122,33 +114,18 @@ export interface BacktestRunResult {
   message: string;
   note?: string;
   hint?: string;
-  params?: Record<string, unknown>;
-  progress_endpoint?: string;
-}
-
-export interface BacktestProgress {
-  phase: string;
-  current_config: number;
-  total_configs: number;
-  current_label: string;
-  data_fetched: boolean;
-  candle_counts: Record<string, number>;
-  pct: number;
-  message: string;
 }
 
 export interface BacktestStatusResult {
   status: string;
   message?: string;
-  // Normalized numeric progress for existing UI components.
-  progress?: number;
-  // Full backend progress object, when available.
-  progress_detail?: BacktestProgress;
+  progress?: number | BacktestProgress; // Can be number (legacy) or object (current)
   elapsed_seconds?: number;
   started_at?: string;
-  params?: Record<string, unknown> | null;
+  params?: BacktestRunConfig;
   last_results?: {
     version: string;
+    params_used?: BacktestRunConfig;
     configs_tested: number;
     method_a_top: Record<string, BacktestConfigResult>;
     method_b_top: Record<string, BacktestConfigResult>;
@@ -195,6 +172,7 @@ export interface BacktestConfigResult {
   max_dd_pct: number;
   sharpe_approx: number;
   avg_trade: number;
+  // Additional fields from the backend analysis
   gross_profit?: number;
   gross_loss?: number;
   total_costs?: number;
@@ -212,6 +190,7 @@ export interface BacktestConfigResult {
   starting_capital?: number;
   exit_reasons?: Record<string, number>;
   monthly_pnl?: Record<string, number>;
+  // Individual trade details — critical for the trade log view
   trades?: BacktestTradeDetail[];
 }
 
@@ -223,20 +202,9 @@ export interface ReadinessCheck {
   next_actions: string[];
 }
 
-export interface LiveReadinessCheck {
-  status: 'ready' | 'blocked';
-  mode: string;
-  checks: Record<string, boolean>;
-  blockers: string[];
-  kill_switch: {
-    active: boolean;
-    reason: string | null;
-  };
-  message: string;
-}
-
 // ── Helper ─────────────────────────────────────────────────────
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  // Use Next.js API proxy route — requests go to /api/v1/* which proxies to the backend
   const url = `${API_BASE}${path}`;
   const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -252,8 +220,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 // ── Engine ──────────────────────────────────────────────────────
 export const engineApi = {
   getStatus: () => request<EngineStatus>('/status'),
-  start: () => request<EngineActionResult>('/start', { method: 'POST' }),
-  stop: () => request<EngineActionResult>('/stop', { method: 'POST' }),
+  start: () => request<{ ok: boolean }>('/start', { method: 'POST' }),
+  stop: () => request<{ ok: boolean }>('/stop', { method: 'POST' }),
   getReadiness: () => request<ReadinessCheck>('/readiness'),
 };
 
@@ -290,28 +258,13 @@ export const tokenApi = {
   getLoginUrl: () => request<TokenLoginUrl>('/token/login'),
 };
 
-// ── Live safety ─────────────────────────────────────────────────
-export const liveSafetyApi = {
-  getReadiness: () => request<LiveReadinessCheck>('/live/readiness'),
-  activateKillSwitch: (reason = 'manual') =>
-    request<{ status: string; kill_switch: boolean; reason: string }>(
-      `/live/kill-switch?reason=${encodeURIComponent(reason)}`,
-      { method: 'POST' },
-    ),
-  resetKillSwitch: () =>
-    request<{ status: string; kill_switch: boolean }>('/live/kill-switch/reset', { method: 'POST' }),
-};
-
-// ── Backtest ────────────────────────────────────────────────────
-export type BacktestMethod = 'method_a' | 'method_b' | 'compounding' | 'monthly' | 'both';
-export type BacktestTimeframe = '15m/60m' | '15m/15m' | '5m/60m' | '5m' | '15m' | '60m' | 'all';
-
+// ── Backtest ──────────────────────────────────────────────────────
 export interface BacktestRunConfig {
   symbol?: 'BANKNIFTY' | 'NIFTY' | 'both';
-  timeframe?: BacktestTimeframe;
-  method?: BacktestMethod;
-  from_date?: string;
-  to_date?: string;
+  timeframe?: '15m/60m' | '15m/15m' | '5m/60m' | 'all';
+  method?: 'method_a' | 'method_b' | 'both';
+  from_date?: string; // YYYY-MM-DD
+  to_date?: string;   // YYYY-MM-DD
   capital?: number;
   sl_atr?: number;
   min_rr?: number;
@@ -322,54 +275,22 @@ export interface BacktestRunConfig {
   max_daily_trades_enabled?: boolean;
 }
 
-function normalizeBacktestConfig(config?: BacktestRunConfig): BacktestRunConfig | undefined {
-  if (!config) return undefined;
-
-  const methodMap: Record<string, 'method_a' | 'method_b' | 'both'> = {
-    compounding: 'method_a',
-    monthly: 'method_b',
-    method_a: 'method_a',
-    method_b: 'method_b',
-    both: 'both',
-  };
-
-  const timeframeMap: Partial<Record<BacktestTimeframe, '15m/60m' | '15m/15m' | '5m/60m' | 'all'>> = {
-    '5m': '5m/60m',
-    '15m': '15m/60m',
-    '60m': '15m/60m',
-    '15m/60m': '15m/60m',
-    '15m/15m': '15m/15m',
-    '5m/60m': '5m/60m',
-    all: 'all',
-  };
-
-  return {
-    ...config,
-    method: config.method ? methodMap[config.method] : undefined,
-    timeframe: config.timeframe ? timeframeMap[config.timeframe] : undefined,
-  };
-}
-
-function normalizeBacktestStatus(raw: BacktestStatusResult & { progress?: number | BacktestProgress }): BacktestStatusResult {
-  const rawProgress = raw.progress;
-  const progressDetail = typeof rawProgress === 'object' && rawProgress !== null ? rawProgress : undefined;
-  const progressNumber = typeof rawProgress === 'number'
-    ? rawProgress
-    : progressDetail?.pct ?? (raw.status === 'completed' ? 100 : 0);
-
-  return {
-    ...raw,
-    progress: progressNumber,
-    progress_detail: progressDetail,
-    message: progressDetail?.message ?? raw.message,
-  };
+export interface BacktestProgress {
+  phase?: string;
+  current_config?: number;
+  total_configs?: number;
+  current_label?: string;
+  data_fetched?: boolean;
+  candle_counts?: Record<string, number>;
+  pct?: number;
+  message?: string;
 }
 
 export const backtestApi = {
   run: (config?: BacktestRunConfig) =>
     request<BacktestRunResult>('/backtest/run', {
       method: 'POST',
-      body: config ? JSON.stringify(normalizeBacktestConfig(config)) : undefined,
+      body: config ? JSON.stringify(config) : undefined,
     }),
-  getStatus: async () => normalizeBacktestStatus(await request<BacktestStatusResult & { progress?: number | BacktestProgress }>('/backtest/status')),
+  getStatus: () => request<BacktestStatusResult>('/backtest/status'),
 };

@@ -110,7 +110,14 @@ class EMACrossSignal:
         if not ve:
             return Signal("NO_SIGNAL", "no ema")
 
-        ce = ve[-1]
+        # BUG FIX: Use separate EMA values for previous and current candle
+        # Previously: both prev and cur were compared against ve[-1] (current EMA)
+        # Now: prev close vs previous EMA, current close vs current EMA
+        if len(ve) < 2:
+            return Signal("NO_SIGNAL", "ema warming up")
+
+        cur_ema = ve[-1]
+        prev_ema = ve[-2]
 
         try:
             ca = atr(candles, self.atr_period)
@@ -122,30 +129,32 @@ class EMACrossSignal:
 
         # BULLISH SIGNAL DETECTION
         if bias.direction == "BULLISH":
-            # Pattern 1: EMA Cross
-            if prev.close < ce - self.ema_buffer * ca:
-                if cur.close > ce + self.ema_buffer * ca:
+            # Pattern 1: EMA Cross — prev close below prev EMA, current close above current EMA
+            if prev.close < prev_ema - self.ema_buffer * ca:
+                if cur.close > cur_ema + self.ema_buffer * ca:
                     if cur.is_bullish and cur.body_size >= self.min_body_atr * ca:
-                        return self._make_long(cur, ce, ca, candles)
+                        return self._make_long(cur, cur_ema, ca, candles)
 
             # Pattern 2: Bullish continuation after pullback
-            if cur.is_bullish and cur.close > ce + self.ema_buffer * ca:
+            if cur.is_bullish and cur.close > cur_ema + self.ema_buffer * ca:
                 if cur.body_size >= self.min_body_atr * ca * 1.5:
-                    if prev.is_bearish and prev.close < ce:
-                        return self._make_long(cur, ce, ca, candles)
+                    if prev.is_bearish and prev.close < prev_ema:
+                        return self._make_long(cur, cur_ema, ca, candles)
 
             return Signal("NO_SIGNAL", "no long setup")
 
         # BEARISH SIGNAL DETECTION
-        if prev.close > ce + self.ema_buffer * ca:
-            if cur.close < ce - self.ema_buffer * ca:
+        # Pattern 1: EMA Cross — prev close above prev EMA, current close below current EMA
+        if prev.close > prev_ema + self.ema_buffer * ca:
+            if cur.close < cur_ema - self.ema_buffer * ca:
                 if cur.is_bearish and cur.body_size >= self.min_body_atr * ca:
-                    return self._make_short(cur, ce, ca, candles)
+                    return self._make_short(cur, cur_ema, ca, candles)
 
-        if cur.is_bearish and cur.close < ce - self.ema_buffer * ca:
+        # Pattern 2: Bearish continuation after pullback
+        if cur.is_bearish and cur.close < cur_ema - self.ema_buffer * ca:
             if cur.body_size >= self.min_body_atr * ca * 1.5:
-                if prev.is_bullish and prev.close > ce:
-                    return self._make_short(cur, ce, ca, candles)
+                if prev.is_bullish and prev.close > prev_ema:
+                    return self._make_short(cur, cur_ema, ca, candles)
 
         return Signal("NO_SIGNAL", "no short setup")
 

@@ -270,17 +270,17 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
     if symbol in ("BANKNIFTY", "both"):
         _progress(phase="fetching", message="Fetching BANKNIFTY candle data...", pct=10)
         bn_5m_raw = _fetch_data_if_needed(
-            [BN_INDEX_TOKEN, bn_fut_token], "5minute", from_date, to_date,
+            [BN_INDEX_TOKEN], "5minute", from_date, to_date,
             use_sample_data=use_sample_data, progress_callback=_progress,
         )
         _progress(phase="fetching", message="Fetching BANKNIFTY 15m data...", pct=15)
         bn_15m_raw = _fetch_data_if_needed(
-            [BN_INDEX_TOKEN, bn_fut_token], "15minute", from_date, to_date,
+            [BN_INDEX_TOKEN], "15minute", from_date, to_date,
             use_sample_data=use_sample_data, progress_callback=_progress,
         )
         _progress(phase="fetching", message="Fetching BANKNIFTY 60m data...", pct=20)
         bn_60m_raw = _fetch_data_if_needed(
-            [BN_INDEX_TOKEN, bn_fut_token], "60minute", from_date, to_date,
+            [BN_INDEX_TOKEN], "60minute", from_date, to_date,
             use_sample_data=use_sample_data, progress_callback=_progress,
         )
         bn_5m = filter_candles_by_date(parse_candles(bn_5m_raw, "BANKNIFTY", "5m"), from_date, to_date)
@@ -309,17 +309,17 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
     if symbol in ("NIFTY", "both"):
         _progress(phase="fetching", message="Fetching NIFTY candle data...", pct=25)
         nf_5m_raw = _fetch_data_if_needed(
-            [NF_INDEX_TOKEN, nf_fut_token], "5minute", from_date, to_date,
+            [NF_INDEX_TOKEN], "5minute", from_date, to_date,
             use_sample_data=use_sample_data, progress_callback=_progress,
         )
         _progress(phase="fetching", message="Fetching NIFTY 15m data...", pct=30)
         nf_15m_raw = _fetch_data_if_needed(
-            [NF_INDEX_TOKEN, nf_fut_token], "15minute", from_date, to_date,
+            [NF_INDEX_TOKEN], "15minute", from_date, to_date,
             use_sample_data=use_sample_data, progress_callback=_progress,
         )
         _progress(phase="fetching", message="Fetching NIFTY 60m data...", pct=35)
         nf_60m_raw = _fetch_data_if_needed(
-            [NF_INDEX_TOKEN, nf_fut_token], "60minute", from_date, to_date,
+            [NF_INDEX_TOKEN], "60minute", from_date, to_date,
             use_sample_data=use_sample_data, progress_callback=_progress,
         )
         nf_5m = filter_candles_by_date(parse_candles(nf_5m_raw, "NIFTY", "5m"), from_date, to_date)
@@ -424,6 +424,9 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
                         oe_a = OptionsMimicryEngine(inst_name, moneyness_val, spread_regime_val, capital=capital)
                         trades_a, _ = run_backtest_enhanced(inst_name, entry_candles, bias_candles,
                                                             se_a, be_a, oe_a, entry_tf_minutes=entry_tf_min,
+                                                            starting_capital=capital,
+                                                            daily_risk_pct=daily_risk_pct,
+                                                            max_open_positions=max_open_positions,
                                                             max_daily_trades=max_daily_trades,
                                                             max_daily_trades_enabled=max_daily_trades_enabled)
                         results_a[label] = analyze(trades_a, label, capital)
@@ -435,6 +438,9 @@ def main(params: Optional[Dict[str, Any]] = None, progress_callback=None):
                         oe_b = OptionsMimicryEngine(inst_name, moneyness_val, spread_regime_val, capital=capital)
                         trades_b, _ = run_backtest_enhanced(inst_name, entry_candles, bias_candles,
                                                             se_b, be_b, oe_b, entry_tf_minutes=entry_tf_min,
+                                                            starting_capital=capital,
+                                                            daily_risk_pct=daily_risk_pct,
+                                                            max_open_positions=max_open_positions,
                                                             monthly_reset=True,
                                                             max_daily_trades=max_daily_trades,
                                                             max_daily_trades_enabled=max_daily_trades_enabled)

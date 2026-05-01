@@ -29,7 +29,12 @@ export default function EnginePage() {
     healthStatus, readiness,
   } = useDDLJStore();
 
-  const dailyPnl = trades.reduce((s, t) => s + t.net, 0);
+  // Daily P&L — filter trades by today's date
+  const today = new Date().toISOString().split('T')[0];
+  const dailyPnl = trades.filter(t => {
+    const tradeDate = t.entry_time?.split('T')[0];
+    return tradeDate === today;
+  }).reduce((s, t) => s + t.net, 0);
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto">
@@ -152,7 +157,7 @@ export default function EnginePage() {
         <Card className="border-border/50 bg-card/80">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground uppercase">Trades Today</p>
-            <p className="text-lg font-bold">{trades.length}</p>
+            <p className="text-lg font-bold">{trades.filter(t => t.entry_time?.split('T')[0] === today).length}</p>
           </CardContent>
         </Card>
         <Card className="border-border/50 bg-card/80">
